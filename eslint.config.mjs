@@ -7,8 +7,9 @@ const __dirname = dirname(__filename);
 
 const compat = new FlatCompat({
   baseDirectory: __dirname,
+  // This prevents the Vercel error
   recommendedConfig: {
-    extends: ['eslint:recommended'],
+    extends: [],
   },
 });
 
