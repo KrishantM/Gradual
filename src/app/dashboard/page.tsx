@@ -41,7 +41,7 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, [user]);
+  }, [user, router]);
 
   if (loading) return <p className="text-center mt-6 text-white">Loading...</p>;
 

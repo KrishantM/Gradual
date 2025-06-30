@@ -45,7 +45,7 @@ export default function ProfilePage() {
     };
 
     fetchProfile();
-  }, [user, authLoading]);
+  }, [user, authLoading, router]);
 
   const handleChange = (e: any) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));

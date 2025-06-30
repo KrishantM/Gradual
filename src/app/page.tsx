@@ -99,7 +99,7 @@ export default function LandingPage() {
                 {isSubmitted ? (
                   <div className="text-center py-8">
                     <CheckCircle className="h-16 w-16 text-green-400 mx-auto mb-4" />
-                    <p className="text-green-400 text-lg font-medium">Thanks for joining! We'll be in touch soon.</p>
+                    <p className="text-green-400 text-lg font-medium">Thanks for joining! We&apos;ll be in touch soon.</p>
                   </div>
                 ) : (
                   <form onSubmit={handleSubmit} className="space-y-4">

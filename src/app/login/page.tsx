@@ -13,7 +13,7 @@ export default function LoginPage() {
     if (user) {
       router.push('/dashboard');
     }
-  }, [user]);
+  }, [user, router]);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
