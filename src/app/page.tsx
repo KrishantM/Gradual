@@ -7,17 +7,32 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Brain, Target, BarChart3, Users, ArrowRight, CheckCircle } from "lucide-react"
+import { collection, addDoc, serverTimestamp } from "firebase/firestore"
+import { db } from "@/lib/firebase"
 
 export default function LandingPage() {
   const [email, setEmail] = useState("")
   const [name, setName] = useState("")
   const [isSubmitted, setIsSubmitted] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle form submission here
-    setIsSubmitted(true)
-    setTimeout(() => setIsSubmitted(false), 3000)
+  
+    try {
+      await addDoc(collection(db, "waitlist"), {
+        name,
+        email,
+        submittedAt: serverTimestamp(),
+      })
+  
+      setIsSubmitted(true)
+      setEmail("")
+      setName("")
+      setTimeout(() => setIsSubmitted(false), 3000)
+    } catch (error) {
+      console.error("❌ Error adding to waitlist:", error)
+      alert("There was an error. Please try again.")
+    }
   }
 
   const features = [
