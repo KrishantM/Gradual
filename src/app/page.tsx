@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Brain, Target, BarChart3, Users, ArrowRight, CheckCircle } from "lucide-react"
-import { collection, addDoc, serverTimestamp } from "firebase/firestore"
+import { collection, addDoc, serverTimestamp, query, where, getDocs } from "firebase/firestore"
 import { db } from "@/lib/firebase"
+import emailjs from "@emailjs/browser"
 
 export default function LandingPage() {
   const [email, setEmail] = useState("")
@@ -18,20 +19,46 @@ export default function LandingPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
   
+    const normalizedEmail = email.trim().toLowerCase()
+  
     try {
+      // 1. Check for duplicate
+      const q = query(collection(db, "waitlist"), where("email", "==", normalizedEmail))
+      const existing = await getDocs(q)
+  
+      if (!existing.empty) {
+        alert("You're already on the waitlist. We'll be in touch soon!")
+        setIsSubmitted(true)
+        return
+      }
+  
+      // 2. Save to Firestore
       await addDoc(collection(db, "waitlist"), {
         name,
-        email,
+        email: normalizedEmail,
         submittedAt: serverTimestamp(),
       })
   
+      // 3. Send email using EmailJS
+      await emailjs.send(
+        "NXT_Waitlist",    // e.g., service_6aq1c1a
+        "template_29837za",   // e.g., template_vyb2f4m
+        {
+          user_name: name,
+          email: normalizedEmail,
+        },
+        "yZVQJAf_JS1Bm3-JS"     // e.g., oD3hTQyGzH2zjk12x
+      )
+  
+      // 4. Reset UI
       setIsSubmitted(true)
-      setEmail("")
       setName("")
+      setEmail("")
       setTimeout(() => setIsSubmitted(false), 3000)
-    } catch (error) {
-      console.error("❌ Error adding to waitlist:", error)
-      alert("There was an error. Please try again.")
+  
+    } catch (err) {
+      console.error("Error during waitlist submission:", err)
+      alert("Oops! Something went wrong. Please try again.")
     }
   }
 
