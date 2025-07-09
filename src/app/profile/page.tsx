@@ -3,12 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { db } from '../../../lib/firebase';
+import { db, storage } from '../../../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth(); // updated
+  const { user, loading: authLoading } = useAuth();
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -19,11 +20,12 @@ export default function ProfilePage() {
     cvLink: '',
   });
 
+  const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (authLoading) return; // wait for Firebase Auth to load
+    if (authLoading) return;
 
     if (!user) {
       router.push('/login');
@@ -51,12 +53,29 @@ export default function ProfilePage() {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile && selectedFile.type === 'application/pdf') {
+      setFile(selectedFile);
+    } else {
+      alert('Please upload a PDF file.');
+    }
+  };
+
   const handleSave = async () => {
     if (!user) return;
     try {
+      let cvUrl = formData.cvLink;
+
+      if (file) {
+        const fileRef = ref(storage, `cvs/${user.uid}/${file.name}`);
+        const snapshot = await uploadBytes(fileRef, file);
+        cvUrl = await getDownloadURL(snapshot.ref);
+      }
+
       await setDoc(
         doc(db, 'users', user.uid),
-        { ...formData, updatedAt: new Date() },
+        { ...formData, cvLink: cvUrl, updatedAt: new Date() },
         { merge: true }
       );
       alert('Profile saved!');
@@ -119,13 +138,19 @@ export default function ProfilePage() {
             onChange={handleChange}
           />
 
-          <label className="block mb-2 font-semibold text-gray-800">CV Link (optional)</label>
+          <label className="block mb-2 font-semibold text-gray-800">Upload CV (PDF only)</label>
           <input
-            className="w-full p-2 border mb-4 rounded text-black"
-            name="cvLink"
-            value={formData.cvLink}
-            onChange={handleChange}
+            type="file"
+            accept="application/pdf"
+            className="w-full mb-4 text-black"
+            onChange={handleFileChange}
           />
+
+          {formData.cvLink && (
+            <p className="text-sm text-blue-600 mb-4">
+              View uploaded CV: <a href={formData.cvLink} target="_blank" rel="noopener noreferrer">{formData.cvLink}</a>
+            </p>
+          )}
 
           <button
             className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
