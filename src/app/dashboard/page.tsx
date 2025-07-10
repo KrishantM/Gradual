@@ -7,13 +7,28 @@ import { db } from '../../../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
 import ToDoList from '@/components/ToDoList';
-import CVScoreDisplay from '@/components/CVScoreDisplay';
+
+function extractOverallScore(scoreText: string | null): string | null {
+  if (!scoreText) return null;
+  const match = scoreText.match(/Overall Score \(0–100\):\s*(\d+)/);
+  return match ? match[1] : null;
+}
+
+function formatDate(date: any) {
+  if (!date) return '';
+  if (typeof date === 'string') date = new Date(date);
+  if (date.toDate) date = date.toDate(); // Firestore Timestamp
+  return date.toLocaleDateString();
+}
 
 export default function DashboardPage() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [suggestions, setSuggestions] = useState('');
   const [name, setName] = useState('');
+  const [cvScore, setCvScore] = useState<string | null>(null);
+  const [cvScoreTimestamp, setCvScoreTimestamp] = useState<any>(null);
+  const [showDetails, setShowDetails] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,6 +43,8 @@ export default function DashboardPage() {
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
           setName(userSnap.data().fullName || '');
+          setCvScore(userSnap.data().cvScore || null);
+          setCvScoreTimestamp(userSnap.data().cvScoreTimestamp || null);
         }
 
         const suggRef = doc(db, 'suggestions', user.uid);
@@ -45,6 +62,8 @@ export default function DashboardPage() {
     fetchData();
   }, [user, router]);
 
+  const overallScore = extractOverallScore(cvScore);
+
   if (loading || !user) return <p className="text-center mt-6 text-white">Loading...</p>;
 
   return (
@@ -52,9 +71,28 @@ export default function DashboardPage() {
       <h1 className="text-3xl font-bold">Welcome{name && `, ${name}`}!</h1>
 
       {/* CV Score Section */}
-      <div>
-        <h2 className="text-xl font-semibold mb-2">Your Latest CV Score</h2>
-        <CVScoreDisplay userId={user.uid} />
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold mb-2">Your Latest CV Score</h2>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex flex-col items-start">
+          <div className="flex items-center gap-4">
+            <span className="text-5xl font-extrabold text-blue-700">{overallScore ? overallScore : '—'}</span>
+            <button
+              className="ml-2 px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition"
+              onClick={() => setShowDetails((v) => !v)}
+              aria-expanded={showDetails}
+            >
+              {showDetails ? 'Hide Details' : 'View Details'}
+            </button>
+          </div>
+          {cvScoreTimestamp && (
+            <span className="text-xs text-gray-400 mt-1">Last updated: {formatDate(cvScoreTimestamp)}</span>
+          )}
+          {showDetails && cvScore && (
+            <div className="mt-4 w-full text-sm text-gray-800 bg-white border border-blue-100 rounded p-3 whitespace-pre-line" style={{ fontSize: '0.95rem', lineHeight: '1.4' }}>
+              {cvScore}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Saved Suggestions */}

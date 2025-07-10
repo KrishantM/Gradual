@@ -3,9 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { db, storage } from '../../../lib/firebase';
+import { db } from '../../../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -17,21 +16,17 @@ export default function ProfilePage() {
     degree: '',
     gpa: '',
     interests: '',
-    cvLink: '',
   });
-
-  const [file, setFile] = useState<File | null>(null);
+  const [cvFile, setCvFile] = useState<File | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (authLoading) return;
-
     if (!user) {
       router.push('/login');
       return;
     }
-
     const fetchProfile = async () => {
       try {
         const ref = doc(db, 'users', user.uid);
@@ -45,7 +40,6 @@ export default function ProfilePage() {
         setLoading(false);
       }
     };
-
     fetchProfile();
   }, [user, authLoading, router]);
 
@@ -53,29 +47,17 @@ export default function ProfilePage() {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile && selectedFile.type === 'application/pdf') {
-      setFile(selectedFile);
-    } else {
-      alert('Please upload a PDF file.');
-    }
-  };
-
   const handleSave = async () => {
     if (!user) return;
     try {
-      let cvUrl = formData.cvLink;
-
-      if (file) {
-        const fileRef = ref(storage, `cvs/${user.uid}/${file.name}`);
-        const snapshot = await uploadBytes(fileRef, file);
-        cvUrl = await getDownloadURL(snapshot.ref);
-      }
-
+      const { ...dataWithoutFile } = formData;
       await setDoc(
         doc(db, 'users', user.uid),
-        { ...formData, cvLink: cvUrl, updatedAt: new Date() },
+        {
+          ...dataWithoutFile,
+          updatedAt: new Date(),
+          uploadedCVName: cvFile?.name || null,
+        },
         { merge: true }
       );
       alert('Profile saved!');
@@ -84,10 +66,7 @@ export default function ProfilePage() {
     }
   };
 
-  if (authLoading) {
-    return <p className="text-center text-gray-600 mt-8">Authenticating...</p>;
-  }
-
+  if (authLoading) return <p className="text-center text-gray-600 mt-8">Authenticating...</p>;
   if (!user) return null;
 
   return (
@@ -98,59 +77,36 @@ export default function ProfilePage() {
         <p className="text-center text-gray-700">Loading...</p>
       ) : (
         <>
-          <label className="block mb-2 font-semibold text-gray-800">Full Name</label>
-          <input
-            className="w-full p-2 border mb-4 rounded text-black"
-            name="fullName"
-            value={formData.fullName}
-            onChange={handleChange}
-          />
-
-          <label className="block mb-2 font-semibold text-gray-800">University</label>
-          <input
-            className="w-full p-2 border mb-4 rounded text-black"
-            name="university"
-            value={formData.university}
-            onChange={handleChange}
-          />
-
-          <label className="block mb-2 font-semibold text-gray-800">Degree / Major</label>
-          <input
-            className="w-full p-2 border mb-4 rounded text-black"
-            name="degree"
-            value={formData.degree}
-            onChange={handleChange}
-          />
-
-          <label className="block mb-2 font-semibold text-gray-800">GPA</label>
-          <input
-            className="w-full p-2 border mb-4 rounded text-black"
-            name="gpa"
-            value={formData.gpa}
-            onChange={handleChange}
-          />
-
-          <label className="block mb-2 font-semibold text-gray-800">Interests / Passions</label>
-          <textarea
-            className="w-full p-2 border mb-4 rounded text-black"
-            name="interests"
-            value={formData.interests}
-            onChange={handleChange}
-          />
+          {['fullName', 'university', 'degree', 'gpa', 'interests'].map((field) => (
+            <div key={field} className="mb-4">
+              <label className="block mb-2 font-semibold text-gray-800">
+                {field === 'gpa' ? 'GPA' : field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')}
+              </label>
+              {field === 'interests' ? (
+                <textarea
+                  className="w-full p-2 border rounded text-black"
+                  name={field}
+                  value={formData[field as keyof typeof formData]}
+                  onChange={handleChange}
+                />
+              ) : (
+                <input
+                  className="w-full p-2 border rounded text-black"
+                  name={field}
+                  value={formData[field as keyof typeof formData]}
+                  onChange={handleChange}
+                />
+              )}
+            </div>
+          ))}
 
           <label className="block mb-2 font-semibold text-gray-800">Upload CV (PDF only)</label>
           <input
             type="file"
             accept="application/pdf"
-            className="w-full mb-4 text-black"
-            onChange={handleFileChange}
+            onChange={(e) => setCvFile(e.target.files?.[0] || null)}
+            className="mb-4 text-gray-600"
           />
-
-          {formData.cvLink && (
-            <p className="text-sm text-blue-600 mb-4">
-              View uploaded CV: <a href={formData.cvLink} target="_blank" rel="noopener noreferrer">{formData.cvLink}</a>
-            </p>
-          )}
 
           <button
             className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"

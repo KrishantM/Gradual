@@ -1,16 +1,22 @@
+// src/app/api/score/route.ts
+
 import { openai } from '../../../../lib/openai';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   const { cvText } = await req.json();
 
+  if (!cvText || typeof cvText !== 'string') {
+    return NextResponse.json({ error: 'Invalid CV text.' }, { status: 400 });
+  }
+
   try {
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
-  messages: [
-    {
-      role: 'system',
-      content: `You are an AI CV scoring assistant. Always reply in the following structure:
+      messages: [
+        {
+          role: 'system',
+          content: `You are an AI CV scoring assistant. Always reply in the following structure:
 
 Overall Score (0–100): [score]
 
@@ -30,18 +36,18 @@ Overall Score (0–100): [score]
 [1–2 sentence explanation]
 
 Do not include any introduction or closing remarks. Evaluate the overall score based on criteria 1 - 4, with the overall score being the sum of the scores of the criteria. Do not break from this format.`,
-    },
-    {
-      role: 'user',
-      content: `Here is the CV:\n\n${cvText}`,
-    },
-  ],
-});
+        },
+        {
+          role: 'user',
+          content: `Here is the CV:\n\n${cvText}`,
+        },
+      ],
+    });
 
-    const score = response.choices[0].message?.content;
+    const score = response.choices[0].message?.content || '';
     return NextResponse.json({ score });
-  } catch (err: any) {
-    console.error('OpenAI API Error:', err); // Log the real error!
+  } catch (err) {
+    console.error('OpenAI API Error:', err);
     return NextResponse.json({ error: 'Failed to generate score' }, { status: 500 });
   }
 }
