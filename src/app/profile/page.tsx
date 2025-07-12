@@ -5,6 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '../../../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { User, GraduationCap, BookOpen, Star, Save, Upload, Loader2 } from 'lucide-react';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -20,6 +24,7 @@ export default function ProfilePage() {
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -49,6 +54,7 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     if (!user) return;
+    setSaving(true);
     try {
       const { ...dataWithoutFile } = formData;
       await setDoc(
@@ -60,62 +66,205 @@ export default function ProfilePage() {
         },
         { merge: true }
       );
-      alert('Profile saved!');
+      alert('Profile saved successfully!');
     } catch (err) {
       setError('Failed to save profile.');
+    } finally {
+      setSaving(false);
     }
   };
 
-  if (authLoading) return <p className="text-center text-gray-600 mt-8">Authenticating...</p>;
+  if (authLoading) return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black flex items-center justify-center">
+      <div className="text-center">
+        <Loader2 className="h-8 w-8 text-blue-400 animate-spin mx-auto mb-4" />
+        <p className="text-gray-300">Authenticating...</p>
+      </div>
+    </div>
+  );
+  
   if (!user) return null;
 
   return (
-    <div className="max-w-xl mx-auto p-6 bg-gray-50 shadow rounded mt-8">
-      <h1 className="text-2xl font-bold mb-4 text-center text-gray-800">Your Profile</h1>
-      {error && <p className="text-red-600 mb-2">{error}</p>}
-      {loading ? (
-        <p className="text-center text-gray-700">Loading...</p>
-      ) : (
-        <>
-          {['fullName', 'university', 'degree', 'gpa', 'interests'].map((field) => (
-            <div key={field} className="mb-4">
-              <label className="block mb-2 font-semibold text-gray-800">
-                {field === 'gpa' ? 'GPA' : field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')}
-              </label>
-              {field === 'interests' ? (
-                <textarea
-                  className="w-full p-2 border rounded text-black"
-                  name={field}
-                  value={formData[field as keyof typeof formData]}
-                  onChange={handleChange}
-                />
-              ) : (
-                <input
-                  className="w-full p-2 border rounded text-black"
-                  name={field}
-                  value={formData[field as keyof typeof formData]}
-                  onChange={handleChange}
-                />
-              )}
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black">
+      <div className="container mx-auto px-4 py-20">
+        <div className="max-w-2xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-12">
+            <div className="mb-6">
+              <h1 className="text-4xl lg:text-5xl font-bold text-white mb-4">
+                Your <span className="text-blue-400">Profile</span>
+              </h1>
+              <p className="text-gray-300 text-lg max-w-2xl mx-auto">
+                Complete your profile to get personalized career suggestions and insights
+              </p>
             </div>
-          ))}
+          </div>
 
-          <label className="block mb-2 font-semibold text-gray-800">Upload CV (PDF only)</label>
-          <input
-            type="file"
-            accept="application/pdf"
-            onChange={(e) => setCvFile(e.target.files?.[0] || null)}
-            className="mb-4 text-gray-600"
-          />
+          <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl">
+            <CardContent className="p-8">
+              {error && (
+                <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
+                  <p className="text-red-400">{error}</p>
+                </div>
+              )}
+              
+              {loading ? (
+                <div className="text-center py-12">
+                  <Loader2 className="h-8 w-8 text-blue-400 animate-spin mx-auto mb-4" />
+                  <p className="text-gray-300">Loading your profile...</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Personal Information */}
+                  <div className="space-y-4">
+                    <div className="flex items-center mb-4">
+                      <User className="h-6 w-6 text-blue-400 mr-3" />
+                      <h2 className="text-xl font-semibold text-white">Personal Information</h2>
+                    </div>
+                    
+                    <div>
+                      <label className="block mb-2 font-medium text-blue-300">
+                        Full Name
+                      </label>
+                      <Input
+                        className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                        name="fullName"
+                        value={formData.fullName}
+                        onChange={handleChange}
+                        placeholder="Enter your full name"
+                      />
+                    </div>
+                  </div>
 
-          <button
-            className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
-            onClick={handleSave}
-          >
-            Save Profile
-          </button>
-        </>
-      )}
+                  {/* Academic Information */}
+                  <div className="space-y-4">
+                    <div className="flex items-center mb-4">
+                      <GraduationCap className="h-6 w-6 text-blue-400 mr-3" />
+                      <h2 className="text-xl font-semibold text-white">Academic Information</h2>
+                    </div>
+                    
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block mb-2 font-medium text-blue-300">
+                          University
+                        </label>
+                        <Input
+                          className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                          name="university"
+                          value={formData.university}
+                          onChange={handleChange}
+                          placeholder="Your university"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block mb-2 font-medium text-blue-300">
+                          Degree
+                        </label>
+                        <Input
+                          className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                          name="degree"
+                          value={formData.degree}
+                          onChange={handleChange}
+                          placeholder="e.g., Computer Science"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block mb-2 font-medium text-blue-300">
+                        GPA
+                      </label>
+                      <Input
+                        className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                        name="gpa"
+                        value={formData.gpa}
+                        onChange={handleChange}
+                        placeholder="e.g., 3.8"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Interests */}
+                  <div className="space-y-4">
+                    <div className="flex items-center mb-4">
+                      <BookOpen className="h-6 w-6 text-blue-400 mr-3" />
+                      <h2 className="text-xl font-semibold text-white">Interests & Goals</h2>
+                    </div>
+                    
+                    <div>
+                      <label className="block mb-2 font-medium text-blue-300">
+                        Career Interests
+                      </label>
+                      <textarea
+                        className="w-full p-4 rounded-lg bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20 resize-none"
+                        rows={4}
+                        name="interests"
+                        value={formData.interests}
+                        onChange={handleChange}
+                        placeholder="Describe your career interests, skills, and goals..."
+                      />
+                    </div>
+                  </div>
+
+                  {/* CV Upload */}
+                  <div className="space-y-4">
+                    <div className="flex items-center mb-4">
+                      <Upload className="h-6 w-6 text-blue-400 mr-3" />
+                      <h2 className="text-xl font-semibold text-white">CV Upload</h2>
+                    </div>
+                    
+                    <div>
+                      <label className="block mb-2 font-medium text-blue-300">
+                        Upload CV (PDF only)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="file"
+                          accept="application/pdf"
+                          onChange={(e) => setCvFile(e.target.files?.[0] || null)}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                        <div className="border-2 border-dashed border-white/20 rounded-lg p-6 text-center hover:border-blue-400/50 transition-colors duration-300">
+                          <Upload className="h-8 w-8 text-blue-400 mx-auto mb-2" />
+                          <p className="text-gray-300">
+                            {cvFile ? cvFile.name : 'Click to upload your CV (PDF)'}
+                          </p>
+                          <p className="text-gray-500 text-sm mt-1">
+                            {cvFile ? 'File selected' : 'Drag and drop or click to browse'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Save Button */}
+                  <div className="pt-6">
+                    <Button
+                      className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105"
+                      onClick={handleSave}
+                      disabled={saving}
+                    >
+                      {saving ? (
+                        <div className="flex items-center">
+                          <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                          Saving...
+                        </div>
+                      ) : (
+                        <div className="flex items-center">
+                          <Save className="h-5 w-5 mr-2" />
+                          Save Profile
+                        </div>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
