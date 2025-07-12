@@ -127,7 +127,7 @@ export default function DashboardPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30"
+                    className="w-auto min-w-0 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30 whitespace-nowrap px-3 py-2 text-sm"
                     onClick={() => setShowDetails((v) => !v)}
                   >
                     {showDetails ? (
