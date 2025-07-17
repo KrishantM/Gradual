@@ -237,7 +237,7 @@ export default function LandingPage() {
             </nav>
           </div>
           <div className="mt-8 pt-8 border-t border-white/10 text-center">
-            <p className="text-gray-500">© 2024 Gradual. All rights reserved.</p>
+            <p className="text-gray-500">© 2025 Gradual. All rights reserved.</p>
           </div>
         </div>
       </footer>
