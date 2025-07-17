@@ -100,7 +100,7 @@ export default function LandingPage() {
 
             <div className="mb-8">
               <h1 className="text-4xl lg:text-6xl font-bold text-white">
-                ne<span className="text-blue-400">X</span>twork
+                Gradual
               </h1>
             </div>
 
@@ -180,7 +180,7 @@ export default function LandingPage() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h3 className="text-3xl lg:text-4xl font-bold text-white mb-4">
-              Why Choose ne<span className="text-blue-400">X</span>twork?
+              Why Choose Gradual?
             </h3>
             <p className="text-gray-400 text-lg max-w-2xl mx-auto">
               Powerful AI-driven tools designed to accelerate your career journey
@@ -212,7 +212,7 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="mb-4 md:mb-0">
               <h4 className="text-2xl font-bold text-white">
-                ne<span className="text-blue-400">X</span>twork
+                Gradual
               </h4>
             </div>
             <nav className="flex space-x-8">
@@ -237,7 +237,7 @@ export default function LandingPage() {
             </nav>
           </div>
           <div className="mt-8 pt-8 border-t border-white/10 text-center">
-            <p className="text-gray-500">© 2024 neXtwork. All rights reserved.</p>
+            <p className="text-gray-500">© 2024 Gradual. All rights reserved.</p>
           </div>
         </div>
       </footer>

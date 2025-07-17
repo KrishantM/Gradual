@@ -4,19 +4,23 @@ import { openai } from '../../../../lib/openai';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
-  const { cvText } = await req.json();
+  const { cvText, guest } = await req.json();
 
   if (!cvText || typeof cvText !== 'string') {
     return NextResponse.json({ error: 'Invalid CV text.' }, { status: 400 });
   }
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: `You are an AI CV scoring assistant. Always reply in the following structure:
+    const systemPrompt = guest
+      ? `You are an AI CV scoring assistant. Reply in this structure:
+
+Overall Score (0–100): [score]
+
+Feedback:
+[1–2 sentences of general feedback and areas to improve.]
+
+Do not include any introduction or closing remarks. Keep it concise and do not break from this format.`
+      : `You are an AI CV scoring assistant. Always reply in the following structure:
 
 Overall Score (0–100): [score]
 
@@ -35,7 +39,14 @@ Overall Score (0–100): [score]
 5. Areas to improve:
 [1–2 sentence explanation]
 
-Do not include any introduction or closing remarks. Evaluate the overall score based on criteria 1 - 4, with the overall score being the sum of the scores of the criteria. Do not break from this format.`,
+Do not include any introduction or closing remarks. Evaluate the overall score based on criteria 1 - 4, with the overall score being the sum of the scores of the criteria. Do not break from this format.`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: systemPrompt,
         },
         {
           role: 'user',

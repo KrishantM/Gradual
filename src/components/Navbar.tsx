@@ -42,7 +42,7 @@ export default function Navbar() {
               <Home className="h-5 w-5 text-white" />
             </div>
             <span className="text-xl font-bold text-white group-hover:text-blue-300 transition-colors duration-300">
-              ne<span className="text-blue-400">X</span>twork
+              Gradual
             </span>
           </Link>
 

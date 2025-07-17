@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   try {
     const prompt = `You are a career advisor AI. Based on the following user profile, provide 5 specific, actionable career-building suggestions. Each suggestion should be structured as:
 
-[One line title:]  
+[One line title:]
 [1–2 sentence description with specific actions or recommendations]
 
 Degree: ${degree}
@@ -60,4 +60,4 @@ Respond only with the formatted list. Remove formatting such as asterisks or bul
     console.error('OpenAI Suggestion Error:', err);
     return NextResponse.json({ error: 'Failed to generate suggestions' }, { status: 500 });
   }
-}
+} 

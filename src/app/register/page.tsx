@@ -83,7 +83,7 @@ export default function Register() {
           <div className="text-center mb-8">
             <div className="mb-6">
               <h1 className="text-4xl lg:text-5xl font-bold text-white mb-4">
-                Join <span className="text-blue-400">neXtwork</span>
+                Join <span className="text-blue-400">Gradual</span>
               </h1>
               <p className="text-gray-300 text-lg">
                 Create your account and start your career journey
@@ -196,6 +196,16 @@ export default function Register() {
                       Create Account
                     </div>
                   )}
+                </Button>
+
+                {/* Continue as Guest Button */}
+                <Button
+                  variant="outline"
+                  className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30 transition-all duration-300 mb-2"
+                  onClick={() => router.push('/cvscore')}
+                  type="button"
+                >
+                  Continue as Guest
                 </Button>
 
                 {/* Divider */}

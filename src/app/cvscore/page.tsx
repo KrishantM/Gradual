@@ -72,10 +72,6 @@ export default function CVScorePage() {
       setError('Please provide CV text or upload a PDF.');
       return;
     }
-    if (!user) {
-      setError('You must be logged in to save your CV score.');
-      return;
-    }
 
     setIsLoading(true);
     setError('');
@@ -84,7 +80,7 @@ export default function CVScorePage() {
       const res = await fetch('/api/score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cvText: cvText.trim() }),
+        body: JSON.stringify({ cvText: cvText.trim(), guest: !user }),
       });
 
       if (!res.ok) {
@@ -94,13 +90,15 @@ export default function CVScorePage() {
       const data = await res.json();
       setScore(data.score);
 
-      // Save the score to Firestore
-      await updateDoc(doc(db, 'users', user.uid), {
-        cvScore: data.score,
-        cvScoreTimestamp: new Date(),
-      });
+      // Only save to Firestore if user is logged in
+      if (user) {
+        await updateDoc(doc(db, 'users', user.uid), {
+          cvScore: data.score,
+          cvScoreTimestamp: new Date(),
+        });
+      }
     } catch (err) {
-      setError('Failed to get CV score or save it. Please try again.');
+      setError('Failed to get CV score. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -116,7 +114,7 @@ export default function CVScorePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black">
       <Head>
-        <title>neXtwork CV Scorer</title>
+        <title>Gradual CV Scorer</title>
       </Head>
       
       <div className="container mx-auto px-4 py-20">
@@ -242,23 +240,32 @@ export default function CVScorePage() {
                   <BarChart3 className="h-6 w-6 text-green-400 mr-3" />
                   <h2 className="text-2xl font-semibold text-white">AI Evaluation Results</h2>
                 </div>
-                
                 <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-400/30 rounded-lg p-6">
                   <div className="flex items-center mb-4">
                     <Star className="h-5 w-5 text-yellow-400 mr-2" />
                     <span className="text-green-400 font-medium">Analysis Complete</span>
                   </div>
-                  
                   <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-4">
                     <p className="text-gray-200 whitespace-pre-line leading-relaxed">
                       {score}
                     </p>
                   </div>
-                  
-                  <div className="mt-4 flex items-center text-gray-400 text-sm">
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Results saved to your profile
-                  </div>
+                  {user ? (
+                    <div className="mt-4 flex items-center text-gray-400 text-sm">
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Results saved to your profile
+                    </div>
+                  ) : (
+                    <div className="mt-4 text-center">
+                      <p className="text-blue-300 text-sm mb-2 font-medium">Want detailed suggestions and to save your results?</p>
+                      <div className="flex justify-center gap-2">
+                        <a href="/register" className="underline text-blue-400 hover:text-blue-300 transition-colors">Create an account</a>
+                        <span className="text-gray-400">or</span>
+                        <a href="/login" className="underline text-blue-400 hover:text-blue-300 transition-colors">Sign in</a>
+                        <span className="text-gray-400">to unlock more!</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

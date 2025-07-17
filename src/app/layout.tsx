@@ -9,10 +9,10 @@ const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'neXtwork - AI-Powered Career Platform',
-  description: 'Get AI-powered CV scoring, career suggestions, and personalized insights to accelerate your career journey.',
-  keywords: 'AI, career, CV scoring, job suggestions, career platform, neXtwork',
-  authors: [{ name: 'neXtwork Team' }],
+  title: 'Gradual - AI-Powered Career Platform',
+  description: 'Get AI-powered CV scoring and personalized career suggestions to accelerate your professional growth.',
+  keywords: 'AI, career, CV scoring, job suggestions, career platform, Gradual',
+  authors: [{ name: 'Gradual Team' }],
   viewport: 'width=device-width, initial-scale=1',
 };
 

@@ -58,7 +58,7 @@ export default function LoginPage() {
           <div className="text-center mb-8">
             <div className="mb-6">
               <h1 className="text-4xl lg:text-5xl font-bold text-white mb-4">
-                Welcome to <span className="text-blue-400">neXtwork</span>
+                Welcome to <span className="text-blue-400">Gradual</span>
               </h1>
               <p className="text-gray-300 text-lg">
                 Sign in to access your personalized career insights
@@ -118,7 +118,7 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                {/* Login Button */}
+                {/* Sign In Button */}
                 <Button
                   className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105"
                   onClick={handleLogin}
@@ -135,6 +135,16 @@ export default function LoginPage() {
                       Sign In
                     </div>
                   )}
+                </Button>
+
+                {/* Continue as Guest Button */}
+                <Button
+                  variant="outline"
+                  className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30 transition-all duration-300 mb-2"
+                  onClick={() => router.push('/cvscore')}
+                  type="button"
+                >
+                  Continue as Guest
                 </Button>
 
                 {/* Divider */}
