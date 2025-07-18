@@ -33,7 +33,7 @@ export default function AboutPage() {
               <li>International students seeking clarity and direction in local markets</li>
               <li>Recruiters and career coaches looking for smarter, data-driven candidate insights <span className="italic text-gray-400">(coming soon)</span></li>
             </ul>
-            <p className="text-gray-300">Whether you're navigating job boards or refining your CV, Gradual provides practical tools to guide the way.</p>
+            <p className="text-gray-300">Whether you&apos;re navigating job boards or refining your CV, Gradual provides practical tools to guide the way.</p>
           </CardContent>
         </Card>
 
