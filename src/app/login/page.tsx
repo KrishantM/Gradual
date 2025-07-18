@@ -172,11 +172,11 @@ export default function LoginPage() {
           <div className="text-center mt-8">
             <p className="text-gray-500 text-sm">
               By signing in, you agree to our{' '}
-              <a href="#" className="text-blue-400 hover:text-blue-300 transition-colors">
+              <a href="/terms" className="text-blue-400 hover:text-blue-300 transition-colors" target="_blank" rel="noopener noreferrer">
                 Terms of Service
               </a>{' '}
               and{' '}
-              <a href="#" className="text-blue-400 hover:text-blue-300 transition-colors">
+              <a href="/privacy" className="text-blue-400 hover:text-blue-300 transition-colors" target="_blank" rel="noopener noreferrer">
                 Privacy Policy
               </a>
             </p>

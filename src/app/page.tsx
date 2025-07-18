@@ -41,7 +41,7 @@ export default function LandingPage() {
   
       // 3. Send email using EmailJS
       await emailjs.send(
-        "NXT_Waitlist",    // e.g., service_6aq1c1a
+        "GDL_Waitlist",    // e.g., service_6aq1c1a
         "template_29837za",   // e.g., template_vyb2f4m
         {
           user_name: name,
@@ -205,42 +205,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="py-12 border-t border-white/10 bg-black/20">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="mb-4 md:mb-0">
-              <h4 className="text-2xl font-bold text-white">
-                Gradual
-              </h4>
-            </div>
-            <nav className="flex space-x-8">
-              <a
-                href="#"
-                className="text-gray-400 hover:text-white transition-colors duration-300 hover:underline underline-offset-4"
-              >
-                Terms
-              </a>
-              <a
-                href="#"
-                className="text-gray-400 hover:text-white transition-colors duration-300 hover:underline underline-offset-4"
-              >
-                Privacy
-              </a>
-              <a
-                href="#"
-                className="text-gray-400 hover:text-white transition-colors duration-300 hover:underline underline-offset-4"
-              >
-                Contact
-              </a>
-            </nav>
-          </div>
-          <div className="mt-8 pt-8 border-t border-white/10 text-center">
-            <p className="text-gray-500">© 2025 Gradual. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
     </div>
   )
 } 

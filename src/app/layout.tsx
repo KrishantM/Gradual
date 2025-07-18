@@ -25,6 +25,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main className="pt-16">
             {children}
           </main>
+          <footer className="w-full py-4 text-center text-gray-500 text-sm flex flex-col items-center gap-1">
+            <span>© 2025 Gradual. All rights reserved.</span>
+            <span className="space-x-4">
+              <a href="/terms" className="underline hover:text-blue-400 transition-colors">Terms of Service</a>
+              <span>|</span>
+              <a href="/privacy" className="underline hover:text-blue-400 transition-colors">Privacy Policy</a>
+            </span>
+          </footer>
         </AuthProvider>
       </body>
     </html>

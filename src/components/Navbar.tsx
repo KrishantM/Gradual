@@ -48,6 +48,14 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1">
+            <Link href="/about">
+              <Button
+                variant="ghost"
+                className="text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-300"
+              >
+                About
+              </Button>
+            </Link>
             {user ? (
               <>
                 <Link href="/cvscore">
@@ -126,6 +134,15 @@ export default function Navbar() {
         {isMobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-white/10">
             <div className="flex flex-col space-y-2">
+              <Link href="/about">
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-300"
+                  onClick={closeMobileMenu}
+                >
+                  About
+                </Button>
+              </Link>
               {user ? (
                 <>
                   <Link href="/cvscore">
