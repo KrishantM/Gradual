@@ -49,7 +49,7 @@ export default function PrivacyPage() {
                   </ul>
                 </li>
                 <li>
-                  <strong>Children's Privacy</strong><br />
+                  <strong>Children&apos;s Privacy</strong><br />
                   We do not knowingly collect data from children under 13. If you are a parent or guardian and believe we have collected such data, please contact us.
                 </li>
                 <li>

@@ -11,7 +11,7 @@ export default function TermsPage() {
             <h1 className="text-3xl lg:text-4xl font-bold text-white mb-4 text-center">Gradual - Terms of Service</h1>
             <p className="text-gray-400 text-sm mb-8 text-center">Effective Date: 17/07/2025</p>
             <div className="text-gray-200 space-y-6 text-base leading-relaxed">
-              <p>Welcome to Gradual! By accessing or using our website and services (the "Platform"), you agree to comply with and be bound by the following Terms of Service ("Terms"). Please read these Terms carefully.</p>
+              <p>Welcome to Gradual! By accessing or using our website and services (the &quot;Platform&quot;), you agree to comply with and be bound by the following Terms of Service (&quot;Terms&quot;). Please read these Terms carefully.</p>
               <ol className="list-decimal list-inside space-y-4">
                 <li>
                   <strong>Use of the Platform</strong><br />
@@ -49,7 +49,7 @@ export default function TermsPage() {
                 </li>
                 <li>
                   <strong>Limitation of Liability</strong><br />
-                  Gradual is provided on an "as-is" basis. We are not liable for any indirect, incidental, or consequential damages arising from your use of the Platform.
+                  Gradual is provided on an &quot;as-is&quot; basis. We are not liable for any indirect, incidental, or consequential damages arising from your use of the Platform.
                 </li>
                 <li>
                   <strong>Changes to Terms</strong><br />
