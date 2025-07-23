@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+/* eslint-disable prefer-const */
+
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
