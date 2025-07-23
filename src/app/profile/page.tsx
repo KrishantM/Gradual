@@ -22,6 +22,12 @@ export default function ProfilePage() {
     gpa: '',
     interests: '',
     uploadedCVName: null as string | null,
+    bio: '',
+    city: '',
+    country: '',
+    age: '',
+    preferredIndustries: '',
+    portfolioLinks: '',
   });
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [error, setError] = useState('');
@@ -62,16 +68,21 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     if (!user) return;
+    // Validation for required fields
+    if (!formData.fullName || !formData.bio || !formData.city || !formData.country) {
+      setError('Please fill in all required fields: Full Name, Bio, City, and Country.');
+      return;
+    }
     setSaving(true);
     try {
       let extractedText = cvText;
       if (cvFile) {
         // Extract text from PDF
-        const formData = new FormData();
-        formData.append('file', cvFile);
+        const formDataFile = new FormData();
+        formDataFile.append('file', cvFile);
         const res = await fetch('/api/extract-pdf', {
           method: 'POST',
-          body: formData,
+          body: formDataFile,
         });
         if (!res.ok) throw new Error('Failed to extract text from PDF');
         const data = await res.json();
@@ -84,7 +95,7 @@ export default function ProfilePage() {
         {
           ...dataWithoutFile,
           updatedAt: new Date(),
-          uploadedCVName: cvFile?.name || null,
+          uploadedCVName: cvFile?.name || formData.uploadedCVName || null,
           cvText: extractedText,
         },
         { merge: true }
@@ -180,10 +191,9 @@ export default function ProfilePage() {
                       <User className="h-6 w-6 text-blue-400 mr-3" />
                       <h2 className="text-xl font-semibold text-white">Personal Information</h2>
                     </div>
-                    
                     <div>
                       <label className="block mb-2 font-medium text-blue-300">
-                        Full Name
+                        Full Name <span className="text-red-400">*</span>
                       </label>
                       <Input
                         className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
@@ -193,75 +203,89 @@ export default function ProfilePage() {
                         placeholder="Enter your full name"
                       />
                     </div>
-                  </div>
-
-                  {/* Academic Information */}
-                  <div className="space-y-4">
-                    <div className="flex items-center mb-4">
-                      <GraduationCap className="h-6 w-6 text-blue-400 mr-3" />
-                      <h2 className="text-xl font-semibold text-white">Academic Information</h2>
-                    </div>
-                    
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block mb-2 font-medium text-blue-300">
-                          University
-                        </label>
-                        <Input
-                          className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
-                          name="university"
-                          value={formData.university}
-                          onChange={handleChange}
-                          placeholder="Your university"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block mb-2 font-medium text-blue-300">
-                          Degree
-                        </label>
-                        <Input
-                          className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
-                          name="degree"
-                          value={formData.degree}
-                          onChange={handleChange}
-                          placeholder="e.g., Computer Science"
-                        />
-                      </div>
-                    </div>
-                    
                     <div>
                       <label className="block mb-2 font-medium text-blue-300">
-                        GPA
-                      </label>
-                      <Input
-                        className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
-                        name="gpa"
-                        value={formData.gpa}
-                        onChange={handleChange}
-                        placeholder="e.g., 3.8"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Interests */}
-                  <div className="space-y-4">
-                    <div className="flex items-center mb-4">
-                      <BookOpen className="h-6 w-6 text-blue-400 mr-3" />
-                      <h2 className="text-xl font-semibold text-white">Interests & Goals</h2>
-                    </div>
-                    
-                    <div>
-                      <label className="block mb-2 font-medium text-blue-300">
-                        Career Interests
+                        Bio <span className="text-red-400">*</span>
                       </label>
                       <textarea
                         className="w-full p-4 rounded-lg bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20 resize-none"
-                        rows={4}
-                        name="interests"
-                        value={formData.interests}
+                        rows={3}
+                        name="bio"
+                        value={formData.bio}
                         onChange={handleChange}
-                        placeholder="Describe your career interests, skills, and goals..."
+                        placeholder="Describe your passions, interests, and background..."
+                        required
+                      />
+                    </div>
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block mb-2 font-medium text-blue-300">
+                          City <span className="text-red-400">*</span>
+                        </label>
+                        <Input
+                          className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                          name="city"
+                          value={formData.city}
+                          onChange={handleChange}
+                          placeholder="Your city"
+                        />
+                      </div>
+                      <div>
+                        <label className="block mb-2 font-medium text-blue-300">
+                          Country <span className="text-red-400">*</span>
+                        </label>
+                        <Input
+                          className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                          name="country"
+                          value={formData.country}
+                          onChange={handleChange}
+                          placeholder="Your country"
+                        />
+                      </div>
+                      <div>
+                        <label className="block mb-2 font-medium text-blue-300">
+                          Age
+                        </label>
+                        <Input
+                          className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                          name="age"
+                          value={formData.age}
+                          onChange={handleChange}
+                          placeholder="Your age (optional)"
+                          type="number"
+                          min="0"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  {/* Industries/Fields & Portfolio */}
+                  <div className="space-y-4">
+                    <div className="flex items-center mb-4">
+                      <Star className="h-6 w-6 text-blue-400 mr-3" />
+                      <h2 className="text-xl font-semibold text-white">Industries & Portfolio</h2>
+                    </div>
+                    <div>
+                      <label className="block mb-2 font-medium text-blue-300">
+                        Preferred Industries/Fields
+                      </label>
+                      <Input
+                        className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                        name="preferredIndustries"
+                        value={formData.preferredIndustries}
+                        onChange={handleChange}
+                        placeholder="e.g., Software, AI, Finance (comma separated)"
+                      />
+                    </div>
+                    <div>
+                      <label className="block mb-2 font-medium text-blue-300">
+                        Portfolio/LinkedIn/GitHub Links
+                      </label>
+                      <Input
+                        className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                        name="portfolioLinks"
+                        value={formData.portfolioLinks}
+                        onChange={handleChange}
+                        placeholder="Paste links, separated by commas"
                       />
                     </div>
                   </div>
