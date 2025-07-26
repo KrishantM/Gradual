@@ -1,0 +1,43 @@
+name: Gradual Job Sync
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'  # Monday 2 AM UTC — fetch new jobs
+    - cron: '0 2 * * 0'  # Sunday 2 AM UTC — clean expired jobs
+  workflow_dispatch:     # Allow manual trigger from GitHub UI
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v3
+
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: 📦 Install dependencies
+        run: npm install
+
+      - name: 🛠 Build fetch and cleanup scripts
+        run: |
+          npx tsc -p tsconfig.fetch.json || true
+          npx tsc -p tsconfig.cleanup.json || true
+
+      - name: 🚀 Run fetchOpportunities
+        if: github.event.schedule == '0 2 * * 1'
+        run: node dist/lib/fetchOpportunities.js
+        env:
+          ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
+          ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+
+      - name: 🧹 Run cleanupExpiredJobs
+        if: github.event.schedule == '0 2 * * 0'
+        run: node dist/lib/cleanupExpiredJobs.js
+        env:
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
