@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '../../../lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
@@ -88,7 +88,7 @@ export default function SuggestionsPage() {
     }
   };
 
-  const fetchOpportunities = async () => {
+  const fetchOpportunities = useCallback(async () => {
     if (!profile) return;
     setOpportunitiesLoading(true);
     try {
@@ -107,14 +107,14 @@ export default function SuggestionsPage() {
     } finally {
       setOpportunitiesLoading(false);
     }
-  };
+  }, [profile]);
 
   // Fetch opportunities when profile loads
   useEffect(() => {
     if (profile) {
       fetchOpportunities();
     }
-  }, [profile]);
+  }, [profile, fetchOpportunities]);
 
   const toggleStarOpportunity = async (opportunityId: string) => {
     if (!user) return;
