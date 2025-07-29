@@ -3,17 +3,37 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '../../../lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Brain, Sparkles, ArrowRight, CheckCircle, User, GraduationCap, Target } from 'lucide-react';
+import { Brain, Sparkles, ArrowRight, CheckCircle, User, GraduationCap, Target, Briefcase, MapPin, Star, ExternalLink, Calendar } from 'lucide-react';
+
+interface Opportunity {
+  id: string;
+  title: string;
+  description: string;
+  location: string;
+  company: string;
+  url: string;
+  type: 'internship' | 'job';
+  category: string;
+  created: string;
+  salary_min?: number;
+  salary_max?: number;
+  source: string;
+  score: number;
+}
 
 export default function SuggestionsPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [opportunitiesLoading, setOpportunitiesLoading] = useState(false);
+  const [starredOpportunities, setStarredOpportunities] = useState<string[]>([]);
+  const [starringLoading, setStarringLoading] = useState<string | null>(null);
   const [extraContext, setExtraContext] = useState('');
   const [profile, setProfile] = useState<any>(null);
 
@@ -27,6 +47,23 @@ export default function SuggestionsPage() {
       }
     };
     fetchProfile();
+  }, [user]);
+
+  // Fetch starred opportunities
+  useEffect(() => {
+    if (!user) return;
+    const fetchStarredOpportunities = async () => {
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists() && userSnap.data().savedOpportunities) {
+          setStarredOpportunities(userSnap.data().savedOpportunities);
+        }
+      } catch (error) {
+        console.error('Error fetching starred opportunities:', error);
+      }
+    };
+    fetchStarredOpportunities();
   }, [user]);
 
   const handleGenerate = async () => {
@@ -51,10 +88,91 @@ export default function SuggestionsPage() {
     }
   };
 
+  const fetchOpportunities = async () => {
+    if (!profile) return;
+    setOpportunitiesLoading(true);
+    try {
+      const res = await fetch('/api/opportunities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profile,
+          limit: 8
+        }),
+      });
+      const data = await res.json();
+      setOpportunities(data.opportunities || []);
+    } catch (err) {
+      console.error('Failed to fetch opportunities:', err);
+    } finally {
+      setOpportunitiesLoading(false);
+    }
+  };
+
+  // Fetch opportunities when profile loads
+  useEffect(() => {
+    if (profile) {
+      fetchOpportunities();
+    }
+  }, [profile]);
+
+  const toggleStarOpportunity = async (opportunityId: string) => {
+    if (!user) return;
+    
+    setStarringLoading(opportunityId);
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      const isStarred = starredOpportunities.includes(opportunityId);
+      
+      if (isStarred) {
+        // Remove from starred
+        await updateDoc(userRef, {
+          savedOpportunities: arrayRemove(opportunityId)
+        });
+        setStarredOpportunities(prev => prev.filter(id => id !== opportunityId));
+      } else {
+        // Add to starred
+        await updateDoc(userRef, {
+          savedOpportunities: arrayUnion(opportunityId)
+        });
+        setStarredOpportunities(prev => [...prev, opportunityId]);
+      }
+    } catch (error) {
+      console.error('Error toggling star:', error);
+      alert('Failed to save opportunity');
+    } finally {
+      setStarringLoading(null);
+    }
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 85) return 'text-green-400';
+    if (score >= 70) return 'text-yellow-400';
+    return 'text-orange-400';
+  };
+
+  const getScoreBgColor = (score: number) => {
+    if (score >= 85) return 'bg-green-500/20 border-green-400/30';
+    if (score >= 70) return 'bg-yellow-500/20 border-yellow-400/30';
+    return 'bg-orange-500/20 border-orange-400/30';
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) return 'Today';
+    if (diffDays <= 7) return `${diffDays} days ago`;
+    if (diffDays <= 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    return date.toLocaleDateString();
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black">
       <div className="container mx-auto px-4 py-20">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="text-center mb-12">
             <div className="mb-6">
@@ -62,7 +180,7 @@ export default function SuggestionsPage() {
                 Career <span className="text-blue-400">Suggestions</span>
               </h1>
               <p className="text-gray-300 text-lg max-w-2xl mx-auto">
-                Get AI-powered career recommendations tailored to your profile and aspirations
+                Get AI-powered career recommendations and discover relevant opportunities tailored to your profile
               </p>
             </div>
           </div>
@@ -147,7 +265,7 @@ export default function SuggestionsPage() {
                     variant="outline"
                     className="w-full sm:w-auto bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30 transition-all duration-300"
                   >
-                    View Saved Suggestions
+                    View Saved Opportunities
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
@@ -155,29 +273,140 @@ export default function SuggestionsPage() {
             </CardContent>
           </Card>
 
-          {/* Suggestions Results */}
-          {suggestions.length > 0 && (
+          <div className="grid lg:grid-cols-2 gap-8">
+            {/* AI Suggestions Results */}
+            {suggestions.length > 0 && (
+              <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl">
+                <CardContent className="p-6">
+                  <div className="flex items-center mb-6">
+                    <Brain className="h-6 w-6 text-green-400 mr-3" />
+                    <h2 className="text-2xl font-semibold text-white">AI Career Suggestions</h2>
+                  </div>
+                  <div className="space-y-4">
+                    {suggestions.map((suggestion, index) => (
+                      <div
+                        key={index}
+                        className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-4 hover:bg-white/15 transition-all duration-300"
+                      >
+                        <p className="text-gray-200 leading-relaxed whitespace-pre-wrap">
+                          {suggestion}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Matched Opportunities */}
             <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl">
               <CardContent className="p-6">
-                <div className="flex items-center mb-6">
-                  <CheckCircle className="h-6 w-6 text-green-400 mr-3" />
-                  <h2 className="text-2xl font-semibold text-white">Your Career Suggestions</h2>
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center">
+                    <Briefcase className="h-6 w-6 text-blue-400 mr-3" />
+                    <h2 className="text-2xl font-semibold text-white">Matched Opportunities</h2>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={fetchOpportunities}
+                    disabled={opportunitiesLoading}
+                    className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                  >
+                    {opportunitiesLoading ? 'Refreshing...' : 'Refresh'}
+                  </Button>
                 </div>
-                <div className="space-y-4">
-                  {suggestions.map((suggestion, index) => (
-                    <div
-                      key={index}
-                      className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-4 hover:bg-white/15 transition-all duration-300"
-                    >
-                      <p className="text-gray-200 leading-relaxed whitespace-pre-wrap">
-                        {suggestion}
-                      </p>
-                    </div>
-                  ))}
-                </div>
+
+                {opportunitiesLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
+                    <p className="text-gray-300">Finding relevant opportunities...</p>
+                  </div>
+                ) : opportunities.length > 0 ? (
+                  <div className="space-y-4">
+                    {opportunities.map((opportunity) => {
+                      const isStarred = starredOpportunities.includes(opportunity.id);
+                      return (
+                        <div
+                          key={opportunity.id}
+                          className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-4 hover:bg-white/15 transition-all duration-300"
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <h3 className="text-white font-semibold mb-1 line-clamp-2">
+                                {opportunity.title}
+                              </h3>
+                              <p className="text-gray-300 text-sm mb-2">{opportunity.company}</p>
+                            </div>
+                            <div className="flex items-center space-x-2 ml-3">
+                              <div className={`px-2 py-1 rounded-full text-xs font-semibold border ${getScoreBgColor(opportunity.score)} ${getScoreColor(opportunity.score)}`}>
+                                {opportunity.score}%
+                              </div>
+                              <button
+                                onClick={() => toggleStarOpportunity(opportunity.id)}
+                                disabled={starringLoading === opportunity.id}
+                                className={`p-1.5 rounded-full transition-all duration-200 ${
+                                  isStarred 
+                                    ? 'text-yellow-400 bg-yellow-400/20 hover:bg-yellow-400/30' 
+                                    : 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/20'
+                                }`}
+                              >
+                                {starringLoading === opportunity.id ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                                ) : (
+                                  <Star className={`h-4 w-4 ${isStarred ? 'fill-current' : ''}`} />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center text-gray-400 text-sm mb-3 space-x-4">
+                            <div className="flex items-center">
+                              <MapPin className="h-3 w-3 mr-1" />
+                              {opportunity.location}
+                            </div>
+                            <div className="flex items-center">
+                              <Calendar className="h-3 w-3 mr-1" />
+                              {formatDate(opportunity.created)}
+                            </div>
+                            <div className="flex items-center">
+                              <Star className="h-3 w-3 mr-1" />
+                              {opportunity.type}
+                            </div>
+                          </div>
+
+                          <p className="text-gray-300 text-sm mb-3 line-clamp-2">
+                            {opportunity.description}
+                          </p>
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400 capitalize">
+                              {opportunity.category}
+                            </span>
+                            <a
+                              href={opportunity.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors"
+                            >
+                              Apply Now
+                              <ExternalLink className="h-3 w-3 ml-1" />
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Briefcase className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+                    <p className="text-gray-400">No relevant opportunities found</p>
+                    <p className="text-gray-500 text-sm mt-2">Try updating your profile or check back later</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          )}
+          </div>
         </div>
       </div>
     </div>
