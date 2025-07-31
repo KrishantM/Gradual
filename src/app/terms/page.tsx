@@ -57,7 +57,7 @@ export default function TermsPage() {
                 </li>
                 <li>
                   <strong>Contact</strong><br />
-                  If you have questions, contact us at: <a href="mailto:krishantm7@gmail.com" className="text-blue-400 underline">krishantm7@gmail.com</a>
+                  If you have questions, contact us at: <a href="mailto:admin@gradual.co.nz" className="text-blue-400 underline">admin@gradual.co.nz</a>
                 </li>
               </ol>
             </div>

@@ -42,6 +42,9 @@ export default function ToDoList({ userId }: ToDoListProps) {
         text: doc.data().text,
       }));
       setTodos(fetched);
+    }, (error) => {
+      console.warn('ToDo list permission error:', error);
+      // Don't break the app if todos can't be loaded
     });
 
     return () => unsubscribe();

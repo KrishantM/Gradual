@@ -75,14 +75,18 @@ export default function SuggestionsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...profile,
-          interests: `${profile.interests} ${extraContext}`,
+          interests: `${profile.interests || ''} ${extraContext || ''}`,
           uid: user?.uid,
         }),
       });
       const data = await res.json();
-      setSuggestions(data.suggestions);
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      setSuggestions(data.suggestions || []);
     } catch (err) {
-      alert('Failed to generate suggestions');
+      console.error('Failed to generate suggestions:', err);
+      alert('Failed to generate suggestions. Please try again.');
     } finally {
       setLoading(false);
     }

@@ -97,11 +97,12 @@ export default function LandingPage() {
         <div className="relative container mx-auto px-4 py-20 lg:py-32">
           <div className="text-center max-w-4xl mx-auto">
             {/* Logo */}
-
-            <div className="mb-8">
-              <h1 className="text-4xl lg:text-6xl font-bold text-white">
-                Gradual
-              </h1>
+            <div className="mb-8 flex justify-center">
+              <img 
+                src="/newlogo2.png" 
+                alt="Gradual" 
+                className="h-16 lg:h-20 w-auto"
+              />
             </div>
 
             {/* Tagline */}

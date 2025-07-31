@@ -62,7 +62,7 @@ export default function PrivacyPage() {
                 </li>
                 <li>
                   <strong>Contact</strong><br />
-                  For privacy-related inquiries, email us at: <a href="mailto:krishantm7@gmail.com" className="text-blue-400 underline">krishantm7@gmail.com</a>
+                  For privacy-related inquiries, email us at: <a href="mailto:admin@gradual.co.nz" className="text-blue-400 underline">admin@gradual.co.nz</a>
                 </li>
               </ol>
             </div>

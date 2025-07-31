@@ -35,15 +35,14 @@ export default function Navbar() {
           {/* Logo */}
           <Link 
             href={user ? "/dashboard" : "/"} 
-            className="flex items-center space-x-2 group"
+            className="flex items-center group"
             onClick={closeMobileMenu}
           >
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg flex items-center justify-center group-hover:from-blue-700 group-hover:to-cyan-700 transition-all duration-300">
-              <Home className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-white group-hover:text-blue-300 transition-colors duration-300">
-              Gradual
-            </span>
+            <img 
+              src="/newlogo2.png" 
+              alt="Gradual" 
+              className="h-5 w-auto group-hover:opacity-80 transition-opacity duration-300"
+            />
           </Link>
 
           {/* Desktop Navigation */}

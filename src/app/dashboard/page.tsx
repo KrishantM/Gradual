@@ -104,10 +104,15 @@ export default function DashboardPage() {
           }
         }
 
-        const suggRef = doc(db, 'suggestions', user.uid);
-        const suggSnap = await getDoc(suggRef);
-        if (suggSnap.exists()) {
-          setSuggestions(suggSnap.data().suggestions);
+        try {
+          const suggRef = doc(db, 'suggestions', user.uid);
+          const suggSnap = await getDoc(suggRef);
+          if (suggSnap.exists()) {
+            setSuggestions(suggSnap.data().suggestions);
+          }
+        } catch (suggErr) {
+          console.warn('Could not load suggestions:', suggErr);
+          // Don't break the entire dashboard if suggestions fail
         }
       } catch (err) {
         console.error('Error loading dashboard:', err);
@@ -297,16 +302,16 @@ export default function DashboardPage() {
           {/* Saved Opportunities Section */}
           <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl mb-8">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
                 <div className="flex items-center">
                   <Star className="h-6 w-6 text-yellow-400 mr-3" />
-                  <h2 className="text-2xl font-semibold text-white">Saved Opportunities</h2>
+                  <h2 className="text-xl sm:text-2xl font-semibold text-white">Saved Opportunities</h2>
                 </div>
-                <Link href="/suggestions">
+                <Link href="/suggestions" className="w-full sm:w-auto">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                    className="w-full sm:w-auto bg-white/10 border-white/20 text-white hover:bg-white/20"
                   >
                     Find More Opportunities
                   </Button>
@@ -345,18 +350,18 @@ export default function DashboardPage() {
                         </button>
                       </div>
                       
-                      <div className="flex items-center text-gray-400 text-sm mb-3 space-x-4">
+                      <div className="flex flex-wrap items-center text-gray-400 text-sm mb-3 gap-2 sm:gap-4">
                         <div className="flex items-center">
                           <MapPin className="h-3 w-3 mr-1" />
-                          {opportunity.location}
+                          <span className="truncate">{opportunity.location}</span>
                         </div>
                         <div className="flex items-center">
                           <Calendar className="h-3 w-3 mr-1" />
-                          {formatOpportunityDate(opportunity.created)}
+                          <span className="truncate">{formatOpportunityDate(opportunity.created)}</span>
                         </div>
                         <div className="flex items-center">
                           <Briefcase className="h-3 w-3 mr-1" />
-                          {opportunity.type}
+                          <span className="truncate">{opportunity.type}</span>
                         </div>
                       </div>
 

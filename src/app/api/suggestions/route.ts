@@ -1,24 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { getFirestore, doc, setDoc } from 'firebase/firestore';
-import { initializeApp, getApps } from 'firebase/app';
+import admin from 'firebase-admin';
+
+// Initialize Firebase Admin if not already done
+if (!admin.apps.length) {
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+}
+
+const db = admin.firestore();
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
-
-// Firebase init (only if not already initialized)
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
-
-if (!getApps().length) initializeApp(firebaseConfig);
-const db = getFirestore();
 
 export async function POST(req: NextRequest) {
   const { degree, gpa, interests, uid } = await req.json();
@@ -48,8 +44,8 @@ Respond only with the formatted list. Remove formatting such as asterisks or bul
 
     // ✅ Save to Firestore if UID is provided
     if (uid) {
-      const ref = doc(db, 'suggestions', uid);
-      await setDoc(ref, {
+      const ref = db.collection('suggestions').doc(uid);
+      await ref.set({
         suggestions: suggestions.join('\n\n'),
         updatedAt: new Date(),
       });
