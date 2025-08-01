@@ -43,8 +43,10 @@ export default function Navbar() {
               src="/newlogo2.png" 
               alt="Gradual" 
               width={100}
-              height={20}
+              height={100}
+              unoptimized
               className="h-5 w-auto group-hover:opacity-80 transition-opacity duration-300"
+              style={{ objectFit: 'contain' }}
             />
           </Link>
 

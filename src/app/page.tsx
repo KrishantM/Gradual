@@ -96,9 +96,12 @@ export default function LandingPage() {
               <Image 
                 src="/newlogo2.png" 
                 alt="Gradual" 
-                width={80}
-                height={80}
+                width={200}
+                height={200}
+                priority
+                unoptimized
                 className="h-12 md:h-16 lg:h-20 w-auto"
+                style={{ objectFit: 'contain' }}
               />
             </div>
 
