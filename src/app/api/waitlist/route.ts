@@ -32,14 +32,18 @@ export async function POST(request: NextRequest) {
 
     // 3. Add to MailerLite audience
     try {
+      // Use the group ID from environment variable or fallback to hardcoded value
+      const groupId = process.env.MAILERLITE_WAITLIST_GROUP_ID || '161492505912673451';
+      
       await mailerlite.subscribers.createOrUpdate({
         email: normalizedEmail,
         fields: {
           name: name,
         },
-        groups: ['161492505912673451'], // Waitlisted Users group
+        groups: [groupId], // Waitlisted Users group
         status: 'active',
       });
+      console.log(`Successfully added ${normalizedEmail} to MailerLite waitlist group`);
     } catch (mailerliteError) {
       console.error('MailerLite error:', mailerliteError);
       // Don't fail the entire request if MailerLite fails
