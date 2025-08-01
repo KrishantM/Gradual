@@ -33,7 +33,7 @@ export default function PrivacyPage() {
                 </li>
                 <li>
                   <strong>Data Sharing</strong><br />
-                  We do not sell your personal data. We may share data with trusted service providers (e.g., Firebase, OpenAI, EmailJS) to operate the Platform.
+                  We do not sell your personal data. We may share data with trusted service providers (e.g., Firebase, OpenAI, MailerLite) to operate the Platform.
                 </li>
                 <li>
                   <strong>Data Security</strong><br />

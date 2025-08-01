@@ -58,9 +58,8 @@ export default function AboutPage() {
             <h2 className="text-2xl font-semibold text-white mb-3">Contact Us</h2>
             <p className="text-gray-300 mb-2">We welcome feedback, inquiries, and collaboration opportunities. Get in touch:</p>
             <ul className="text-gray-300 mb-4">
-              <li>Email: <a href="mailto:contact@gradual.ai" className="underline hover:text-blue-400">contact@gradual.ai</a></li>
+              <li>Email: <a href="mailto:admin@gradual.co.nz" className="underline hover:text-blue-400">admin@gradual.co.nz</a></li>
               <li>LinkedIn: <a href="https://www.linkedin.com/company/gradual-ai" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-400">Gradual on LinkedIn</a></li>
-              <li>Recruiter Partnerships: <a href="mailto:recruiters@gradual.ai" className="underline hover:text-blue-400">recruiters@gradual.ai</a></li>
             </ul>
             <div className="flex justify-center">
               <Link href="/">
