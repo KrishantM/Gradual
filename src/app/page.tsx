@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Brain, Target, BarChart3, Users, ArrowRight, CheckCircle } from "lucide-react"
 import { collection, addDoc, serverTimestamp, query, where, getDocs } from "firebase/firestore"
 import { db } from "@/lib/firebase"
+import Image from "next/image"
 
 export default function LandingPage() {
   const [email, setEmail] = useState("")
@@ -92,9 +93,11 @@ export default function LandingPage() {
           <div className="text-center max-w-4xl mx-auto">
             {/* Logo */}
             <div className="mb-8 flex justify-center">
-              <img 
+              <Image 
                 src="/newlogo2.png" 
                 alt="Gradual" 
+                width={80}
+                height={80}
                 className="h-12 md:h-16 lg:h-20 w-auto"
               />
             </div>

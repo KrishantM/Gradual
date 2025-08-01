@@ -15,6 +15,7 @@ import {
   X
 } from 'lucide-react';
 import { useState } from 'react';
+import Image from 'next/image';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -38,9 +39,11 @@ export default function Navbar() {
             className="flex items-center group"
             onClick={closeMobileMenu}
           >
-            <img 
+            <Image 
               src="/newlogo2.png" 
               alt="Gradual" 
+              width={100}
+              height={20}
               className="h-5 w-auto group-hover:opacity-80 transition-opacity duration-300"
             />
           </Link>
