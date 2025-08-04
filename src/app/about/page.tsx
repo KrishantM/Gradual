@@ -15,10 +15,10 @@ export default function AboutPage() {
               Gradual is the future of career building.
             </p>
             <p className="text-gray-300 text-lg mb-4">
-              We're building an intelligent platform that helps students and industry professionals land the right opportunities faster. From AI-powered CV scoring to personalized job matches and career guidance, Gradual gives users the tools to stand out in a noisy job market.
+              We&apos;re building an intelligent platform that helps students and industry professionals land the right opportunities faster. From AI-powered CV scoring to personalized job matches and career guidance, Gradual gives users the tools to stand out in a noisy job market.
             </p>
             <p className="text-gray-300 text-lg mb-4">
-              But we're not stopping there. Gradual is also building recruiter-facing tools to make talent discovery smarter, faster, and more data-driven. Our mission is to connect potential with opportunity on both sides of the market.
+              But we&apos;re not stopping there. Gradual is also building recruiter-facing tools to make talent discovery smarter, faster, and more data-driven. Our mission is to connect potential with opportunity on both sides of the market.
             </p>
             <ul className="list-disc list-inside text-gray-300 mb-4 space-y-1">
               <li>Score and optimize CVs</li>
