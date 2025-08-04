@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
     await addDoc(collection(db, "waitlist"), {
       name,
       email: normalizedEmail,
+      displayName: `${name} (${normalizedEmail})`, // For better readability
       submittedAt: serverTimestamp(),
     });
 

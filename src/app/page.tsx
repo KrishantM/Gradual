@@ -6,7 +6,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
-import { Brain, Target, BarChart3, Users, ArrowRight, CheckCircle } from "lucide-react"
+import { Brain, Target, BarChart3, Users, ArrowRight, CheckCircle, TrendingUp } from "lucide-react"
 import { collection, addDoc, serverTimestamp, query, where, getDocs } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import Image from "next/image"
@@ -59,22 +59,22 @@ export default function LandingPage() {
 
   const features = [
     {
-      icon: Brain,
+      icon: TrendingUp,
       title: "AI-driven CV scoring",
       description:
-        "Get instant feedback on your resume with our advanced AI algorithms that analyze content, structure, and relevance.",
+        "Get instant feedback on your resume with our advanced AI that analyzes content, structure, and relevance to help you stand out.",
     },
     {
-      icon: Target,
+      icon: Brain,
       title: "Smart role suggestions",
       description:
-        "Discover opportunities tailored to your skills, experience, and career aspirations through intelligent matching.",
+        "Discover opportunities tailored to your skills, experience, and career aspirations through intelligent matching and personalized recommendations.",
     },
     {
       icon: BarChart3,
       title: "Personalized dashboard",
       description:
-        "Track your progress, manage applications, and visualize your career journey with comprehensive analytics.",
+        "Track your progress, manage applications, and visualize your career journey with an all-in-one dashboard.",
     },
     {
       icon: Users,
@@ -125,7 +125,7 @@ export default function LandingPage() {
 
             {/* Subheading */}
             <p className="text-gray-400 text-lg lg:text-xl max-w-2xl mx-auto leading-relaxed">
-              Get early access to AI-powered career insights and tailored role suggestions.
+              Join our waitlist now and get early access as we put the finishing touches on Gradual.
             </p>
           </div>
         </div>
@@ -181,10 +181,10 @@ export default function LandingPage() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h3 className="text-3xl lg:text-4xl font-bold text-white mb-4">
-              Why Choose Gradual?
+              What is <span className="text-blue-400">Gradual</span>?
             </h3>
             <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-              Powerful AI-driven tools designed to accelerate your career journey
+              An intelligent platform that helps students and professionals land the right opportunities faster
             </p>
           </div>
 

@@ -12,13 +12,21 @@ export default function AboutPage() {
           <CardContent className="p-8">
             <h1 className="text-4xl font-bold text-white mb-4 text-center">About Gradual</h1>
             <p className="text-gray-300 text-lg mb-4">
-              Gradual is your intelligent career launchpad, designed to help students and early professionals transform their potential into opportunity. We believe career growth should be accessible, personalized, and most importantly, progressive.
+              Gradual is the future of career building.
+            </p>
+            <p className="text-gray-300 text-lg mb-4">
+              We're building an intelligent platform that helps students and industry professionals land the right opportunities faster. From AI-powered CV scoring to personalized job matches and career guidance, Gradual gives users the tools to stand out in a noisy job market.
+            </p>
+            <p className="text-gray-300 text-lg mb-4">
+              But we're not stopping there. Gradual is also building recruiter-facing tools to make talent discovery smarter, faster, and more data-driven. Our mission is to connect potential with opportunity on both sides of the market.
             </p>
             <ul className="list-disc list-inside text-gray-300 mb-4 space-y-1">
               <li>Score and optimize CVs</li>
-              <li>Receive personalized suggestions for internships, graduate roles, and skill development</li>
+              <li>Receive smart suggestions for internships, graduate roles, and skill development</li>
               <li>Track progress through a dynamic dashboard and actionable to-do lists</li>
               <li>Build a professional profile that evolves with your goals</li>
+              <li>Recruiter portal to view, access and shortlist exceptional candidates <span className="italic text-gray-400">(coming soon)</span></li>
+              <li>Live CV Assistant to work through your career questions and goals in real time <span className="italic text-gray-400">(coming soon)</span></li>
             </ul>
           </CardContent>
         </Card>
@@ -30,7 +38,7 @@ export default function AboutPage() {
               <li>Final-year university students preparing for the graduate job market</li>
               <li>Recent graduates taking their next professional steps</li>
               <li>Early-career professionals exploring career pivots or skill enhancement</li>
-              <li>International students seeking clarity and direction in local markets</li>
+              <li>International students seeking clarity and direction in local ANZ markets</li>
               <li>Recruiters and career coaches looking for smarter, data-driven candidate insights <span className="italic text-gray-400">(coming soon)</span></li>
             </ul>
             <p className="text-gray-300">Whether you&apos;re navigating job boards or refining your CV, Gradual provides practical tools to guide the way.</p>
@@ -44,9 +52,8 @@ export default function AboutPage() {
             <h3 className="text-xl font-semibold text-white mb-2">Upcoming Features:</h3>
             <ul className="list-disc list-inside text-gray-300 mb-4 space-y-1">
               <li>A recruiter-facing platform with candidate insights</li>
-              <li>Integrations with ATS platforms and LinkedIn</li>
+              <li>Integrations with ATS platforms and LinkedIn, Seek and Indeed</li>
               <li>Skill-gap analysis and targeted course recommendations</li>
-              <li>Verified CV scoring and badge system</li>
               <li>Mentorship and partner collaboration tools</li>
             </ul>
             <p className="text-gray-300">Gradual aims to support career progression from university to senior roles, adapting as your goals evolve.</p>
