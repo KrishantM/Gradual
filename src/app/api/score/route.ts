@@ -2,15 +2,31 @@
 
 import { openai } from '../../../../lib/openai';
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '../../../../lib/firebase-admin';
 
 export async function POST(req: NextRequest) {
-  const { cvText, guest } = await req.json();
-
-  if (!cvText || typeof cvText !== 'string') {
-    return NextResponse.json({ error: 'Invalid CV text.' }, { status: 400 });
-  }
-
   try {
+    // Get the authorization header
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized - No token provided' }, { status: 401 });
+    }
+
+    const token = authHeader.split('Bearer ')[1];
+    
+    // Verify the Firebase token
+    try {
+      await auth.verifyIdToken(token);
+    } catch (error) {
+      return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 });
+    }
+
+    const { cvText, guest } = await req.json();
+
+    if (!cvText || typeof cvText !== 'string') {
+      return NextResponse.json({ error: 'Invalid CV text.' }, { status: 400 });
+    }
+
     const systemPrompt = guest
       ? `You are an AI CV scoring assistant. Reply in this structure:
 

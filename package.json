@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "prepare-production": "node scripts/prepare-production.js"
   },
   "dependencies": {
     "@mailerlite/mailerlite-nodejs": "^1.4.1",

@@ -3,7 +3,7 @@
 import Head from 'next/head';
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { db } from '../../../lib/firebase';
+import { db } from '@/lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,7 @@ import {
   Star,
   BarChart3
 } from 'lucide-react';
+import { authenticatedFetch } from '@/lib/api-helper';
 
 export default function CVScorePage() {
   const [cvText, setCvText] = useState('');
@@ -77,14 +78,26 @@ export default function CVScorePage() {
     setError('');
 
     try {
-      const res = await fetch('/api/score', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cvText: cvText.trim(), guest: !user }),
-      });
+      let res;
+      
+      if (user) {
+        // Use authenticated API call
+        res = await authenticatedFetch('/api/score', {
+          method: 'POST',
+          body: JSON.stringify({ cvText: cvText.trim(), guest: false }),
+        });
+      } else {
+        // Use guest mode
+        res = await fetch('/api/score', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cvText: cvText.trim(), guest: true }),
+        });
+      }
 
       if (!res.ok) {
-        throw new Error('Failed to get score');
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to get score');
       }
 
       const data = await res.json();
@@ -98,6 +111,7 @@ export default function CVScorePage() {
         });
       }
     } catch (err) {
+      console.error('CV Score Error:', err);
       setError('Failed to get CV score. Please try again.');
     } finally {
       setIsLoading(false);

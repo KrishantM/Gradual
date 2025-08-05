@@ -1,25 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import admin from 'firebase-admin';
-
-// Initialize Firebase Admin if not already done
-if (!admin.apps.length) {
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
-}
-
-const db = admin.firestore();
+import { auth, db } from '../../../../lib/firebase-admin';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
 
 export async function POST(req: NextRequest) {
-  const { degree, gpa, interests, uid } = await req.json();
-
   try {
+    // Get the authorization header
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized - No token provided' }, { status: 401 });
+    }
+
+    const token = authHeader.split('Bearer ')[1];
+    
+    // Verify the Firebase token
+    try {
+      const decodedToken = await auth.verifyIdToken(token);
+      // You can access user info here: decodedToken.uid, decodedToken.email, etc.
+    } catch (error) {
+      return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 });
+    }
+
+    const { degree, gpa, interests, uid } = await req.json();
+
+    // Validate required fields
+    if (!degree || !gpa || !interests) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
     const prompt = `You are a career advisor AI. Based on the following user profile, provide 5 specific, actionable career-building suggestions. Each suggestion should be structured as:
 
 [One line title:]

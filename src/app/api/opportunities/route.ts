@@ -1,19 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirestore, collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
-import { initializeApp, getApps } from 'firebase/app';
-
-// Firebase init (only if not already initialized)
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
-
-if (!getApps().length) initializeApp(firebaseConfig);
-const db = getFirestore();
+import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { auth } from '../../../../lib/firebase-admin';
 
 // Scoring weights for different factors
 const SCORE_WEIGHTS = {
@@ -182,6 +170,22 @@ function calculateOpportunityScore(opportunity: Opportunity, profile: UserProfil
 
 export async function POST(req: NextRequest) {
   try {
+    // Get the authorization header
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized - No token provided' }, { status: 401 });
+    }
+
+    const token = authHeader.split('Bearer ')[1];
+    
+    // Verify the Firebase token
+    try {
+      const decodedToken = await auth.verifyIdToken(token);
+      // You can access user info here: decodedToken.uid, decodedToken.email, etc.
+    } catch (error) {
+      return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 });
+    }
+
     const { profile, limit: limitCount = 10 } = await req.json();
     
     if (!profile) {

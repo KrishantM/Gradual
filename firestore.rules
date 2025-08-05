@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ✅ Allow public read access to job opportunities
+    match /opportunities/{jobId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.admin == true;
+    }
+
+    // ✅ Allow users to read/write their own profile data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ✅ Allow users to read/write their own suggestions
+    match /suggestions/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ✅ Allow users to read/write their own todos
+    match /todos/{todoId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+
+    // ✅ Allow public access to waitlist (for landing page)
+    match /waitlist/{document} {
+      allow read, write: if true;
+    }
+
+    // ❌ Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

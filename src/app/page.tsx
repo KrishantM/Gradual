@@ -125,7 +125,7 @@ export default function LandingPage() {
 
             {/* Subheading */}
             <p className="text-gray-400 text-lg lg:text-xl max-w-2xl mx-auto leading-relaxed">
-              Join our waitlist now and get early access as we put the finishing touches on Gradual.
+              Join the waitlist now and get early access as we put the finishing touches on Gradual.
             </p>
           </div>
         </div>
@@ -184,7 +184,7 @@ export default function LandingPage() {
               What is <span className="text-blue-400">Gradual</span>?
             </h3>
             <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-              An intelligent platform that helps students and professionals land the right opportunities faster
+              An intelligent platform that helps students and professionals land the right roles faster
             </p>
           </div>
 

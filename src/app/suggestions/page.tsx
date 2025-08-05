@@ -1,14 +1,31 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { db } from '../../../lib/firebase';
-import { doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
-import Link from 'next/link';
+import { doc, getDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { Brain, Sparkles, ArrowRight, CheckCircle, User, GraduationCap, Target, Briefcase, MapPin, Star, ExternalLink, Calendar } from 'lucide-react';
+import { 
+  Brain, 
+  Briefcase, 
+  Star, 
+  Loader2, 
+  RefreshCw,
+  AlertCircle,
+  Sparkles, 
+  ArrowRight, 
+  CheckCircle, 
+  User, 
+  GraduationCap, 
+  Target, 
+  MapPin, 
+  ExternalLink, 
+  Calendar 
+} from 'lucide-react';
+import { authenticatedFetch } from '@/lib/api-helper';
+import Link from 'next/link';
 
 interface Opportunity {
   id: string;
@@ -28,14 +45,14 @@ interface Opportunity {
 
 export default function SuggestionsPage() {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [loading, setLoading] = useState(false);
   const [opportunitiesLoading, setOpportunitiesLoading] = useState(false);
-  const [starredOpportunities, setStarredOpportunities] = useState<string[]>([]);
   const [starringLoading, setStarringLoading] = useState<string | null>(null);
+  const [starredOpportunities, setStarredOpportunities] = useState<string[]>([]);
   const [extraContext, setExtraContext] = useState('');
-  const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -70,15 +87,30 @@ export default function SuggestionsPage() {
     if (!profile) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/suggestions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...profile,
-          interests: `${profile.interests || ''} ${extraContext || ''}`,
-          uid: user?.uid,
-        }),
-      });
+      let res;
+      
+      if (user) {
+        // Use authenticated API call
+        res = await authenticatedFetch('/api/suggestions', {
+          method: 'POST',
+          body: JSON.stringify({
+            ...profile,
+            interests: `${profile.interests || ''} ${extraContext || ''}`,
+            uid: user ? (user as any).uid : undefined,
+          }),
+        });
+      } else {
+        // Fallback for non-authenticated users (shouldn't happen in normal flow)
+        res = await fetch('/api/suggestions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...profile,
+            interests: `${profile.interests || ''} ${extraContext || ''}`,
+          }),
+        });
+      }
+
       const data = await res.json();
       if (data.error) {
         throw new Error(data.error);
@@ -96,22 +128,40 @@ export default function SuggestionsPage() {
     if (!profile) return;
     setOpportunitiesLoading(true);
     try {
-      const res = await fetch('/api/opportunities', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          profile,
-          limit: 8
-        }),
-      });
+      let res;
+      
+      if (user) {
+        // Use authenticated API call
+        res = await authenticatedFetch('/api/opportunities', {
+          method: 'POST',
+          body: JSON.stringify({
+            profile,
+            limit: 8
+          }),
+        });
+      } else {
+        // Fallback for non-authenticated users
+        res = await fetch('/api/opportunities', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            profile,
+            limit: 8
+          }),
+        });
+      }
+
       const data = await res.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
       setOpportunities(data.opportunities || []);
     } catch (err) {
       console.error('Failed to fetch opportunities:', err);
     } finally {
       setOpportunitiesLoading(false);
     }
-  }, [profile]);
+  }, [profile, user]);
 
   // Fetch opportunities when profile loads
   useEffect(() => {
@@ -232,14 +282,17 @@ export default function SuggestionsPage() {
                   <Sparkles className="h-5 w-5 text-green-400 mr-2" />
                   <p className="text-green-400 text-sm font-medium">Suggestions are based on your profile</p>
                 </div>
-                <div className="flex items-center mb-4">
-                  <Target className="h-5 w-5 text-orange-300 mr-2" />
+                <div className="mb-6">
+                  <label className="block text-white font-medium mb-2">
+                    <Sparkles className="inline h-4 w-4 mr-2 text-blue-400" />
+                    Extra Context (Optional)
+                  </label>
                   <p className="text-orange-300 text-sm">Add extra context for more specific results</p>
                 </div>
                 <textarea
                   className="w-full p-4 rounded-lg bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20 resize-none"
                   rows={4}
-                  placeholder="e.g. Interested in data roles with social impact, prefer remote work, looking for entry-level positions..."
+                  placeholder="e.g., I'm particularly interested in remote work, or I want to focus on AI/ML roles..."
                   value={extraContext}
                   onChange={(e) => setExtraContext(e.target.value)}
                 />
