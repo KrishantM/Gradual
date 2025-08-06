@@ -168,7 +168,7 @@ export default function ProfilePage() {
     const gpaValue = parseFloat(gpa.toString());
     if (isNaN(gpaValue) || gpaValue < 0) return 0;
 
-    let maxScale = parseFloat(scale);
+    const maxScale = parseFloat(scale);
     
     let percentage: number;
     switch (scale) {
