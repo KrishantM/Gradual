@@ -20,6 +20,7 @@ export default function ProfilePage() {
     university: '',
     degree: '',
     gpa: '',
+    gpaScale: '4.0',
     interests: '',
     uploadedCVName: null as string | null,
     bio: '',
@@ -68,11 +69,33 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     if (!user) return;
+    
     // Validation for required fields
-    if (!formData.fullName || !formData.bio || !formData.city || !formData.country) {
-      setError('Please fill in all required fields: Full Name, Bio, City, and Country.');
+    if (!formData.fullName || !formData.university || !formData.degree || !formData.gpa || !formData.interests || !formData.city || !formData.country) {
+      setError('Please fill in all required fields: Full Name, University, Degree, GPA, Interests, City, and Country.');
       return;
     }
+    
+    // Validate GPA doesn't exceed scale
+    if (!isGPAValid(formData.gpa, formData.gpaScale)) {
+      if (formData.gpaScale === '100') {
+        setError(`Your GPA (${formData.gpa}%) must be between 0 and 100.`);
+      } else {
+        setError(`Your GPA (${formData.gpa}) exceeds the maximum for a ${formData.gpaScale} scale. Please enter a valid GPA.`);
+      }
+      return;
+    }
+    
+    // Validate GPA is realistically valid (not too low)
+    if (!isGPARealisticallyValid(formData.gpa, formData.gpaScale)) {
+      if (formData.gpaScale === '100') {
+        setError(`Your GPA (${formData.gpa}%) seems unrealistically low. Please enter a valid percentage.`);
+      } else {
+        setError(`Your GPA (${formData.gpa}) seems unrealistically low for a ${formData.gpaScale} scale. Please verify your GPA.`);
+      }
+      return;
+    }
+    
     setSaving(true);
     try {
       let extractedText = cvText;
@@ -133,6 +156,83 @@ export default function ProfilePage() {
     }
   };
 
+  // Helper function to calculate GPA percentage
+  const calculateGPAPercentage = (gpa: number, scale: string) => {
+    if (scale === '100') {
+      return Math.round(gpa);
+    }
+    if (scale === 'other') {
+      return null; // Don't calculate percentage for other scales
+    }
+    
+    const gpaValue = parseFloat(gpa.toString());
+    if (isNaN(gpaValue) || gpaValue < 0) return 0;
+
+    let maxScale = parseFloat(scale);
+    
+    let percentage: number;
+    switch (scale) {
+      case '4.0':
+        percentage = (gpaValue / 4.0) * 100;
+        break;
+      case '5.0':
+        percentage = (gpaValue / 5.0) * 100;
+        break;
+      case '7.0':
+        percentage = (gpaValue / 7.0) * 100;
+        break;
+      case '9.0':
+        percentage = (gpaValue / 9.0) * 100;
+        break;
+      case '10.0':
+        percentage = (gpaValue / 10.0) * 100;
+        break;
+      default:
+        percentage = gpaValue;
+    }
+    
+    return Math.round(Math.min(percentage, 100));
+  };
+
+  // Helper function to check if GPA exceeds scale
+  const isGPAValid = (gpa: string, scale: string) => {
+    if (!gpa || !scale || scale === 'other') return true;
+    
+    const gpaValue = parseFloat(gpa);
+    const maxScale = parseFloat(scale);
+    
+    // Check if GPA is a valid number
+    if (isNaN(gpaValue)) return false;
+    
+    // For percentage scale, check 0-100 range
+    if (scale === '100') {
+      return gpaValue >= 0 && gpaValue <= 100;
+    }
+    
+    // For other scales, check minimum of 0 and maximum of scale
+    // But realistically, GPAs below 1.0 are unusual, so we'll flag them
+    return gpaValue >= 0 && gpaValue <= maxScale;
+  };
+
+  // Helper function to check if GPA is unrealistically low
+  const isGPARealisticallyValid = (gpa: string, scale: string) => {
+    if (!gpa || !scale || scale === 'other') return true;
+    
+    const gpaValue = parseFloat(gpa);
+    if (isNaN(gpaValue)) return false;
+    
+    // For percentage scale, minimum should be reasonable (at least 1%)
+    if (scale === '100') {
+      return gpaValue >= 1;
+    }
+    
+    // For other scales, minimum should be at least equivalent to ~25% performance
+    const maxScale = parseFloat(scale);
+    const minimumGPA = maxScale * 0.25; // 25% of the scale
+    
+    return gpaValue >= minimumGPA;
+  };
+
   if (authLoading) return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black flex items-center justify-center">
       <div className="text-center">
@@ -158,7 +258,7 @@ export default function ProfilePage() {
                 Complete your profile to get personalized career suggestions and insights
               </p>
               <p className="text-gray-400 text-sm italic mt-2">
-                For the latest updates to your profile (such as CV changes), please refresh the page after saving.
+                Academic information is required for career suggestions. For the latest updates to your profile (such as CV changes), please refresh the page after saving.
               </p>
             </div>
           </div>
@@ -205,7 +305,7 @@ export default function ProfilePage() {
                     </div>
                     <div>
                       <label className="block mb-2 font-medium text-blue-300">
-                        Bio <span className="text-red-400">*</span>
+                        Bio
                       </label>
                       <textarea
                         className="w-full p-4 rounded-lg bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20 resize-none"
@@ -213,8 +313,7 @@ export default function ProfilePage() {
                         name="bio"
                         value={formData.bio}
                         onChange={handleChange}
-                        placeholder="Describe your passions, interests, and background..."
-                        required
+                        placeholder="Describe your passions, interests, and background... (optional)"
                       />
                     </div>
                     <div className="grid md:grid-cols-3 gap-4">
@@ -258,6 +357,136 @@ export default function ProfilePage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Academic Information */}
+                  <div className="space-y-4">
+                    <div className="flex items-center mb-4">
+                      <GraduationCap className="h-6 w-6 text-blue-400 mr-3" />
+                      <h2 className="text-xl font-semibold text-white">Academic Information</h2>
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block mb-2 font-medium text-blue-300">
+                          University <span className="text-red-400">*</span>
+                        </label>
+                        <Input
+                          className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                          name="university"
+                          value={formData.university}
+                          onChange={handleChange}
+                          placeholder="Your university or institution"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block mb-2 font-medium text-blue-300">
+                          Degree <span className="text-red-400">*</span>
+                        </label>
+                        <Input
+                          className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                          name="degree"
+                          value={formData.degree}
+                          onChange={handleChange}
+                          placeholder="e.g., Bachelor of Computer Science"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block mb-2 font-medium text-blue-300">
+                          GPA <span className="text-red-400">*</span>
+                        </label>
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-2">
+                            <Input
+                              className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                              name="gpa"
+                              value={formData.gpa}
+                              onChange={handleChange}
+                              placeholder="e.g., 3.7"
+                              required
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              max={formData.gpaScale === '100' ? '100' : formData.gpaScale === 'other' ? undefined : formData.gpaScale}
+                            />
+                            <select
+                              className="bg-white/10 border-white/20 text-white focus:border-blue-400 focus:ring-blue-400/20 rounded-lg px-3 py-2"
+                              name="gpaScale"
+                              value={formData.gpaScale || '4.0'}
+                              onChange={handleChange}
+                            >
+                              <option value="4.0" className="bg-gray-800">4.0 Scale</option>
+                              <option value="5.0" className="bg-gray-800">5.0 Scale</option>
+                              <option value="7.0" className="bg-gray-800">7.0 Scale</option>
+                              <option value="9.0" className="bg-gray-800">9.0 Scale</option>
+                              <option value="10.0" className="bg-gray-800">10.0 Scale</option>
+                              <option value="100" className="bg-gray-800">Percentage</option>
+                              <option value="other" className="bg-gray-800">Other</option>
+                            </select>
+                          </div>
+                          <div className="text-xs text-gray-400 mt-1">
+                            Common scales: 4.0 (USA, Canada), 5.0 (Monash), 7.0 (Queensland), 9.0 (Auckland), 10.0 (Europe)
+                          </div>
+                          {(!isGPAValid(formData.gpa, formData.gpaScale) || !isGPARealisticallyValid(formData.gpa, formData.gpaScale)) && formData.gpa && (
+                            <div className="bg-red-500/10 border border-red-400/30 rounded-lg p-3">
+                              <div className="flex items-center mb-1">
+                                <div className="w-2 h-2 bg-red-400 rounded-full mr-2"></div>
+                                <span className="text-red-400 text-sm font-medium">Invalid GPA</span>
+                              </div>
+                              <div className="text-red-300 text-sm">
+                                {!isGPAValid(formData.gpa, formData.gpaScale) ? (
+                                  formData.gpaScale === '100' 
+                                    ? `Your GPA (${formData.gpa}%) must be between 0 and 100.`
+                                    : `Your GPA (${formData.gpa}) exceeds the maximum for a ${formData.gpaScale} scale.`
+                                ) : (
+                                  formData.gpaScale === '100'
+                                    ? `Your GPA (${formData.gpa}%) seems unrealistically low. Please enter a valid percentage.`
+                                    : `Your GPA (${formData.gpa}) seems unrealistically low for a ${formData.gpaScale} scale. Please verify your GPA.`
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          {isGPAValid(formData.gpa, formData.gpaScale) && isGPARealisticallyValid(formData.gpa, formData.gpaScale) && formData.gpa && formData.gpaScale && formData.gpaScale !== 'other' && calculateGPAPercentage(parseFloat(formData.gpa) || 0, formData.gpaScale) !== null && (
+                            <div className="bg-blue-500/10 border border-blue-400/30 rounded-lg p-3">
+                              <div className="flex items-center mb-2">
+                                <div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>
+                                <span className="text-blue-300 text-sm font-medium">Gradual understands your GPA as:</span>
+                              </div>
+                              <div className="text-white font-semibold">
+                                {calculateGPAPercentage(parseFloat(formData.gpa) || 0, formData.gpaScale)}% performance
+                              </div>
+                              <div className="text-gray-300 text-xs mt-1">
+                                This helps us give you accurate career suggestions based on your academic performance level.
+                              </div>
+                            </div>
+                          )}
+                          {formData.gpaScale === 'other' && (
+                            <div className="bg-yellow-500/10 border border-yellow-400/30 rounded-lg p-3">
+                              <p className="text-yellow-300 text-sm">
+                                Please contact support or provide your GPA as a percentage (0-100) for the most accurate suggestions.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block mb-2 font-medium text-blue-300">
+                          Interests <span className="text-red-400">*</span>
+                        </label>
+                        <Input
+                          className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                          name="interests"
+                          value={formData.interests}
+                          onChange={handleChange}
+                          placeholder="e.g., AI, Machine Learning, Web Development"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Industries/Fields & Portfolio */}
                   <div className="space-y-4">
                     <div className="flex items-center mb-4">

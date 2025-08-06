@@ -24,12 +24,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 });
     }
 
-    const { degree, gpa, interests, uid } = await req.json();
+    const { degree, gpa, gpaScale, interests, uid } = await req.json();
 
     // Validate required fields
     if (!degree || !gpa || !interests) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
+
+    // Calculate normalized GPA percentage for better context
+    const calculateGPAPercentage = (gpaValue: number, scale: string) => {
+      if (scale === '100') return Math.round(gpaValue);
+      const maxScale = parseFloat(scale) || 4.0;
+      const percentage = (gpaValue / maxScale) * 100;
+      return Math.round(Math.min(percentage, 100));
+    };
+
+    const gpaPercentage = calculateGPAPercentage(parseFloat(gpa), gpaScale || '4.0');
+    const gpaContext = gpaScale ? `${gpa} out of ${gpaScale} (${gpaPercentage}% performance level)` : gpa;
 
     const prompt = `You are a career advisor AI. Based on the following user profile, provide 5 specific, actionable career-building suggestions. Each suggestion should be structured as:
 
@@ -37,8 +48,10 @@ export async function POST(req: NextRequest) {
 [1–2 sentence description with specific actions or recommendations]
 
 Degree: ${degree}
-GPA: ${gpa}
+GPA: ${gpaContext}
 Interests: ${interests}
+
+Consider the student's academic performance level when providing suggestions. Higher performers might be directed toward competitive programs/roles, while all students should receive valuable, achievable advice.
 
 Respond only with the formatted list. Remove formatting such as asterisks or bullet points.`;
 

@@ -54,6 +54,47 @@ export default function SuggestionsPage() {
   const [starredOpportunities, setStarredOpportunities] = useState<string[]>([]);
   const [extraContext, setExtraContext] = useState('');
 
+  // Helper function to check if GPA is valid
+  const isGPAValid = (gpa: string, scale: string) => {
+    if (!gpa || !scale || scale === 'other') return true;
+    
+    const gpaValue = parseFloat(gpa);
+    const maxScale = parseFloat(scale);
+    
+    if (isNaN(gpaValue)) return false;
+    
+    if (scale === '100') {
+      return gpaValue >= 0 && gpaValue <= 100;
+    }
+    
+    return gpaValue >= 0 && gpaValue <= maxScale;
+  };
+
+  const isGPARealisticallyValid = (gpa: string, scale: string) => {
+    if (!gpa || !scale || scale === 'other') return true;
+    
+    const gpaValue = parseFloat(gpa);
+    if (isNaN(gpaValue)) return false;
+    
+    if (scale === '100') {
+      return gpaValue >= 1;
+    }
+    
+    const maxScale = parseFloat(scale);
+    const minimumGPA = maxScale * 0.25;
+    
+    return gpaValue >= minimumGPA;
+  };
+
+  const isProfileComplete = (profile: any) => {
+    return profile.degree && 
+           profile.gpa && 
+           profile.interests && 
+           profile.university &&
+           isGPAValid(profile.gpa, profile.gpaScale || '4.0') &&
+           isGPARealisticallyValid(profile.gpa, profile.gpaScale || '4.0');
+  };
+
   useEffect(() => {
     if (!user) return;
     const fetchProfile = async () => {
@@ -241,37 +282,75 @@ export default function SuggestionsPage() {
 
           {/* Profile Summary */}
           {profile && (
-            <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl mb-8">
-              <CardContent className="p-6">
-                <div className="flex items-center mb-4">
-                  <User className="h-6 w-6 text-blue-400 mr-3" />
-                  <h2 className="text-xl font-semibold text-white">Your Profile Summary</h2>
-                </div>
-                <div className="grid md:grid-cols-2 gap-4 text-gray-300">
-                  <div className="flex items-center">
-                    <span className="font-medium text-blue-300 mr-2">Name:</span>
-                    <span>{profile.fullName}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <GraduationCap className="h-4 w-4 text-blue-400 mr-2" />
-                    <span className="font-medium text-blue-300 mr-2">University:</span>
-                    <span>{profile.university}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <span className="font-medium text-blue-300 mr-2">Degree:</span>
-                    <span>{profile.degree}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <span className="font-medium text-blue-300 mr-2">GPA:</span>
-                    <span>{profile.gpa}</span>
-                  </div>
-                  <div className="md:col-span-2">
-                    <span className="font-medium text-blue-300 mr-2">Interests:</span>
-                    <span className="text-gray-300">{profile.interests}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <>
+              {/* Check if profile is complete */}
+              {!isProfileComplete(profile) ? (
+                <Card className="bg-red-500/10 backdrop-blur-md border-red-400/30 shadow-2xl mb-8">
+                  <CardContent className="p-6">
+                    <div className="flex items-center mb-4">
+                      <AlertCircle className="h-6 w-6 text-red-400 mr-3" />
+                      <h2 className="text-xl font-semibold text-white">Complete Your Profile</h2>
+                    </div>
+                    <div className="text-gray-300 mb-4">
+                      <p className="mb-3">To generate personalized career suggestions, please complete your academic information:</p>
+                      <ul className="space-y-2">
+                        {!profile.university && <li className="flex items-center"><span className="text-red-400 mr-2">•</span> University</li>}
+                        {!profile.degree && <li className="flex items-center"><span className="text-red-400 mr-2">•</span> Degree</li>}
+                        {!profile.gpa && <li className="flex items-center"><span className="text-red-400 mr-2">•</span> GPA</li>}
+                        {profile.gpa && (!isGPAValid(profile.gpa, profile.gpaScale || '4.0') || !isGPARealisticallyValid(profile.gpa, profile.gpaScale || '4.0')) && (
+                          <li className="flex items-center"><span className="text-red-400 mr-2">•</span> Valid GPA (current GPA appears invalid)</li>
+                        )}
+                        {!profile.interests && <li className="flex items-center"><span className="text-red-400 mr-2">•</span> Interests</li>}
+                      </ul>
+                    </div>
+                    <Link href="/profile">
+                      <Button className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold px-6 py-3 rounded-lg transition-all duration-300">
+                        Complete Profile
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl mb-8">
+                  <CardContent className="p-6">
+                    <div className="flex items-center mb-4">
+                      <User className="h-6 w-6 text-blue-400 mr-3" />
+                      <h2 className="text-xl font-semibold text-white">Your Profile Summary</h2>
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4 text-gray-300">
+                      <div className="flex items-center">
+                        <span className="font-medium text-blue-300 mr-2">Name:</span>
+                        <span>{profile.fullName}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <GraduationCap className="h-4 w-4 text-blue-400 mr-2" />
+                        <span className="font-medium text-blue-300 mr-2">University:</span>
+                        <span>{profile.university}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <span className="font-medium text-blue-300 mr-2">Degree:</span>
+                        <span>{profile.degree}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <span className="font-medium text-blue-300 mr-2">GPA:</span>
+                        <span>
+                          {profile.gpa}
+                          {profile.gpaScale && profile.gpaScale !== '4.0' && (
+                            <span className="text-gray-400 text-sm ml-1">
+                              (out of {profile.gpaScale})
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="md:col-span-2">
+                        <span className="font-medium text-blue-300 mr-2">Interests:</span>
+                        <span className="text-gray-300">{profile.interests}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </>
           )}
 
           {/* Input Section */}
@@ -300,9 +379,9 @@ export default function SuggestionsPage() {
 
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105"
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   onClick={handleGenerate}
-                  disabled={loading}
+                  disabled={loading || !profile || !isProfileComplete(profile)}
                 >
                   {loading ? (
                     <div className="flex items-center">
@@ -312,7 +391,10 @@ export default function SuggestionsPage() {
                   ) : (
                     <div className="flex items-center">
                       <Brain className="h-5 w-5 mr-2" />
-                      Generate Suggestions
+                      {(!profile || !isProfileComplete(profile)) 
+                        ? 'Complete Profile First' 
+                        : 'Generate Suggestions'
+                      }
                     </div>
                   )}
                 </Button>
