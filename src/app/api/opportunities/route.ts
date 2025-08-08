@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db } from '../../../../lib/firebase-admin';
 import { auth } from '../../../../lib/firebase-admin';
 
 // Scoring weights for different factors
@@ -193,14 +192,10 @@ export async function POST(req: NextRequest) {
     }
     
     // Fetch opportunities from Firestore
-    const opportunitiesRef = collection(db, 'opportunities');
-    const q = query(
-      opportunitiesRef,
-      orderBy('created', 'desc'),
-      limit(100) // Fetch last 100 opportunities for scoring
-    );
+    const opportunitiesRef = db.collection('opportunities');
+    const q = opportunitiesRef.orderBy('created', 'desc').limit(100);
     
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = await q.get();
     const opportunities: Opportunity[] = [];
     
     querySnapshot.forEach((doc) => {
@@ -209,6 +204,60 @@ export async function POST(req: NextRequest) {
         ...doc.data()
       } as Opportunity);
     });
+    
+    // If no opportunities in database, return mock data for testing
+    if (opportunities.length === 0) {
+      const mockOpportunities: Opportunity[] = [
+        {
+          id: 'mock-1',
+          title: 'Software Engineer',
+          description: 'We are looking for a talented software engineer to join our team. Experience with React, Node.js, and cloud platforms preferred.',
+          location: 'Auckland, NZ',
+          company: 'TechCorp',
+          url: 'https://example.com/job1',
+          type: 'job',
+          category: 'Technology',
+          created: new Date().toISOString(),
+          source: 'adzuna'
+        },
+        {
+          id: 'mock-2',
+          title: 'Data Analyst Intern',
+          description: 'Join our data team and learn about analytics, machine learning, and business intelligence.',
+          location: 'Wellington, NZ',
+          company: 'DataFlow',
+          url: 'https://example.com/job2',
+          type: 'internship',
+          category: 'Data',
+          created: new Date().toISOString(),
+          source: 'adzuna'
+        },
+        {
+          id: 'mock-3',
+          title: 'Marketing Coordinator',
+          description: 'Help us grow our brand through digital marketing, social media, and content creation.',
+          location: 'Christchurch, NZ',
+          company: 'GrowthMarketing',
+          url: 'https://example.com/job3',
+          type: 'job',
+          category: 'Marketing',
+          created: new Date().toISOString(),
+          source: 'adzuna'
+        }
+      ];
+      
+      // Score mock opportunities
+      const scoredMockOpportunities = mockOpportunities.map(opportunity => ({
+        ...opportunity,
+        score: calculateOpportunityScore(opportunity, profile)
+      }));
+      
+      return NextResponse.json({ 
+        opportunities: scoredMockOpportunities,
+        totalScored: mockOpportunities.length,
+        totalRelevant: mockOpportunities.length
+      });
+    }
     
     // Score each opportunity
     const scoredOpportunities = opportunities.map(opportunity => ({

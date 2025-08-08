@@ -24,7 +24,6 @@ import {
   ExternalLink, 
   Calendar 
 } from 'lucide-react';
-import { authenticatedFetch } from '@/lib/api-helper';
 import Link from 'next/link';
 
 interface Opportunity {
@@ -47,6 +46,7 @@ export default function SuggestionsPage() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [savedSuggestions, setSavedSuggestions] = useState<string>('');
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(false);
   const [opportunitiesLoading, setOpportunitiesLoading] = useState(false);
@@ -124,39 +124,57 @@ export default function SuggestionsPage() {
     fetchStarredOpportunities();
   }, [user]);
 
+  // Fetch saved suggestions
+  useEffect(() => {
+    if (!user) return;
+    const fetchSavedSuggestions = async () => {
+      try {
+        const suggestionsRef = doc(db, 'suggestions', user.uid);
+        const suggestionsSnap = await getDoc(suggestionsRef);
+        if (suggestionsSnap.exists() && suggestionsSnap.data().suggestions) {
+          setSavedSuggestions(suggestionsSnap.data().suggestions);
+        }
+      } catch (error) {
+        console.error('Error fetching saved suggestions:', error);
+      }
+    };
+    fetchSavedSuggestions();
+  }, [user]);
+
   const handleGenerate = async () => {
-    if (!profile) return;
+    if (!profile || !user) return;
     setLoading(true);
     try {
-      let res;
+      const token = await user.getIdToken();
       
-      if (user) {
-        // Use authenticated API call
-        res = await authenticatedFetch('/api/suggestions', {
-          method: 'POST',
-          body: JSON.stringify({
-            ...profile,
-            interests: `${profile.interests || ''} ${extraContext || ''}`,
-            uid: user ? (user as any).uid : undefined,
-          }),
-        });
-      } else {
-        // Fallback for non-authenticated users (shouldn't happen in normal flow)
-        res = await fetch('/api/suggestions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...profile,
-            interests: `${profile.interests || ''} ${extraContext || ''}`,
-          }),
-        });
-      }
+      const response = await fetch('/api/suggestions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...profile,
+          interests: `${profile.interests || ''} ${extraContext || ''}`,
+          uid: user.uid,
+        }),
+      });
 
-      const data = await res.json();
-      if (data.error) {
-        throw new Error(data.error);
+      const data = await response.json();
+
+      if (response.ok && data.suggestions) {
+        setSuggestions(data.suggestions || []);
+        
+        // Refresh saved suggestions
+        const suggestionsRef = doc(db, 'suggestions', user.uid);
+        const suggestionsSnap = await getDoc(suggestionsRef);
+        if (suggestionsSnap.exists() && suggestionsSnap.data().suggestions) {
+          setSavedSuggestions(suggestionsSnap.data().suggestions);
+        }
+      } else {
+        console.error('Failed to generate suggestions:', data.error || 'Unknown error');
+        alert('Failed to generate suggestions. Please try again.');
       }
-      setSuggestions(data.suggestions || []);
     } catch (err) {
       console.error('Failed to generate suggestions:', err);
       alert('Failed to generate suggestions. Please try again.');
@@ -166,43 +184,36 @@ export default function SuggestionsPage() {
   };
 
   const fetchOpportunities = useCallback(async () => {
-    if (!profile) return;
-    setOpportunitiesLoading(true);
+    if (!user || !profile) return;
+    
     try {
-      let res;
+      setOpportunitiesLoading(true);
+      const token = await user.getIdToken();
       
-      if (user) {
-        // Use authenticated API call
-        res = await authenticatedFetch('/api/opportunities', {
-          method: 'POST',
-          body: JSON.stringify({
-            profile,
-            limit: 8
-          }),
-        });
-      } else {
-        // Fallback for non-authenticated users
-        res = await fetch('/api/opportunities', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            profile,
-            limit: 8
-          }),
-        });
-      }
+      const response = await fetch('/api/jobs/unified', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          profile: profile,
+          limit: 12
+        }),
+      });
 
-      const data = await res.json();
-      if (data.error) {
-        throw new Error(data.error);
+      if (response.ok) {
+        const data = await response.json();
+        setOpportunities(data.opportunities || []);
+      } else {
+        console.error('Failed to fetch opportunities');
       }
-      setOpportunities(data.opportunities || []);
-    } catch (err) {
-      console.error('Failed to fetch opportunities:', err);
+    } catch (error) {
+      console.error('Error fetching opportunities:', error);
     } finally {
       setOpportunitiesLoading(false);
     }
-  }, [profile, user]);
+  }, [user, profile]);
 
   // Fetch opportunities when profile loads
   useEffect(() => {
@@ -522,15 +533,17 @@ export default function SuggestionsPage() {
                             <span className="text-xs text-gray-400 capitalize">
                               {opportunity.category}
                             </span>
-                            <a
-                              href={opportunity.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors"
-                            >
-                              Apply Now
-                              <ExternalLink className="h-3 w-3 ml-1" />
-                            </a>
+                            <div className="flex items-center space-x-2">
+                              <a
+                                href={opportunity.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors"
+                              >
+                                Apply Now
+                                <ExternalLink className="h-3 w-3 ml-1" />
+                              </a>
+                            </div>
                           </div>
                         </div>
                       );

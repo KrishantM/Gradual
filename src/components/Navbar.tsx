@@ -12,7 +12,8 @@ import {
   LogIn, 
   UserPlus,
   Menu,
-  X
+  X,
+  Target
 } from 'lucide-react';
 import { useState } from 'react';
 import Image from 'next/image';
@@ -78,6 +79,15 @@ export default function Navbar() {
                   >
                     <Brain className="h-4 w-4 mr-2" />
                     Suggestions
+                  </Button>
+                </Link>
+                <Link href="/tracker">
+                  <Button
+                    variant="ghost"
+                    className="text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-300"
+                  >
+                    <Target className="h-4 w-4 mr-2" />
+                    Tracker
                   </Button>
                 </Link>
                 <Link href="/profile">
@@ -167,6 +177,16 @@ export default function Navbar() {
                     >
                       <Brain className="h-4 w-4 mr-3" />
                       Suggestions
+                    </Button>
+                  </Link>
+                  <Link href="/tracker">
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-300"
+                      onClick={closeMobileMenu}
+                    >
+                      <Target className="h-4 w-4 mr-3" />
+                      Tracker
                     </Button>
                   </Link>
                   <Link href="/profile">

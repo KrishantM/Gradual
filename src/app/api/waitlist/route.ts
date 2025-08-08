@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import MailerLite from '@mailerlite/mailerlite-nodejs';
-import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db } from '../../../../lib/firebase-admin';
 
 const mailerlite = new MailerLite({
   api_key: process.env.MAILERLITE_API_KEY!,
@@ -115,23 +114,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for duplicate in Firestore
-    const q = query(collection(db, "waitlist"), where("email", "==", normalizedEmail));
-    const existing = await getDocs(q);
+    // Check for duplicate in Firestore using server-side admin SDK
+    const waitlistRef = db.collection('waitlist');
+    const snapshot = await waitlistRef.where('email', '==', normalizedEmail).get();
 
-    if (!existing.empty) {
+    if (!snapshot.empty) {
       return NextResponse.json(
         { error: "You're already on the waitlist. We'll be in touch soon!" },
         { status: 400 }
       );
     }
 
-    // Save to Firestore
-    await addDoc(collection(db, "waitlist"), {
+    // Save to Firestore using server-side admin SDK
+    await waitlistRef.add({
       name,
       email: normalizedEmail,
       displayName: `${name} (${normalizedEmail})`,
-      submittedAt: serverTimestamp(),
+      submittedAt: new Date().toISOString(),
       ip: clientIP, // Store IP for monitoring
     });
 

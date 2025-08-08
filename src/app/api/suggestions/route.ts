@@ -24,7 +24,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 });
     }
 
-    const { degree, gpa, gpaScale, interests, uid } = await req.json();
+    const { 
+      degree, 
+      gpa, 
+      gpaScale, 
+      interests, 
+      uid,
+      fullName,
+      university,
+      city,
+      country,
+      age,
+      preferredIndustries,
+      portfolioLinks,
+      bio,
+      cvText
+    } = await req.json();
 
     // Validate required fields
     if (!degree || !gpa || !interests) {
@@ -42,23 +57,85 @@ export async function POST(req: NextRequest) {
     const gpaPercentage = calculateGPAPercentage(parseFloat(gpa), gpaScale || '4.0');
     const gpaContext = gpaScale ? `${gpa} out of ${gpaScale} (${gpaPercentage}% performance level)` : gpa;
 
-    const prompt = `You are a career advisor AI. Based on the following user profile, provide 5 specific, actionable career-building suggestions. Each suggestion should be structured as:
+    // Build comprehensive profile context
+    const locationContext = city && country ? `Location: ${city}, ${country}` : '';
+    const ageContext = age ? `Age: ${age} years old` : '';
+    const industryContext = preferredIndustries ? `Preferred Industries: ${preferredIndustries}` : '';
+    const portfolioContext = portfolioLinks ? `Portfolio/Links: ${portfolioLinks}` : '';
+    const bioContext = bio ? `Background: ${bio}` : '';
+    const cvContext = cvText ? `CV Summary: ${cvText.substring(0, 500)}${cvText.length > 500 ? '...' : ''}` : '';
+
+    // Analyze career stage based on age and academic status
+    const careerStage = age ? 
+      (parseInt(age) < 22 ? 'Student/Early Career' : 
+       parseInt(age) < 25 ? 'Recent Graduate' : 
+       parseInt(age) < 30 ? 'Early Professional' : 
+       parseInt(age) < 35 ? 'Mid-Career Professional' : 'Experienced Professional') : 'Student';
+
+    const academicPerformance = gpaPercentage >= 85 ? 'Excellent' : 
+                               gpaPercentage >= 70 ? 'Good' : 
+                               gpaPercentage >= 50 ? 'Average' : 'Below Average';
+
+    const prompt = `You are an expert career advisor AI. Based on the following comprehensive user profile, provide 5 highly specific, actionable career-building suggestions tailored to this individual's unique situation. Each suggestion should be structured as:
 
 [One line title:]
-[1–2 sentence description with specific actions or recommendations]
+[2-3 sentence description with specific actions, resources, or recommendations]
 
-Degree: ${degree}
-GPA: ${gpaContext}
-Interests: ${interests}
+Profile Information:
+- Name: ${fullName || 'Not provided'}
+- University: ${university || 'Not provided'}
+- Degree: ${degree}
+- GPA: ${gpaContext}
+- Interests: ${interests}
+${locationContext ? `- ${locationContext}` : ''}
+${ageContext ? `- ${ageContext}` : ''}
+${industryContext ? `- ${industryContext}` : ''}
+${portfolioContext ? `- ${portfolioContext}` : ''}
+${bioContext ? `- ${bioContext}` : ''}
+${cvContext ? `- ${cvContext}` : ''}
 
-Consider the student's academic performance level when providing suggestions. Higher performers might be directed toward competitive programs/roles, while all students should receive valuable, achievable advice.
+Career Analysis:
+- Career Stage: ${careerStage}
+- Academic Performance: ${academicPerformance} (${gpaPercentage}%)
+- Geographic Market: ${city}, ${country}
+
+Guidelines for suggestions:
+1. Consider their academic performance level (${gpaPercentage}%) when recommending competitive vs. accessible opportunities
+2. Factor in their location (${city}, ${country}) for local opportunities and visa considerations
+3. Leverage their specific interests and preferred industries for targeted advice
+4. Consider their age and experience level for appropriate career stage recommendations
+5. Use their portfolio/links to suggest relevant networking or skill-building opportunities
+6. Incorporate their background/bio for personalized motivation and context
+7. Reference their CV content for specific skill gaps or strengths to address
+8. Account for their career stage (${careerStage}) in recommendation complexity and timeline
+
+Make suggestions that are:
+- Specific to their profile (not generic advice)
+- Actionable with clear next steps
+- Realistic for their academic performance level
+- Relevant to their location and industry preferences
+- Appropriate for their career stage and background
+- Time-sensitive and prioritized by impact
 
 Respond only with the formatted list. Remove formatting such as asterisks or bullet points.`;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
-        { role: 'system', content: 'You are a helpful and specific career suggestion assistant.' },
+        { 
+          role: 'system', 
+          content: `You are an expert career advisor with deep knowledge of global job markets, industry trends, and career development strategies. You specialize in providing highly personalized, actionable career advice based on comprehensive user profiles.
+
+Your expertise includes:
+- Academic performance analysis and appropriate opportunity matching
+- Geographic considerations (visa requirements, local markets, remote opportunities)
+- Industry-specific career paths and skill development
+- Age-appropriate career stage recommendations
+- Portfolio and networking strategy development
+- CV analysis and skill gap identification
+
+Always provide specific, actionable advice with clear next steps, resources, or recommendations. Focus on realistic opportunities that match the user's academic performance, location, and career stage.` 
+        },
         { role: 'user', content: prompt },
       ],
     });
