@@ -89,9 +89,9 @@ export default function ProfilePage() {
     // Validate GPA is realistically valid (not too low)
     if (!isGPARealisticallyValid(formData.gpa, formData.gpaScale)) {
       if (formData.gpaScale === '100') {
-        setError(`Your GPA (${formData.gpa}%) seems unrealistically low. Please enter a valid percentage.`);
+        setError(`Your GPA (${formData.gpa}%) seems unrealistically low. Please lock in.`);
       } else {
-        setError(`Your GPA (${formData.gpa}) seems unrealistically low for a ${formData.gpaScale} scale. Please verify your GPA.`);
+        setError(`Your GPA (${formData.gpa}) seems unrealistically low for a ${formData.gpaScale} scale. Please lock in.`);
       }
       return;
     }

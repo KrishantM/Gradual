@@ -480,30 +480,33 @@ export default function TrackerPage() {
                 />
               </div>
             </div>
-            <div className="flex gap-2">
-              <select
-                value={filterStage}
-                onChange={(e) => setFilterStage(e.target.value)}
-                className="bg-white/10 border border-white/20 text-white rounded-lg px-3 py-2"
-                style={{
-                  color: 'white',
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)'
-                }}
-              >
-                <option value="all" style={{ backgroundColor: '#1e293b', color: 'white' }}>All Stages</option>
-                <option value="to_apply" style={{ backgroundColor: '#1e293b', color: 'white' }}>To Apply</option>
-                <option value="applied" style={{ backgroundColor: '#1e293b', color: 'white' }}>Applied</option>
-                <option value="interviewing" style={{ backgroundColor: '#1e293b', color: 'white' }}>Interviewing</option>
-                <option value="offered" style={{ backgroundColor: '#1e293b', color: 'white' }}>Offered</option>
-                <option value="rejected" style={{ backgroundColor: '#1e293b', color: 'white' }}>Rejected</option>
-              </select>
-              <Button
-                onClick={() => setViewMode(viewMode === 'card' ? 'table' : 'card')}
-                variant="outline"
-                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-              >
-                {viewMode === 'card' ? <List className="h-4 w-4" /> : <Grid3X3 className="h-4 w-4" />}
-              </Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex gap-2">
+                <select
+                  value={filterStage}
+                  onChange={(e) => setFilterStage(e.target.value)}
+                  className="bg-white/10 border border-white/20 text-white rounded-lg px-3 py-2 text-sm"
+                  style={{
+                    color: 'white',
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                  }}
+                >
+                  <option value="all" style={{ backgroundColor: '#1e293b', color: 'white' }}>All Stages</option>
+                  <option value="to_apply" style={{ backgroundColor: '#1e293b', color: 'white' }}>To Apply</option>
+                  <option value="applied" style={{ backgroundColor: '#1e293b', color: 'white' }}>Applied</option>
+                  <option value="interviewing" style={{ backgroundColor: '#1e293b', color: 'white' }}>Interviewing</option>
+                  <option value="offered" style={{ backgroundColor: '#1e293b', color: 'white' }}>Offered</option>
+                  <option value="rejected" style={{ backgroundColor: '#1e293b', color: 'white' }}>Rejected</option>
+                </select>
+                <Button
+                  onClick={() => setViewMode(viewMode === 'card' ? 'table' : 'card')}
+                  variant="outline"
+                  className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                  title={viewMode === 'card' ? 'Switch to Table View' : 'Switch to Card View'}
+                >
+                  {viewMode === 'card' ? <List className="h-4 w-4" /> : <Grid3X3 className="h-4 w-4" />}
+                </Button>
+              </div>
               <Button
                 onClick={() => setShowAddApplication(true)}
                 className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
@@ -515,7 +518,29 @@ export default function TrackerPage() {
           </div>
 
           {/* Applications */}
-          {viewMode === 'card' ? (
+          {filteredApplications.length === 0 ? (
+            <Card className="bg-white/5 backdrop-blur-md border-white/10 mb-12">
+              <CardContent className="p-8 text-center">
+                <div className="text-gray-400 mb-4">
+                  <Building className="h-12 w-12 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-white mb-2">No applications found</h3>
+                  <p className="text-gray-300">
+                    {searchTerm || filterStage !== 'all' 
+                      ? 'Try adjusting your search or filters' 
+                      : 'Start tracking your job applications to see them here'
+                    }
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setShowAddApplication(true)}
+                  className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Your First Application
+                </Button>
+              </CardContent>
+            </Card>
+          ) : viewMode === 'card' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
               {filteredApplications.map((application) => (
                 <Card key={application.id} className="bg-white/5 backdrop-blur-md border-white/10 hover:bg-white/10 transition-all duration-300">
@@ -592,7 +617,8 @@ export default function TrackerPage() {
           ) : (
             <Card className="bg-white/5 backdrop-blur-md border-white/10 mb-12">
               <CardContent className="p-6">
-                <div className="overflow-x-auto">
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-white/10">
@@ -649,6 +675,79 @@ export default function TrackerPage() {
                     </tbody>
                   </table>
                 </div>
+
+                {/* Mobile Card View */}
+                <div className="md:hidden space-y-4">
+                  {filteredApplications.map((application) => (
+                    <div key={application.id} className="bg-white/5 border border-white/10 rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h3 className="text-white font-semibold text-lg mb-1">{application.position}</h3>
+                          <p className="text-gray-300 flex items-center mb-2">
+                            <Building className="h-4 w-4 mr-2" />
+                            {application.company}
+                          </p>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStageColor(application.stage)}`}>
+                            {getStageLabel(application.stage)}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
+                        {application.location && (
+                          <div className="flex items-center text-gray-400">
+                            <MapPin className="h-3 w-3 mr-2 flex-shrink-0" />
+                            <span className="truncate">{application.location}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center text-gray-400">
+                          <Calendar className="h-3 w-3 mr-2 flex-shrink-0" />
+                          <span>{formatDate(application.applyDate)}</span>
+                        </div>
+                        {application.salary && (
+                          <div className="flex items-center text-gray-400">
+                            <DollarSign className="h-3 w-3 mr-2 flex-shrink-0" />
+                            <span className="truncate">{application.salary}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center text-gray-400">
+                          <FileText className="h-3 w-3 mr-2 flex-shrink-0" />
+                          <span className="truncate">{application.resumeUsed}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                          onClick={() => window.open(application.jobUrl, '_blank')}
+                        >
+                          <Link className="h-3 w-3 mr-1" />
+                          View Job
+                        </Button>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                            onClick={() => handleEditApplication(application.id)}
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="bg-white/10 border-white/20 text-white hover:bg-white/20 text-red-400 hover:text-red-300"
+                            onClick={() => handleDeleteApplication(application.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           )}
@@ -656,14 +755,14 @@ export default function TrackerPage() {
           {/* Action Items */}
           <Card className="bg-white/5 backdrop-blur-md border-white/10">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                 <div>
                   <h2 className="text-2xl font-semibold text-white mb-2">Action Items</h2>
                   <p className="text-gray-300">Outline and prioritize tasks for your job search journey</p>
                 </div>
                 <Button
                   onClick={() => setShowAddActionItem(true)}
-                  className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
+                  className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 w-full sm:w-auto"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Task
@@ -671,44 +770,58 @@ export default function TrackerPage() {
               </div>
 
               <div className="space-y-3">
-                {actionItems.map((item) => (
-                  <div key={item.id} className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg">
-                    <button 
-                      className="text-blue-400 hover:text-blue-300"
-                      onClick={() => handleToggleActionItem(item.id, item.completed)}
-                    >
-                      {item.completed ? <CheckCircle className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
-                    </button>
-                    <span className={`flex-1 ${item.completed ? 'line-through text-gray-400' : 'text-white'}`}>
-                      {item.title}
-                    </span>
-                    <div className="flex items-center space-x-2">
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        item.priority === 'high' ? 'bg-red-500/20 text-red-300' :
-                        item.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
-                        'bg-green-500/20 text-green-300'
-                      }`}>
-                        {item.priority}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                        onClick={() => handleEditActionItem(item.id)}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="bg-white/10 border-white/20 text-white hover:bg-white/20 text-red-400"
-                        onClick={() => handleDeleteActionItem(item.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                {actionItems.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="text-gray-400 mb-4">
+                      <CheckCircle className="h-12 w-12 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-white mb-2">No action items yet</h3>
+                      <p className="text-gray-300">Add tasks to keep track of your job search progress</p>
                     </div>
                   </div>
-                ))}
+                ) : (
+                  actionItems.map((item) => (
+                    <div key={item.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-white/5 rounded-lg">
+                      <div className="flex items-center space-x-3 flex-1">
+                        <button 
+                          className="text-blue-400 hover:text-blue-300 flex-shrink-0"
+                          onClick={() => handleToggleActionItem(item.id, item.completed)}
+                        >
+                          {item.completed ? <CheckCircle className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
+                        </button>
+                        <span className={`flex-1 ${item.completed ? 'line-through text-gray-400' : 'text-white'}`}>
+                          {item.title}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between sm:justify-end space-x-2">
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          item.priority === 'high' ? 'bg-red-500/20 text-red-300' :
+                          item.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
+                          'bg-green-500/20 text-green-300'
+                        }`}>
+                          {item.priority}
+                        </span>
+                        <div className="flex items-center space-x-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                            onClick={() => handleEditActionItem(item.id)}
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="bg-white/10 border-white/20 text-white hover:bg-white/20 text-red-400"
+                            onClick={() => handleDeleteActionItem(item.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
