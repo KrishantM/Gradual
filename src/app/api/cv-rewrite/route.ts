@@ -55,6 +55,21 @@ export async function POST(req: NextRequest) {
 
     const systemPrompt = `You are an expert CV writer and career coach. Your task is to rewrite the provided CV based on the feedback given, making it more professional, impactful, and aligned with modern CV standards.
 
+CRITICAL REQUIREMENTS:
+1. The rewritten CV MUST score higher than the original
+2. Focus on the specific feedback areas mentioned in the score feedback
+3. Use action verbs and quantifiable achievements (e.g., "Increased sales by 25%", "Managed team of 10 people")
+4. Maintain professional tone and ATS-friendly formatting
+5. Keep the same length or slightly shorter
+6. Ensure the CV addresses ALL areas mentioned in the feedback
+
+SCORING IMPROVEMENT STRATEGIES:
+- If feedback mentions "professionalism": Use more formal language, remove casual phrases
+- If feedback mentions "experience": Add specific achievements, metrics, and responsibilities
+- If feedback mentions "keywords": Include industry-specific terms and professional vocabulary
+- If feedback mentions "structure": Ensure proper sections (Contact, Experience, Education, Skills)
+- If feedback mentions "relevance": Tailor content to the target role/industry
+
 IMPORTANT: You must respond in this EXACT format:
 
 REWRITTEN CV:
@@ -66,15 +81,6 @@ CHANGES MADE:
 IMPROVEMENT SUMMARY:
 [2-3 sentences summarizing the key improvements and their impact]
 
-Guidelines for rewriting:
-1. Maintain the same basic structure and information
-2. Improve language, clarity, and impact
-3. Use action verbs and quantifiable achievements
-4. Ensure proper formatting and professional tone
-5. Address all areas mentioned in the feedback
-6. Make the CV more ATS-friendly
-7. Keep the same length or slightly shorter
-
 Do not include any other text outside of the specified format.`;
 
     const userPrompt = `Original CV:
@@ -85,7 +91,7 @@ ${scoreFeedback}
 
 ${targetRole ? `Target Role: ${targetRole}` : ''}
 
-Please rewrite this CV based on the feedback provided.`;
+Please rewrite this CV based on the feedback provided. Focus on the specific areas mentioned in the feedback to ensure the rewritten CV scores higher than the original.`;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
