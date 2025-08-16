@@ -13,7 +13,8 @@ import {
   UserPlus,
   Menu,
   X,
-  Target
+  Target,
+  ChevronDown
 } from 'lucide-react';
 import { useState } from 'react';
 import Image from 'next/image';
@@ -61,14 +62,13 @@ export default function Navbar() {
                 About
               </Button>
             </Link>
-            {user ? (
+            {user && (
               <>
                 <Link href="/cvscore">
                   <Button
                     variant="ghost"
                     className="text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-300"
                   >
-                    <TrendingUp className="h-4 w-4 mr-2" />
                     CV Score
                   </Button>
                 </Link>
@@ -77,7 +77,6 @@ export default function Navbar() {
                     variant="ghost"
                     className="text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-300"
                   >
-                    <Brain className="h-4 w-4 mr-2" />
                     Suggestions
                   </Button>
                 </Link>
@@ -86,29 +85,37 @@ export default function Navbar() {
                     variant="ghost"
                     className="text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-300"
                   >
-                    <Target className="h-4 w-4 mr-2" />
                     Tracker
                   </Button>
                 </Link>
-                <Link href="/profile">
+                <div className="relative group">
                   <Button
                     variant="ghost"
-                    className="text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-300"
+                    className="text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-300 flex items-center"
                   >
                     <User className="h-4 w-4 mr-2" />
-                    Profile
+                    Account
+                    <ChevronDown className="h-4 w-4 ml-1" />
                   </Button>
-                </Link>
-                <Button
-                  onClick={logout}
-                  variant="ghost"
-                  className="text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-300"
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                    <Link href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                      Profile
+                    </Link>
+                    <Link href="/settings" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                      Settings
+                    </Link>
+                    <div className="border-t border-gray-200 my-1"></div>
+                    <button
+                      onClick={logout}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                </div>
               </>
-            ) : (
+            )}
+            {!user && (
               <>
                 <Link href="/login">
                   <Button
@@ -157,47 +164,25 @@ export default function Navbar() {
                   About
                 </Button>
               </Link>
-              {user ? (
+              {user && (
                 <>
-                  <Link href="/cvscore">
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-300"
-                      onClick={closeMobileMenu}
-                    >
-                      <TrendingUp className="h-4 w-4 mr-3" />
-                      CV Score
-                    </Button>
+                  <Link href="/dashboard" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
+                    Dashboard
                   </Link>
-                  <Link href="/suggestions">
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-300"
-                      onClick={closeMobileMenu}
-                    >
-                      <Brain className="h-4 w-4 mr-3" />
-                      Suggestions
-                    </Button>
+                  <Link href="/cvscore" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
+                    CV Score
                   </Link>
-                  <Link href="/tracker">
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-300"
-                      onClick={closeMobileMenu}
-                    >
-                      <Target className="h-4 w-4 mr-3" />
-                      Tracker
-                    </Button>
+                  <Link href="/suggestions" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
+                    Suggestions
                   </Link>
-                  <Link href="/profile">
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-300"
-                      onClick={closeMobileMenu}
-                    >
-                      <User className="h-4 w-4 mr-3" />
-                      Profile
-                    </Button>
+                  <Link href="/tracker" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
+                    Tracker
+                  </Link>
+                  <Link href="/profile" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
+                    Profile
+                  </Link>
+                  <Link href="/settings" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
+                    Settings
                   </Link>
                   <Button
                     onClick={() => {
@@ -211,7 +196,8 @@ export default function Navbar() {
                     Logout
                   </Button>
                 </>
-              ) : (
+              )}
+              {!user && (
                 <>
                   <Link href="/login">
                     <Button

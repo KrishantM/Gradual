@@ -306,8 +306,6 @@ export default function TrackerPage() {
   const handleDeleteApplication = async (applicationId: string) => {
     if (!user) return;
     
-    if (!confirm('Are you sure you want to delete this application?')) return;
-    
     try {
       const token = await user.getIdToken();
 
@@ -330,8 +328,6 @@ export default function TrackerPage() {
 
   const handleDeleteActionItem = async (itemId: string) => {
     if (!user) return;
-    
-    if (!confirm('Are you sure you want to delete this action item?')) return;
     
     try {
       const token = await user.getIdToken();

@@ -202,7 +202,7 @@ export default function Register() {
                 <Button
                   variant="outline"
                   className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30 transition-all duration-300 mb-2"
-                  onClick={() => router.push('/cvscore')}
+                                     onClick={() => router.push('/cvscore')}
                   type="button"
                 >
                   Continue as Guest

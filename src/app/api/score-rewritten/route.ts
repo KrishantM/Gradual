@@ -1,4 +1,4 @@
-// src/app/api/score/route.ts
+// src/app/api/score-rewritten/route.ts
 
 import { openai } from '../../../../lib/openai';
 import { NextRequest, NextResponse } from 'next/server';
@@ -22,20 +22,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 });
     }
 
-    const { cvText, guest } = await req.json();
+    const { rewrittenCV, originalScore, originalFeedback } = await req.json();
 
-    if (!cvText || typeof cvText !== 'string') {
-      return NextResponse.json({ error: 'Invalid CV text.' }, { status: 400 });
+    if (!rewrittenCV || typeof rewrittenCV !== 'string') {
+      return NextResponse.json({ error: 'Invalid rewritten CV text.' }, { status: 400 });
     }
 
     // WORD COUNT VALIDATION - Enforce minimum and maximum limits
-    const normalizedCvText = cvText.trim().toLowerCase();
+    const normalizedCvText = rewrittenCV.trim().toLowerCase();
     const wordCount = normalizedCvText.split(/\s+/).length;
     
     // Check maximum word count (1500 words)
     if (wordCount > 1500) {
       return NextResponse.json({ 
-        error: 'CV is too long. Maximum allowed is 1500 words. Please shorten your CV to focus on the most relevant information.',
+        error: 'Rewritten CV is too long. Maximum allowed is 1500 words. Please shorten your CV to focus on the most relevant information.',
         wordCount: wordCount,
         maxAllowed: 1500
       }, { status: 400 });
@@ -44,15 +44,34 @@ export async function POST(req: NextRequest) {
     // Check minimum word count (at least 10 words to prevent abuse)
     if (wordCount < 10) {
       return NextResponse.json({ 
-        error: 'CV is too short. Please provide at least 10 words for evaluation.',
+        error: 'Rewritten CV is too short. Please provide at least 10 words for evaluation.',
         wordCount: wordCount,
         minRequired: 10
       }, { status: 400 });
     }
 
+    // Extract the original score number from the feedback text
+    let originalScoreNumber = 0;
+    try {
+      const scoreMatch = originalScore.match(/Overall Score \(0–100\): (\d+)/);
+      if (scoreMatch) {
+        originalScoreNumber = parseInt(scoreMatch[1]);
+      } else {
+        // Fallback: try to find any number in the text
+        const fallbackMatch = originalScore.match(/(\d+)/);
+        if (fallbackMatch) {
+          originalScoreNumber = parseInt(fallbackMatch[1]);
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing original score:', error);
+      originalScoreNumber = 50; // Default fallback
+    }
+
+    // USE EXACTLY THE SAME SCORING ALGORITHM AS THE MAIN SCORE ENDPOINT
     // Create a deterministic but balanced scoring system
     // Use a combination of hash and content analysis for consistency
-    const cvHash = crypto.createHash('sha256').update(cvText.trim().toLowerCase()).digest('hex');
+    const cvHash = crypto.createHash('sha256').update(rewrittenCV.trim().toLowerCase()).digest('hex');
     
     // CONTENT QUALITY VALIDATION - Check if CV meets minimum standards
     // Quality Gate 1: Minimum content length
@@ -124,12 +143,12 @@ export async function POST(req: NextRequest) {
     }
     
     // Quality Gate 4: Structure validation
-    const hasContactInfo = /(email|phone|address|linkedin)/i.test(cvText);
-    const hasExperience = /(experience|work|employment|job)/i.test(cvText);
-    const hasEducation = /(education|degree|university|college)/i.test(cvText);
-    const hasSkills = /(skills|technologies|tools|languages)/i.test(cvText);
-    const hasDates = /(20\d{2}|19\d{2}|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(cvText);
-    const hasNumbers = /(\d+)/.test(cvText); // Years of experience, percentages, etc.
+    const hasContactInfo = /(email|phone|address|linkedin)/i.test(rewrittenCV);
+    const hasExperience = /(experience|work|employment|job)/i.test(rewrittenCV);
+    const hasEducation = /(education|degree|university|college)/i.test(rewrittenCV);
+    const hasSkills = /(skills|technologies|tools|languages)/i.test(rewrittenCV);
+    const hasDates = /(20\d{2}|19\d{2}|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(rewrittenCV);
+    const hasNumbers = /(\d+)/.test(rewrittenCV); // Years of experience, percentages, etc.
     
     const structureScore = [hasContactInfo, hasExperience, hasEducation, hasSkills, hasDates, hasNumbers]
       .filter(Boolean).length;
@@ -194,62 +213,39 @@ export async function POST(req: NextRequest) {
       originalBaseScore: wordCount >= 300 ? 60 + (parseInt(cvHash.substring(0, 8), 16) % 31) : 'N/A'
     });
 
-    const systemPrompt = guest
-      ? `You are an AI CV scoring assistant. Reply in this structure:
+    const systemPrompt = `You are an AI CV scoring assistant. You need to score the rewritten CV and provide a comparison with the original score.
 
-Overall Score (0–100): ${adjustedScore}
+IMPORTANT: You must respond in this EXACT format:
 
-Feedback:
-${wordCount < 50 ? '[This CV is extremely short and lacks sufficient content for proper evaluation. Professional CVs typically contain 300+ words with detailed experience, skills, and qualifications.]' : 
-  wordCount < 100 ? '[This CV is very short and lacks sufficient content for proper evaluation. Professional CVs typically contain 300+ words with detailed experience, skills, and qualifications.]' :
-  wordCount < 300 ? '[This CV is too short for comprehensive evaluation. Professional CVs typically contain 300+ words with detailed experience, skills, and qualifications.]' :
-  professionalScore < 3 ? '[This CV lacks sufficient professional indicators and structure. Consider adding more details about your work experience, skills, and achievements.]' :
-  structureScore < 2 ? '[This CV is missing essential sections like contact information, experience, or education. A complete CV should include these key components.]' :
-  '[1–2 sentences of general feedback and areas to improve based on the score of ' + adjustedScore + '.]'}
+NEW SCORE (0–100): ${adjustedScore}
 
-Do not include any introduction or closing remarks. Keep it concise and do not break from this format.`
-      : `You are an AI CV scoring assistant. Always reply in the following structure:
+SCORE BREAKDOWN:
+1. Professionalism: [1–2 sentence explanation, and score out of 25]
+2. Experience: [1–2 sentence explanation, and score out of 25]
+3. Keyword Screening: [1–2 sentence explanation, and score out of 25]
+4. Relevance to Target Role: [1–2 sentence explanation, and score out of 25]
 
-Overall Score (0–100): ${adjustedScore}
+IMPROVEMENT ANALYSIS:
+[Compare the new score of ${adjustedScore} with the original score of ${originalScoreNumber} and explain what improvements were made. The rewritten CV should show improvement in areas identified in the original feedback.]
 
-1. Professionalism:
-${wordCount < 50 ? '[This CV is extremely short and lacks professional presentation. Score: 1/25]' :
-  wordCount < 100 ? '[This CV is very short and lacks professional presentation. Score: 2/25]' :
-  wordCount < 300 ? '[This CV is too short for comprehensive professional evaluation. Score: 8/25]' :
-  '[1–2 sentence explanation, and score out of 25]'}
-
-2. Experience:
-${wordCount < 50 ? '[Insufficient content to evaluate experience properly. Score: 1/25]' :
-  wordCount < 100 ? '[Very limited content to evaluate experience properly. Score: 2/25]' :
-  wordCount < 300 ? '[Limited content to evaluate experience comprehensively. Score: 8/25]' :
-  '[1–2 sentence explanation, and score out of 25]'}
-
-3. Keyword Screening:
-${wordCount < 50 ? '[Extremely limited keywords and professional terms present. Score: 1/25]' :
-  wordCount < 100 ? '[Very limited keywords and professional terms present. Score: 2/25]' :
-  wordCount < 300 ? '[Limited keywords and professional terms present. Score: 8/25]' :
-  '[1–2 sentence explanation, and score out of 25]'}
-
-4. Relevance to Target Role:
-${wordCount < 50 ? '[Cannot assess relevance due to extremely insufficient content. Score: 1/25]' :
-  wordCount < 100 ? '[Cannot assess relevance due to very insufficient content. Score: 2/25]' :
-  wordCount < 300 ? '[Limited ability to assess relevance due to insufficient content. Score: 2/25]' :
-  '[1–2 sentence explanation, and score out of 25]'}
-
-5. Areas to improve:
-${wordCount < 50 ? '[Add substantial content including work experience, skills, education, and achievements. Professional CVs typically contain 300+ words.]' :
-  wordCount < 100 ? '[Add substantial content including work experience, skills, education, and achievements. Professional CVs typically contain 300+ words.]' :
-  wordCount < 300 ? '[Expand your CV to include more detailed experience, skills, education, and achievements. Professional CVs typically contain 300+ words.]' :
-  professionalScore < 3 ? '[Include more professional indicators like work experience, skills, and achievements.]' :
-  structureScore < 2 ? '[Add missing essential sections like contact information, experience, or education.]' :
-  '[1–2 sentence explanation]'}
+OVERALL ASSESSMENT:
+[2-3 sentences summarizing the effectiveness of the rewrite and remaining areas for improvement]
 
 CRITICAL REQUIREMENTS:
-1. The overall score must be exactly ${adjustedScore}
+1. The NEW SCORE must be exactly ${adjustedScore}
 2. The four section scores (Professionalism + Experience + Keyword Screening + Relevance) must add up to exactly ${adjustedScore}
 3. Each section score should be between 1-25 points (1 for extremely poor quality, 25 for excellent)
 4. Do not include any introduction or closing remarks
 5. Do not break from this format`;
+
+    const userPrompt = `Here is the rewritten CV:
+
+${rewrittenCV}
+
+Original Score: ${originalScoreNumber}
+Original Feedback: ${originalFeedback}
+
+Please score this rewritten CV and provide a comparison with the original. The rewritten CV should demonstrate improvements based on the original feedback.`;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -260,17 +256,22 @@ CRITICAL REQUIREMENTS:
         },
         {
           role: 'user',
-          content: `Here is the CV:\n\n${cvText}`,
+          content: userPrompt,
         },
       ],
       temperature: 0, // Maximum consistency
-      max_tokens: 500,
+      max_tokens: 600,
     });
 
-    const score = response.choices[0].message?.content || '';
-    return NextResponse.json({ score, cvHash }); // Return hash for debugging
+    const newScore = response.choices[0].message?.content || '';
+    return NextResponse.json({ 
+      newScore, 
+      cvHash: cvHash,
+      originalScoreNumber: originalScoreNumber,
+      adjustedScore: adjustedScore
+    }); // Return additional debug info
   } catch (err) {
     console.error('OpenAI API Error:', err);
-    return NextResponse.json({ error: 'Failed to generate score' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to generate new score' }, { status: 500 });
   }
 }
