@@ -173,7 +173,7 @@ export default function ProfilePage() {
       }
     };
     fetchProfile();
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, cvScore, cvScoreTimestamp, cvText]);
 
   // CRITICAL: Only refresh CV score when absolutely necessary
   // This effect should NOT run on every cvText change or navigation

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { TrendingUp, GraduationCap, Calendar, BookOpen, Users, Plus, ChevronDown, ChevronUp, Edit3, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -62,11 +62,7 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
   // Degree progress modal state
   const [degreeModalOpen, setDegreeModalOpen] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, [formData]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     
     // Load AI insights
@@ -83,7 +79,11 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
     loadAcademicProgress();
     
     setIsLoading(false);
-  };
+  }, [formData.degree, formData.interests, formData.city, formData.country, formData.gpa]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const loadAcademicProgress = () => {
     const stored = localStorage.getItem('gradual_academic_progress');

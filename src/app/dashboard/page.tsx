@@ -455,7 +455,7 @@ export default function DashboardPage() {
                   <div className="mt-4 text-center">
                     <div className="text-gray-400 text-sm">
                       <Info className="h-4 w-4 inline mr-2" />
-                      Click "View Details" to see your score breakdown
+                      Click &quot;View Details&quot; to see your score breakdown
                     </div>
                   </div>
                 )}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Trophy, Star, Target, Zap, BookOpen, Globe, Code, Heart, User } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -39,11 +39,19 @@ export default function AchievementSystem({ userId, profileData, cvScore }: Achi
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [showUnlocked, setShowUnlocked] = useState(true);
 
-  useEffect(() => {
-    generateAchievements();
-  }, [profileData, cvScore]);
+  // Helper functions
+  const isProfileComplete = () => {
+    const requiredFields = ['fullName', 'university', 'degree', 'gpa', 'interests', 'city', 'country'];
+    return requiredFields.every(field => profileData[field] && profileData[field].toString().trim() !== '');
+  };
 
-  const generateAchievements = () => {
+  const getProfileCompletion = () => {
+    const requiredFields = ['fullName', 'university', 'degree', 'gpa', 'interests', 'city', 'country'];
+    const completedFields = requiredFields.filter(field => profileData[field] && profileData[field].toString().trim() !== '');
+    return Math.round((completedFields.length / requiredFields.length) * 100);
+  };
+
+  const generateAchievements = useCallback(() => {
     const allAchievements: Achievement[] = [
       // Profile Achievements
       {
@@ -155,18 +163,11 @@ export default function AchievementSystem({ userId, profileData, cvScore }: Achi
     ];
 
     setAchievements(allAchievements);
-  };
+  }, [profileData, cvScore, getNumericalCVScore, isProfileComplete, getProfileCompletion]);
 
-  const isProfileComplete = () => {
-    const requiredFields = ['fullName', 'university', 'degree', 'gpa', 'interests', 'city', 'country'];
-    return requiredFields.every(field => profileData[field] && profileData[field].toString().trim() !== '');
-  };
-
-  const getProfileCompletion = () => {
-    const requiredFields = ['fullName', 'university', 'degree', 'gpa', 'interests', 'city', 'country'];
-    const completedFields = requiredFields.filter(field => profileData[field] && profileData[field].toString().trim() !== '');
-    return Math.round((completedFields.length / requiredFields.length) * 100);
-  };
+  useEffect(() => {
+    generateAchievements();
+  }, [generateAchievements]);
 
   const getUnlockedCount = () => achievements.filter(a => a.unlocked).length;
   const getTotalCount = () => achievements.length;

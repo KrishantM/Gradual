@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Tooltip } from 'recharts';
 import { Trophy, Target, TrendingUp, Zap, Edit3, Eye, X, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -39,11 +39,7 @@ export default function GamifiedProfileDisplay({
     return typeof cvScore === 'number' ? cvScore : 0;
   };
 
-  useEffect(() => {
-    calculateGamificationStats();
-  }, [formData, cvScore]);
-
-  const calculateGamificationStats = () => {
+  const calculateGamificationStats = useCallback(() => {
     let profileCompletion = 0;
     let totalFields = 0;
     
@@ -77,7 +73,11 @@ export default function GamifiedProfileDisplay({
     if (formData.bio && formData.bio.length > 100) newAchievements.push('Storyteller');
     
     setAchievements(newAchievements);
-  };
+  }, [formData, cvScore]);
+
+  useEffect(() => {
+    calculateGamificationStats();
+  }, [calculateGamificationStats]);
 
   // Generate radar chart data with more relevant metrics
   const generateRadarData = () => {

@@ -188,7 +188,7 @@ export default function DegreeProgressModal({
                 </div>
               </div>
               <p className="text-xs text-gray-400 mt-1">
-                Leave blank if you don't know your credit count
+                Leave blank if you don&apos;t know your credit count
               </p>
             </div>
 
