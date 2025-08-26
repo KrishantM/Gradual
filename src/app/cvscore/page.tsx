@@ -4,7 +4,7 @@ import Head from 'next/head';
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -135,10 +135,25 @@ export default function CVScorePage() {
       let res;
       
       if (user) {
-        // Use authenticated API call
+        // Get previous CV score for comparison
+        const previousScore = await getPreviousCVScore();
+        const shouldPassPreviousScore = previousScore && await isSimilarCV(cvText.trim(), previousScore);
+        
+        console.log('CV Scoring - Similarity Check:', {
+          hasPreviousScore: !!previousScore,
+          previousScore,
+          shouldPassPreviousScore,
+          cvTextLength: cvText.trim().length
+        });
+        
+        // Use authenticated API call with unified scoring endpoint
         res = await authenticatedFetch('/api/score', {
           method: 'POST',
-          body: JSON.stringify({ cvText: cvText.trim(), guest: false }),
+          body: JSON.stringify({ 
+            cvText: cvText.trim(), 
+            guest: false,
+            originalScore: shouldPassPreviousScore ? previousScore : undefined
+          }),
         });
       } else {
         // Use guest mode
@@ -162,10 +177,20 @@ export default function CVScorePage() {
 
       // Only save to Firestore if user is logged in
       if (user) {
-        await updateDoc(doc(db, 'users', user.uid), {
-          cvScore: data.score,
+        // Extract numerical score for storage
+        const numericalScore = extractNumericalScore(data.score);
+        
+        const updateData: any = {
+          cvScore: numericalScore,
           cvScoreTimestamp: new Date(),
-        });
+        };
+        
+        // Save breakdown if available
+        if (data.breakdown) {
+          updateData.cvScoreBreakdown = data.breakdown;
+        }
+        
+        await updateDoc(doc(db, 'users', user.uid), updateData);
       }
     } catch (err) {
       console.error('CV Score Error:', err);
@@ -237,12 +262,16 @@ export default function CVScorePage() {
     setError('');
 
     try {
-      const res = await authenticatedFetch('/api/score-rewritten', {
+      // Use the unified scoring endpoint for rewritten CVs
+      // Include the rewrite ID for perfect consistency
+      const res = await authenticatedFetch('/api/score', {
         method: 'POST',
         body: JSON.stringify({ 
-          rewrittenCV: rewriteResult.sections.rewrittenCV,
-          originalScore: score,
-          originalFeedback: score
+          cvText: rewriteResult.sections.rewrittenCV,
+          guest: false,
+          isRewrittenCV: true,
+          originalScore: extractNumericalScore(score),
+          rewriteId: rewriteResult.sections.rewriteId // Pass the rewrite ID for consistency
         }),
       });
 
@@ -252,20 +281,36 @@ export default function CVScorePage() {
       }
 
       const data = await res.json();
-      setNewScore(data.newScore);
+      setNewScore(data.score);
+      
+      // Extract numerical score and save to Firestore
+      const numericalScore = extractNumericalScore(data.score);
+      
+      const updateData: any = {
+        cvScore: numericalScore,
+        cvScoreTimestamp: new Date(),
+      };
+      
+      // Save breakdown if available
+      if (data.breakdown) {
+        updateData.cvScoreBreakdown = data.breakdown;
+      }
+      
+      await updateDoc(doc(db, 'users', user.uid), updateData);
       
       // Log debugging information
       console.log('Scoring Debug Info:', {
         originalScore: score,
         rewrittenCVLength: rewriteResult.sections.rewrittenCV.length,
-        originalScoreNumber: data.originalScoreNumber,
-        adjustedScore: data.adjustedScore,
+        newScore: data.score,
+        numericalScore,
         cvHash: data.cvHash
       });
       
       // Show improvement confirmation
-      if (data.originalScoreNumber && data.adjustedScore) {
-        const improvement = data.adjustedScore - data.originalScoreNumber;
+      const originalScoreNumber = extractNumericalScore(score);
+      if (originalScoreNumber && numericalScore) {
+        const improvement = numericalScore - originalScoreNumber;
         if (improvement > 0) {
           console.log(`✅ CV improved by ${improvement} points!`);
         } else if (improvement === 0) {
@@ -280,7 +325,66 @@ export default function CVScorePage() {
     }
   };
 
+  // Helper function to get previous CV score from Firestore
+  const getPreviousCVScore = async (): Promise<number | null> => {
+    if (!user) return null;
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        return userData.cvScore || null;
+      }
+    } catch (err) {
+      console.warn('Could not fetch previous CV score:', err);
+    }
+    return null;
+  };
 
+  // Helper function to check if current CV is similar to previous one
+  const isSimilarCV = async (currentCVText: string, previousScore: number): Promise<boolean> => {
+    if (!user) return false;
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        const previousCVText = userData.cvText || '';
+        if (!previousCVText) return false;
+        
+        const currentLength = currentCVText.length;
+        const previousLength = previousCVText.length;
+        const lengthDiff = Math.abs(currentLength - previousLength) / Math.max(currentLength, previousLength);
+        
+        if (lengthDiff > 0.3) return false;
+        
+        const currentWords = new Set(currentCVText.toLowerCase().split(/\s+/));
+        const previousWords = new Set(previousCVText.toLowerCase().split(/\s+/));
+        const commonWords = [...currentWords].filter(word => previousWords.has(word));
+        const overlapRatio = commonWords.length / Math.max(currentWords.size, previousWords.size);
+        
+        return overlapRatio > 0.4;
+      }
+    } catch (err) {
+      console.warn('Could not check CV similarity:', err);
+    }
+    return false;
+  };
+
+  // Helper function to extract numerical score from score string
+  const extractNumericalScore = (scoreText: string): number => {
+    if (!scoreText || typeof scoreText !== 'string') return 0;
+    
+    // Look for "Overall Score (0–100): X" pattern
+    const match = scoreText.match(/Overall Score \(0–100\): (\d+)/);
+    if (match) {
+      return parseInt(match[1]);
+    }
+    
+    // Fallback: try to extract any number from the text
+    const numberMatch = scoreText.match(/(\d+)/);
+    return numberMatch ? parseInt(numberMatch[1]) : 0;
+  };
 
   const clearAll = () => {
     setCvText('');
@@ -324,9 +428,9 @@ export default function CVScorePage() {
           {/* Header */}
           <div className="text-center mb-12">
             <div className="mb-6">
-                          <h1 className="text-4xl lg:text-5xl font-bold text-white mb-4">
-              AI <span className="text-blue-400">CV Scorer</span>
-            </h1>
+              <h1 className="text-4xl lg:text-5xl font-bold text-white mb-4">
+                AI <span className="text-blue-400">CV Scorer</span>
+              </h1>
               <p className="text-gray-300 text-lg max-w-2xl mx-auto">
                 Get instant AI-powered feedback on your CV with detailed analysis, improvement suggestions, and AI-powered rewriting
               </p>
@@ -580,7 +684,6 @@ export default function CVScorePage() {
               originalScore={score}
             />
           )}
-
 
         </div>
       </div>

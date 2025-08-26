@@ -27,7 +27,8 @@ import {
   Star,
   ExternalLink,
   BarChart3,
-  Settings
+  Settings,
+  Info
 } from 'lucide-react';
 
 interface SavedOpportunity {
@@ -46,10 +47,24 @@ interface SavedOpportunity {
   score: number;
 }
 
-function extractOverallScore(scoreText: string | null): string | null {
+function extractOverallScore(scoreText: string | number | null): string | null {
   if (!scoreText) return null;
-  const match = scoreText.match(/Overall Score \(0–100\):\s*(\d+)/);
-  return match ? match[1] : null;
+  
+  // If scoreText is already a number, return it as a string
+  if (typeof scoreText === 'number') {
+    return scoreText.toString();
+  }
+  
+  // If scoreText is a string, try to extract the score from the API response format
+  if (typeof scoreText === 'string') {
+    // Add null check to prevent the match error
+    if (!scoreText || scoreText.trim() === '') return null;
+    
+    const match = scoreText.match(/Overall Score \(0–100\):\s*(\d+)/);
+    return match ? match[1] : scoreText; // Return extracted score or original text
+  }
+  
+  return null;
 }
 
 function formatDate(date: any) {
@@ -76,13 +91,16 @@ export default function DashboardPage() {
   const router = useRouter();
   const [suggestions, setSuggestions] = useState('');
   const [name, setName] = useState('');
-  const [cvScore, setCvScore] = useState<string | null>(null);
+  const [cvScore, setCvScore] = useState<string | number | null>(null);
   const [cvScoreTimestamp, setCvScoreTimestamp] = useState<any>(null);
+  const [cvScoreBreakdown, setCvScoreBreakdown] = useState<any>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savedOpportunities, setSavedOpportunities] = useState<SavedOpportunity[]>([]);
   const [opportunitiesLoading, setOpportunitiesLoading] = useState(false);
   const [unstarringLoading, setUnstarringLoading] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -92,15 +110,47 @@ export default function DashboardPage() {
 
     const fetchData = async () => {
       try {
+        setHasError(false);
         const userRef = doc(db, 'users', user.uid);
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
-          setName(userSnap.data().fullName || '');
-          setCvScore(userSnap.data().cvScore || null);
-          setCvScoreTimestamp(userSnap.data().cvScoreTimestamp || null);
+          const userData = userSnap.data();
+          setName(userData.fullName || '');
+          
+          // Add safety checks for CV score data
+          const rawCvScore = userData.cvScore;
+          if (rawCvScore !== null && rawCvScore !== undefined) {
+            setCvScore(rawCvScore);
+          } else {
+            setCvScore(null);
+          }
+          
+          const rawCvScoreTimestamp = userData.cvScoreTimestamp;
+          if (rawCvScoreTimestamp && (rawCvScoreTimestamp.toDate || rawCvScoreTimestamp instanceof Date)) {
+            setCvScoreTimestamp(rawCvScoreTimestamp);
+          } else {
+            setCvScoreTimestamp(null);
+          }
+          
+          const rawCvScoreBreakdown = userData.cvScoreBreakdown;
+          if (rawCvScoreBreakdown && typeof rawCvScoreBreakdown === 'object') {
+            // Validate breakdown structure
+            const isValidBreakdown = rawCvScoreBreakdown.professionalism !== undefined &&
+                                   rawCvScoreBreakdown.experience !== undefined &&
+                                   rawCvScoreBreakdown.keywordScreening !== undefined &&
+                                   rawCvScoreBreakdown.relevance !== undefined;
+            
+            if (isValidBreakdown) {
+              setCvScoreBreakdown(rawCvScoreBreakdown);
+            } else {
+              setCvScoreBreakdown(null);
+            }
+          } else {
+            setCvScoreBreakdown(null);
+          }
           
           // Fetch saved opportunities
-          const savedIds = userSnap.data().savedOpportunities || [];
+          const savedIds = userData.savedOpportunities || [];
           if (savedIds.length > 0) {
             await fetchSavedOpportunities(savedIds);
           }
@@ -118,6 +168,7 @@ export default function DashboardPage() {
         }
       } catch (err) {
         console.error('Error loading dashboard:', err);
+        setHasError(true);
       } finally {
         setLoading(false);
       }
@@ -125,6 +176,9 @@ export default function DashboardPage() {
 
     fetchData();
   }, [user, router]);
+
+  // Only refresh dashboard when user explicitly requests it or when data is stale
+  // Removed automatic refresh on focus/visibility change to prevent CV score conflicts
 
   const fetchSavedOpportunities = async (savedIds: string[]) => {
     setOpportunitiesLoading(true);
@@ -149,6 +203,61 @@ export default function DashboardPage() {
       console.error('Error fetching saved opportunities:', error);
     } finally {
       setOpportunitiesLoading(false);
+    }
+  };
+
+  const refreshDashboard = async () => {
+    if (!user) return;
+    setRefreshing(true);
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        setName(userData.fullName || '');
+        
+        // Add safety checks for CV score data
+        const rawCvScore = userData.cvScore;
+        if (rawCvScore !== null && rawCvScore !== undefined) {
+          setCvScore(rawCvScore);
+        } else {
+          setCvScore(null);
+        }
+        
+        const rawCvScoreTimestamp = userData.cvScoreTimestamp;
+        if (rawCvScoreTimestamp && (rawCvScoreTimestamp.toDate || rawCvScoreTimestamp instanceof Date)) {
+          setCvScoreTimestamp(rawCvScoreTimestamp);
+        } else {
+          setCvScoreTimestamp(null);
+        }
+        
+        const rawCvScoreBreakdown = userData.cvScoreBreakdown;
+        if (rawCvScoreBreakdown && typeof rawCvScoreBreakdown === 'object') {
+          // Validate breakdown structure
+          const isValidBreakdown = rawCvScoreBreakdown.professionalism !== undefined &&
+                                 rawCvScoreBreakdown.experience !== undefined &&
+                                 rawCvScoreBreakdown.keywordScreening !== undefined &&
+                                 rawCvScoreBreakdown.relevance !== undefined;
+          
+          if (isValidBreakdown) {
+            setCvScoreBreakdown(rawCvScoreBreakdown);
+          } else {
+            setCvScoreBreakdown(null);
+          }
+        } else {
+          setCvScoreBreakdown(null);
+        }
+        
+        // Fetch saved opportunities
+        const savedIds = userData.savedOpportunities || [];
+        if (savedIds.length > 0) {
+          await fetchSavedOpportunities(savedIds);
+        }
+      }
+    } catch (err) {
+      console.error('Error refreshing dashboard:', err);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -183,6 +292,22 @@ export default function DashboardPage() {
     </div>
   );
 
+  if (hasError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 text-red-400 animate-spin mx-auto mb-4" />
+          <p className="text-gray-300">Failed to load your dashboard. Please try again later.</p>
+          {user && (
+            <Button onClick={refreshDashboard} className="mt-4 bg-red-600 hover:bg-red-700">
+              Refresh Dashboard
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black">
       <div className="container mx-auto px-4 py-20">
@@ -196,6 +321,21 @@ export default function DashboardPage() {
               <p className="text-gray-300 text-lg max-w-2xl mx-auto">
                 Your personalized career dashboard with insights, suggestions, and progress tracking
               </p>
+            </div>
+            <div className="flex justify-center">
+              <Button
+                onClick={refreshDashboard}
+                disabled={refreshing}
+                variant="outline"
+                className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30"
+              >
+                {refreshing ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                )}
+                {refreshing ? 'Refreshing...' : 'Refresh Dashboard'}
+              </Button>
             </div>
           </div>
 
@@ -245,11 +385,92 @@ export default function DashboardPage() {
                   </div>
                 )}
                 
-                {showDetails && cvScore && (
-                  <div className="mt-6 p-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg">
+                {/* CV Score Description - Only show if it's a detailed breakdown string */}
+                {cvScore && typeof cvScore === 'string' && cvScore.includes('Overall Score') && (
+                  <div className="mt-4 p-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg">
                     <p className="text-gray-200 whitespace-pre-line leading-relaxed text-sm">
                       {cvScore}
                     </p>
+                  </div>
+                )}
+                
+                {/* CV Score Breakdown - Only show when details are expanded */}
+                {showDetails && cvScoreBreakdown && typeof cvScoreBreakdown === 'object' && 
+                 cvScoreBreakdown.professionalism !== undefined && 
+                 cvScoreBreakdown.experience !== undefined && 
+                 cvScoreBreakdown.keywordScreening !== undefined && 
+                 cvScoreBreakdown.relevance !== undefined && (
+                  <div className="mt-4">
+                    <h4 className="text-white font-semibold mb-3 text-center">Score Breakdown</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="bg-white/5 border border-white/10 rounded-lg p-3 text-center">
+                        <div className="text-lg font-bold text-blue-400">
+                          {typeof cvScoreBreakdown.professionalism === 'number' ? cvScoreBreakdown.professionalism : '—'}
+                        </div>
+                        <div className="text-xs text-gray-400">Professionalism</div>
+                        <div className="text-xs text-gray-500">/25</div>
+                      </div>
+                      <div className="bg-white/5 border border-white/10 rounded-lg p-3 text-center">
+                        <div className="text-lg font-bold text-green-400">
+                          {typeof cvScoreBreakdown.experience === 'number' ? cvScoreBreakdown.experience : '—'}
+                        </div>
+                        <div className="text-xs text-gray-400">Experience</div>
+                        <div className="text-xs text-gray-500">/25</div>
+                      </div>
+                      <div className="bg-white/5 border border-white/10 rounded-lg p-3 text-center">
+                        <div className="text-lg font-bold text-yellow-400">
+                          {typeof cvScoreBreakdown.keywordScreening === 'number' ? cvScoreBreakdown.keywordScreening : '—'}
+                        </div>
+                        <div className="text-xs text-gray-400">Keywords</div>
+                        <div className="text-xs text-gray-500">/25</div>
+                      </div>
+                      <div className="bg-white/5 border border-white/10 rounded-lg p-3 text-center">
+                        <div className="text-lg font-bold text-purple-400">
+                          {typeof cvScoreBreakdown.relevance === 'number' ? cvScoreBreakdown.relevance : '—'}
+                        </div>
+                        <div className="text-xs text-gray-400">Relevance</div>
+                        <div className="text-xs text-gray-500">/25</div>
+                      </div>
+                    </div>
+                    <div className="mt-3 text-center">
+                      <div className="text-sm text-gray-400">
+                        Total: <span className="text-white font-semibold">
+                          {typeof cvScoreBreakdown.professionalism === 'number' && 
+                           typeof cvScoreBreakdown.experience === 'number' && 
+                           typeof cvScoreBreakdown.keywordScreening === 'number' && 
+                           typeof cvScoreBreakdown.relevance === 'number' ? 
+                           (cvScoreBreakdown.professionalism + cvScoreBreakdown.experience + cvScoreBreakdown.keywordScreening + cvScoreBreakdown.relevance) : '—'}
+                        </span>/100
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Show message when breakdown is available but details are hidden */}
+                {!showDetails && cvScoreBreakdown && typeof cvScoreBreakdown === 'object' && 
+                 cvScoreBreakdown.professionalism !== undefined && 
+                 cvScoreBreakdown.experience !== undefined && 
+                 cvScoreBreakdown.keywordScreening !== undefined && 
+                 cvScoreBreakdown.relevance !== undefined && (
+                  <div className="mt-4 text-center">
+                    <div className="text-gray-400 text-sm">
+                      <Info className="h-4 w-4 inline mr-2" />
+                      Click "View Details" to see your score breakdown
+                    </div>
+                  </div>
+                )}
+                
+                {/* Show message when no breakdown is available */}
+                {(!cvScoreBreakdown || typeof cvScoreBreakdown !== 'object' || 
+                  cvScoreBreakdown.professionalism === undefined || 
+                  cvScoreBreakdown.experience === undefined || 
+                  cvScoreBreakdown.keywordScreening === undefined || 
+                  cvScoreBreakdown.relevance === undefined) && cvScore && (
+                  <div className="mt-4 text-center">
+                    <div className="text-gray-400 text-sm">
+                      <Info className="h-4 w-4 inline mr-2" />
+                      Score breakdown will be available after your next CV scoring
+                    </div>
                   </div>
                 )}
               </div>
@@ -296,7 +517,7 @@ export default function DashboardPage() {
                   <CheckCircle className="h-6 w-6 text-blue-400 mr-3" />
                   <h2 className="text-xl font-semibold text-white">Your Career To-Do List</h2>
                 </div>
-                <ToDoList userId={user.uid} />
+                {user && <ToDoList userId={user.uid} />}
               </CardContent>
             </Card>
           </div>

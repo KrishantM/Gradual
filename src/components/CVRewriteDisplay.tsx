@@ -59,12 +59,14 @@ export default function CVRewriteDisplay({
   };
 
   const extractScore = (scoreText: string, pattern: RegExp) => {
+    if (!scoreText || typeof scoreText !== 'string') return 'N/A';
     const match = scoreText.match(pattern);
     return match ? match[1] : 'N/A';
   };
 
   const originalScoreValue = extractScore(originalScore, /Overall Score \(0–100\): (\d+)/);
-  const newScoreValue = extractScore(newScore, /NEW SCORE \(0–100\): (\d+)/);
+  // Both original and new scores use the same format: "Overall Score (0–100): X"
+  const newScoreValue = extractScore(newScore, /Overall Score \(0–100\): (\d+)/);
   const scoreImprovement = newScoreValue !== 'N/A' && originalScoreValue !== 'N/A' 
     ? parseInt(newScoreValue) - parseInt(originalScoreValue) 
     : 0;

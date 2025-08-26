@@ -1,0 +1,237 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { X, Plus, Edit3 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+
+interface AcademicItem {
+  id: string;
+  title: string;
+  deadline?: string;
+  progress?: number;
+  type?: string;
+  role?: string;
+  description?: string;
+}
+
+interface AcademicInputModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  mode: 'add' | 'edit';
+  itemType: 'paper' | 'assessment' | 'club';
+  existingItem?: AcademicItem;
+  onSave: (item: AcademicItem) => void;
+}
+
+export default function AcademicInputModal({
+  isOpen,
+  onClose,
+  mode,
+  itemType,
+  existingItem,
+  onSave
+}: AcademicInputModalProps) {
+  const [formData, setFormData] = useState<Partial<AcademicItem>>({
+    title: '',
+    deadline: '',
+    progress: 0,
+    type: '',
+    role: '',
+    description: ''
+  });
+
+  useEffect(() => {
+    if (existingItem && mode === 'edit') {
+      setFormData(existingItem);
+    } else {
+      setFormData({
+        title: '',
+        deadline: '',
+        progress: 0,
+        type: '',
+        role: '',
+        description: ''
+      });
+    }
+  }, [existingItem, mode]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.title?.trim()) return;
+
+    const item: AcademicItem = {
+      id: existingItem?.id || `item_${Date.now()}`,
+      title: formData.title.trim(),
+      deadline: formData.deadline || undefined,
+      progress: formData.progress || 0,
+      type: formData.type || undefined,
+      role: formData.role || undefined,
+      description: formData.description || undefined
+    };
+
+    onSave(item);
+    onClose();
+  };
+
+  const getModalTitle = () => {
+    const action = mode === 'add' ? 'Add' : 'Edit';
+    const item = itemType === 'paper' ? 'Paper/Project' : 
+                 itemType === 'assessment' ? 'Assessment' : 'Club/Involvement';
+    return `${action} ${item}`;
+  };
+
+  const getIcon = () => {
+    switch (itemType) {
+      case 'paper':
+        return <Plus className="h-5 w-5" />;
+      case 'assessment':
+        return <Edit3 className="h-5 w-5" />;
+      case 'club':
+        return <Plus className="h-5 w-5" />;
+      default:
+        return <Plus className="h-5 w-5" />;
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-md bg-gray-900/95 border-white/20 shadow-2xl">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center">
+              <div className="text-green-400 mr-3">
+                {getIcon()}
+              </div>
+              <h3 className="text-lg font-semibold text-white">
+                {getModalTitle()}
+              </h3>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-white transition-colors duration-200"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Title */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                {itemType === 'paper' ? 'Paper/Project Title' :
+                 itemType === 'assessment' ? 'Assessment Name' :
+                 'Organization/Club Name'}
+              </label>
+              <Input
+                type="text"
+                value={formData.title || ''}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder={itemType === 'paper' ? 'e.g., Capstone Project: AI Platform' :
+                           itemType === 'assessment' ? 'e.g., Data Structures Final Exam' :
+                           'e.g., Computer Science Club'}
+                className="bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-green-400"
+                required
+              />
+            </div>
+
+            {/* Type (for assessments and clubs) */}
+            {(itemType === 'assessment' || itemType === 'club') && (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  {itemType === 'assessment' ? 'Assessment Type' : 'Role/Position'}
+                </label>
+                <Input
+                  type="text"
+                  value={formData.type || formData.role || ''}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    [itemType === 'assessment' ? 'type' : 'role']: e.target.value 
+                  })}
+                  placeholder={itemType === 'assessment' ? 'e.g., Final Exam, Presentation' :
+                             'e.g., Member, Vice President, Treasurer'}
+                  className="bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-green-400"
+                />
+              </div>
+            )}
+
+            {/* Progress (for papers) */}
+            {itemType === 'paper' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Progress (%)
+                </label>
+                <div className="flex items-center space-x-3">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={formData.progress || 0}
+                    onChange={(e) => setFormData({ ...formData, progress: parseInt(e.target.value) || 0 })}
+                    className="bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-green-400 w-20"
+                  />
+                  <span className="text-gray-400 text-sm">%</span>
+                  <div className="flex-1 bg-gray-700 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${formData.progress || 0}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Deadline/Date */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                {itemType === 'paper' ? 'Deadline' : 'Date'}
+              </label>
+              <Input
+                type="date"
+                value={formData.deadline || ''}
+                onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+                className="bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-green-400"
+              />
+            </div>
+
+            {/* Description (optional) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Description (Optional)
+              </label>
+              <textarea
+                value={formData.description || ''}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Add any additional details..."
+                rows={3}
+                className="w-full bg-gray-800 border border-gray-600 rounded-md px-3 py-2 text-white placeholder-gray-400 focus:border-green-400 focus:outline-none resize-none"
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex space-x-3 pt-4">
+              <Button
+                type="button"
+                onClick={onClose}
+                variant="outline"
+                className="flex-1 bg-transparent border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
+              >
+                {mode === 'add' ? 'Add' : 'Update'}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
