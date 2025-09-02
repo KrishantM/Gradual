@@ -85,60 +85,71 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
     loadData();
   }, [loadData]);
 
-  const loadAcademicProgress = () => {
+    const loadAcademicProgress = () => {
     const stored = localStorage.getItem('gradual_academic_progress');
-      if (stored) {
-        setAcademicProgress(JSON.parse(stored));
-      } else {
-        // Initialize with default data
-        const defaultProgress: AcademicProgress = {
-          semestersRemaining: 3,
-          totalSemestersRequired: 6,
-          graduationDate: 'Spring 2025',
-          currentPapers: [
-            {
-              id: '1',
-              title: 'Capstone Project: AI-Powered Career Platform',
-              deadline: '2024-12-15',
-              progress: 65
-            },
-            {
-              id: '2',
-              title: 'Research Paper: Machine Learning Applications',
-              deadline: '2024-11-30',
-              progress: 40
-            }
-          ],
-          upcomingAssessments: [
-            {
-              id: '3',
-              title: 'Data Structures Final',
-              deadline: '2024-12-10',
-              type: 'Final Exam'
-            },
-            {
-              id: '4',
-              title: 'Software Engineering Project Demo',
-              deadline: '2024-12-05',
-              type: 'Presentation'
-            }
-          ],
-          clubs: [
-            {
-              id: '5',
-              title: 'Computer Science Club',
-              role: 'Vice President'
-            },
-            {
-              id: '6',
-              title: 'AI Research Group',
-              role: 'Member'
-            }
-          ]
-        };
-        setAcademicProgress(defaultProgress);
-        saveAcademicProgress(defaultProgress);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setAcademicProgress(parsed);
+      } catch (error) {
+        console.error('Error parsing stored academic progress:', error);
+        // If parsing fails, initialize with default data
+        initializeDefaultProgress();
       }
+    } else {
+      // Initialize with default data
+      initializeDefaultProgress();
+    }
+  };
+
+  const initializeDefaultProgress = () => {
+    const defaultProgress: AcademicProgress = {
+      semestersRemaining: 3,
+      totalSemestersRequired: 6,
+      graduationDate: 'Spring 2025',
+      currentPapers: [
+        {
+          id: '1',
+          title: 'Capstone Project: AI-Powered Career Platform',
+          deadline: '2024-12-15',
+          progress: 65
+        },
+        {
+          id: '2',
+          title: 'Research Paper: Machine Learning Applications',
+          deadline: '2024-11-30',
+          progress: 40
+        }
+      ],
+      upcomingAssessments: [
+        {
+          id: '3',
+          title: 'Data Structures Final',
+          deadline: '2024-12-10',
+          type: 'Final Exam'
+        },
+        {
+          id: '4',
+          title: 'Software Engineering Project Demo',
+          deadline: '2024-12-05',
+          type: 'Presentation'
+        }
+      ],
+      clubs: [
+        {
+          id: '5',
+          title: 'Computer Science Club',
+          role: 'Vice President'
+        },
+        {
+          id: '6',
+          title: 'AI Research Group',
+          role: 'Member'
+        }
+      ]
+    };
+    setAcademicProgress(defaultProgress);
+    saveAcademicProgress(defaultProgress);
   };
 
   const saveAcademicProgress = (progress: AcademicProgress) => {
@@ -178,13 +189,13 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
       // Add new item
       switch (modalItemType) {
         case 'paper':
-          newProgress.currentPapers.push(item);
+          newProgress.currentPapers = [...newProgress.currentPapers, item];
           break;
         case 'assessment':
-          newProgress.upcomingAssessments.push(item);
+          newProgress.upcomingAssessments = [...newProgress.upcomingAssessments, item];
           break;
         case 'club':
-          newProgress.clubs.push(item);
+          newProgress.clubs = [...newProgress.clubs, item];
           break;
       }
     } else {

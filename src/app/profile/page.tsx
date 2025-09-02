@@ -62,12 +62,14 @@ export default function ProfilePage() {
   const [cvScoreTimestamp, setCvScoreTimestamp] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'achievements' | 'edit'>('profile');
 
+  // Load profile data once when component mounts
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
       router.push('/login');
       return;
     }
+    
     const fetchProfile = async () => {
       try {
         const ref = doc(db, 'users', user.uid);
@@ -75,7 +77,27 @@ export default function ProfilePage() {
         if (snap.exists()) {
           const data = snap.data();
           console.log('Profile loaded - CV Score from Firestore:', data.cvScore);
-          setFormData(prev => ({ ...prev, ...data }));
+          
+          // Update form data with all fields from Firestore
+          setFormData(prev => ({ 
+            ...prev, 
+            ...data,
+            // Ensure all required fields are present
+            fullName: data.fullName || '',
+            university: data.university || '',
+            degree: data.degree || '',
+            gpa: data.gpa || '',
+            gpaScale: data.gpaScale || '4.0',
+            interests: data.interests || '',
+            bio: data.bio || '',
+            city: data.city || '',
+            country: data.country || '',
+            age: data.age || '',
+            preferredIndustries: data.preferredIndustries || '',
+            portfolioLinks: data.portfolioLinks || '',
+            uploadedCVName: data.uploadedCVName || null,
+          }));
+          
           setCvText(data.cvText || "");
           setCvScoreTimestamp(data.cvScoreTimestamp || null);
           
@@ -138,7 +160,10 @@ export default function ProfilePage() {
                     
                     // Update the score in the profile
                     latestCvScore = newScore;
-                    await setDoc(ref, { cvScore: newScore }, { merge: true });
+                    await setDoc(ref, { 
+                      cvScore: newScore,
+                      cvScoreAnalysis: result.score // Save the full analysis text
+                    }, { merge: true });
                     console.log('CV score saved to profile:', newScore);
                   } else {
                     console.log('Could not extract score from API response:', result.score);
@@ -167,28 +192,19 @@ export default function ProfilePage() {
           console.log('Profile page CV score state updated to:', latestCvScore);
         }
       } catch (err) {
+        console.error('Error loading profile:', err);
         setError('Failed to load profile.');
       } finally {
         setLoading(false);
       }
     };
+    
     fetchProfile();
-  }, [user, authLoading, router, cvScore, cvScoreTimestamp, cvText]);
-
-  // CRITICAL: Only refresh CV score when absolutely necessary
-  // This effect should NOT run on every cvText change or navigation
-  useEffect(() => {
-    // Only run this effect once when the component mounts and we have user data
-    // This prevents aggressive refreshing that overwrites recent scores
-    if (user && cvText && cvText.trim() !== '' && !cvScore && !cvScoreTimestamp) {
-      console.log('Profile page: Initial CV score setup (no score or timestamp exists)');
-      // Only set up initial score if none exists at all
-      // Don't call handleRefreshCVScore here as it can overwrite recent scores
-    }
-  }, [user]); // Only depend on user, not on cvText or cvScoreTimestamp changes
+  }, [user, authLoading, router]);
 
   const handleChange = (e: any) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSave = async () => {
@@ -221,6 +237,8 @@ export default function ProfilePage() {
     }
     
     setSaving(true);
+    setError(''); // Clear any previous errors
+    
     try {
       let extractedText = cvText;
       if (cvFile) {
@@ -236,6 +254,7 @@ export default function ProfilePage() {
         extractedText = data.text || "";
         setCvText(extractedText);
       }
+      
       const { ...dataWithoutFile } = formData;
       await setDoc(
         doc(db, 'users', user.uid),
@@ -247,42 +266,17 @@ export default function ProfilePage() {
         },
         { merge: true }
       );
+      
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
       
-             // Refresh profile data to update gamified display
-             // BUT preserve the current CV score to prevent overwriting recent updates
-             const ref = doc(db, 'users', user.uid);
-             const snap = await getDoc(ref);
-             if (snap.exists()) {
-               const data = snap.data();
-               setFormData(prev => ({ ...prev, ...data }));
-               
-               // CRITICAL: Don't overwrite the current CV score if it was recently updated
-               // This prevents the profile save from reverting recently scored CVs
-               const currentTimestamp = cvScoreTimestamp;
-               const newTimestamp = data.cvScoreTimestamp;
-               
-               if (currentTimestamp && newTimestamp) {
-                 const currentTime = new Date(currentTimestamp).getTime();
-                 const newTime = new Date(newTimestamp).getTime();
-                 
-                 // Only update if the new timestamp is more recent
-                 if (newTime > currentTime) {
-                   console.log('Updating CV score timestamp to more recent value');
-                   setCvScoreTimestamp(newTimestamp);
-                 } else {
-                   console.log('Keeping current CV score timestamp (more recent)');
-                 }
-               } else {
-                 // If we don't have a current timestamp, use the new one
-                 setCvScoreTimestamp(newTimestamp || null);
-               }
-             }
+      // Clear the file input after successful save
+      setCvFile(null);
       
       // Switch back to profile tab after saving
       setActiveTab('profile');
     } catch (err) {
+      console.error('Error saving profile:', err);
       setError('Failed to save profile.');
     } finally {
       setSaving(false);
@@ -299,14 +293,20 @@ export default function ProfilePage() {
         {
           uploadedCVName: null,
           cvText: "",
+          cvScore: null,
+          cvScoreTimestamp: null,
         },
         { merge: true }
       );
       setCvFile(null);
       setCvText("");
+      setCvScore(null);
+      setCvScoreTimestamp(null);
+      setFormData(prev => ({ ...prev, uploadedCVName: null }));
       setRemoveSuccess("CV removed successfully.");
       setTimeout(() => setRemoveSuccess(""), 3000);
     } catch (err) {
+      console.error('Error removing CV:', err);
       setError('Failed to remove CV.');
     } finally {
       setRemoveLoading(false);
@@ -711,7 +711,7 @@ export default function ProfilePage() {
                                 </select>
                               </div>
                               <div className="text-xs text-gray-400 mt-1">
-                                Common scales: 4.0 (USA, Canada), 5.0 (Monash), 7.0 (Queensland), 9.0 (Auckland), 10.0 (Europe)
+                                Common scales: 4.0 (USA, Canada), 5.0 (Australia), 7.0 (Australia), 9.0 (New Zealand), 10.0 (Europe, India)
                               </div>
                               {(!isGPAValid(formData.gpa, formData.gpaScale) || !isGPARealisticallyValid(formData.gpa, formData.gpaScale)) && formData.gpa && (
                                 <div className="bg-red-500/10 border border-red-400/30 rounded-lg p-3">
@@ -810,42 +810,34 @@ export default function ProfilePage() {
                           <h2 className="text-xl font-semibold text-white">CV Upload</h2>
                         </div>
                         
-                                                 <div className="mb-4">
-                           {formData.uploadedCVName ? (
-                             <div className="flex flex-col md:flex-row md:items-center md:space-x-4 mb-2">
-                               <span className="text-blue-300 font-medium">Saved CV:</span>
-                               <span className="text-white font-semibold">{formData.uploadedCVName}</span>
-                               <div className="flex space-x-2 mt-2 md:mt-0">
-                                 <Button
-                                   variant="outline"
-                                   className="bg-blue-500/10 border-blue-400 text-blue-400 hover:bg-blue-500/20 hover:text-white transition-all duration-300"
-                                   onClick={handleRefreshCVScore}
-                                   disabled={!cvText}
-                                 >
-                                   🔄 Refresh Score
-                                 </Button>
-                                 <Button
-                                   variant="outline"
-                                   className="bg-red-500/10 border-red-400 text-red-400 hover:bg-red-500/20 hover:text-white transition-all duration-300"
-                                   onClick={handleRemoveCV}
-                                   disabled={removeLoading}
-                                 >
-                                   {removeLoading ? "Removing..." : "Remove CV"}
-                                 </Button>
-                               </div>
-                             </div>
-                           ) : (
-                             <span className="text-gray-400 italic">No CV currently saved.</span>
-                           )}
-                           {removeSuccess && (
-                             <div className="text-green-400 text-sm mt-2">{removeSuccess}</div>
-                           )}
-                           {cvScore && (
-                             <div className="mt-2 p-2 bg-green-500/10 border border-green-400/30 rounded-lg">
-                               <span className="text-green-300 text-sm">Current CV Score: <span className="font-bold">{cvScore}/100</span></span>
-                             </div>
-                           )}
-                         </div>
+                        <div className="mb-4">
+                          {formData.uploadedCVName ? (
+                            <div className="flex flex-col md:flex-row md:items-center md:space-x-4 mb-2">
+                              <span className="text-blue-300 font-medium">Saved CV:</span>
+                              <span className="text-white font-semibold">{formData.uploadedCVName}</span>
+                              <div className="flex space-x-2 mt-2 md:mt-0">
+                                <Button
+                                  variant="outline"
+                                  className="bg-red-500/10 border-red-400 text-red-400 hover:bg-red-500/20 hover:text-white transition-all duration-300"
+                                  onClick={handleRemoveCV}
+                                  disabled={removeLoading}
+                                >
+                                  {removeLoading ? "Removing..." : "Remove CV"}
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 italic">No CV currently saved.</span>
+                          )}
+                          {removeSuccess && (
+                            <div className="text-green-400 text-sm mt-2">{removeSuccess}</div>
+                          )}
+                          {cvScore && (
+                            <div className="mt-2 p-2 bg-green-500/10 border border-green-400/30 rounded-lg">
+                              <span className="text-green-300 text-sm">Current CV Score: <span className="font-bold">{cvScore}/100</span></span>
+                            </div>
+                          )}
+                        </div>
                         <div className="relative">
                           <input
                             type="file"

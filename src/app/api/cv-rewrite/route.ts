@@ -53,9 +53,8 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    if (!scoreFeedback || typeof scoreFeedback !== 'string') {
-      return NextResponse.json({ error: 'Invalid score feedback.' }, { status: 400 });
-    }
+    // Use default feedback if none provided (for standalone rewrite feature)
+    const feedbackToUse = scoreFeedback || 'Please improve this CV by enhancing language clarity, adding quantifiable achievements, using action verbs, and making it more ATS-friendly while maintaining professional tone.';
 
     // Generate a unique rewritten CV ID for consistency tracking
     const rewrittenCVId = `REWRITE_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -99,7 +98,7 @@ Do not include any other text outside of the specified format.`;
 ${cvText}
 
 CV Score Feedback:
-${scoreFeedback}
+${feedbackToUse}
 
 ${targetRole ? `Target Role: ${targetRole}` : ''}
 

@@ -42,20 +42,32 @@ export default function AcademicInputModal({
     description: ''
   });
 
+  // Reset form when modal opens/closes or when editing item changes
   useEffect(() => {
-    if (existingItem && mode === 'edit') {
-      setFormData(existingItem);
-    } else {
-      setFormData({
-        title: '',
-        deadline: '',
-        progress: 0,
-        type: '',
-        role: '',
-        description: ''
-      });
+    if (isOpen) {
+      if (existingItem && mode === 'edit') {
+        // Populate form with existing item data
+        setFormData({
+          title: existingItem.title || '',
+          deadline: existingItem.deadline || '',
+          progress: existingItem.progress || 0,
+          type: existingItem.type || '',
+          role: existingItem.role || '',
+          description: existingItem.description || ''
+        });
+      } else {
+        // Reset form for new item
+        setFormData({
+          title: '',
+          deadline: '',
+          progress: 0,
+          type: '',
+          role: '',
+          description: ''
+        });
+      }
     }
-  }, [existingItem, mode]);
+  }, [isOpen, existingItem, mode]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,6 +86,13 @@ export default function AcademicInputModal({
 
     onSave(item);
     onClose();
+  };
+
+  const handleInputChange = (field: string, value: string | number) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   const getModalTitle = () => {
@@ -130,7 +149,7 @@ export default function AcademicInputModal({
               <Input
                 type="text"
                 value={formData.title || ''}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                onChange={(e) => handleInputChange('title', e.target.value)}
                 placeholder={itemType === 'paper' ? 'e.g., Capstone Project: AI Platform' :
                            itemType === 'assessment' ? 'e.g., Data Structures Final Exam' :
                            'e.g., Computer Science Club'}
@@ -147,11 +166,11 @@ export default function AcademicInputModal({
                 </label>
                 <Input
                   type="text"
-                  value={formData.type || formData.role || ''}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    [itemType === 'assessment' ? 'type' : 'role']: e.target.value 
-                  })}
+                  value={itemType === 'assessment' ? (formData.type || '') : (formData.role || '')}
+                  onChange={(e) => handleInputChange(
+                    itemType === 'assessment' ? 'type' : 'role', 
+                    e.target.value
+                  )}
                   placeholder={itemType === 'assessment' ? 'e.g., Final Exam, Presentation' :
                              'e.g., Member, Vice President, Treasurer'}
                   className="bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-green-400"
@@ -171,7 +190,7 @@ export default function AcademicInputModal({
                     min="0"
                     max="100"
                     value={formData.progress || 0}
-                    onChange={(e) => setFormData({ ...formData, progress: parseInt(e.target.value) || 0 })}
+                    onChange={(e) => handleInputChange('progress', parseInt(e.target.value) || 0)}
                     className="bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-green-400 w-20"
                   />
                   <span className="text-gray-400 text-sm">%</span>
@@ -193,7 +212,7 @@ export default function AcademicInputModal({
               <Input
                 type="date"
                 value={formData.deadline || ''}
-                onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+                onChange={(e) => handleInputChange('deadline', e.target.value)}
                 className="bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-green-400"
               />
             </div>
@@ -205,7 +224,7 @@ export default function AcademicInputModal({
               </label>
               <textarea
                 value={formData.description || ''}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) => handleInputChange('description', e.target.value)}
                 placeholder="Add any additional details..."
                 rows={3}
                 className="w-full bg-gray-800 border border-gray-600 rounded-md px-3 py-2 text-white placeholder-gray-400 focus:border-green-400 focus:outline-none resize-none"

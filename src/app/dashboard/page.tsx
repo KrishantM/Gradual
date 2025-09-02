@@ -28,7 +28,9 @@ import {
   ExternalLink,
   BarChart3,
   Settings,
-  Info
+  Info,
+  Trash2,
+  X
 } from 'lucide-react';
 
 interface SavedOpportunity {
@@ -93,7 +95,7 @@ export default function DashboardPage() {
   const [name, setName] = useState('');
   const [cvScore, setCvScore] = useState<string | number | null>(null);
   const [cvScoreTimestamp, setCvScoreTimestamp] = useState<any>(null);
-  const [cvScoreBreakdown, setCvScoreBreakdown] = useState<any>(null);
+  const [cvScoreAnalysis, setCvScoreAnalysis] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savedOpportunities, setSavedOpportunities] = useState<SavedOpportunity[]>([]);
@@ -101,6 +103,7 @@ export default function DashboardPage() {
   const [unstarringLoading, setUnstarringLoading] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [clearingScore, setClearingScore] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -117,7 +120,7 @@ export default function DashboardPage() {
           const userData = userSnap.data();
           setName(userData.fullName || '');
           
-          // Add safety checks for CV score data
+          // Load CV score data
           const rawCvScore = userData.cvScore;
           if (rawCvScore !== null && rawCvScore !== undefined) {
             setCvScore(rawCvScore);
@@ -132,21 +135,12 @@ export default function DashboardPage() {
             setCvScoreTimestamp(null);
           }
           
-          const rawCvScoreBreakdown = userData.cvScoreBreakdown;
-          if (rawCvScoreBreakdown && typeof rawCvScoreBreakdown === 'object') {
-            // Validate breakdown structure
-            const isValidBreakdown = rawCvScoreBreakdown.professionalism !== undefined &&
-                                   rawCvScoreBreakdown.experience !== undefined &&
-                                   rawCvScoreBreakdown.keywordScreening !== undefined &&
-                                   rawCvScoreBreakdown.relevance !== undefined;
-            
-            if (isValidBreakdown) {
-              setCvScoreBreakdown(rawCvScoreBreakdown);
-            } else {
-              setCvScoreBreakdown(null);
-            }
+          // Load CV analysis text if available
+          const rawCvScoreAnalysis = userData.cvScoreAnalysis || userData.cvText;
+          if (rawCvScoreAnalysis && typeof rawCvScoreAnalysis === 'string') {
+            setCvScoreAnalysis(rawCvScoreAnalysis);
           } else {
-            setCvScoreBreakdown(null);
+            setCvScoreAnalysis(null);
           }
           
           // Fetch saved opportunities
@@ -176,9 +170,6 @@ export default function DashboardPage() {
 
     fetchData();
   }, [user, router]);
-
-  // Only refresh dashboard when user explicitly requests it or when data is stale
-  // Removed automatic refresh on focus/visibility change to prevent CV score conflicts
 
   const fetchSavedOpportunities = async (savedIds: string[]) => {
     setOpportunitiesLoading(true);
@@ -216,7 +207,7 @@ export default function DashboardPage() {
         const userData = userSnap.data();
         setName(userData.fullName || '');
         
-        // Add safety checks for CV score data
+        // Load CV score data
         const rawCvScore = userData.cvScore;
         if (rawCvScore !== null && rawCvScore !== undefined) {
           setCvScore(rawCvScore);
@@ -231,21 +222,12 @@ export default function DashboardPage() {
           setCvScoreTimestamp(null);
         }
         
-        const rawCvScoreBreakdown = userData.cvScoreBreakdown;
-        if (rawCvScoreBreakdown && typeof rawCvScoreBreakdown === 'object') {
-          // Validate breakdown structure
-          const isValidBreakdown = rawCvScoreBreakdown.professionalism !== undefined &&
-                                 rawCvScoreBreakdown.experience !== undefined &&
-                                 rawCvScoreBreakdown.keywordScreening !== undefined &&
-                                 rawCvScoreBreakdown.relevance !== undefined;
-          
-          if (isValidBreakdown) {
-            setCvScoreBreakdown(rawCvScoreBreakdown);
-          } else {
-            setCvScoreBreakdown(null);
-          }
+        // Load CV analysis text if available
+        const rawCvScoreAnalysis = userData.cvScoreAnalysis || userData.cvText;
+        if (rawCvScoreAnalysis && typeof rawCvScoreAnalysis === 'string') {
+          setCvScoreAnalysis(rawCvScoreAnalysis);
         } else {
-          setCvScoreBreakdown(null);
+          setCvScoreAnalysis(null);
         }
         
         // Fetch saved opportunities
@@ -258,6 +240,36 @@ export default function DashboardPage() {
       console.error('Error refreshing dashboard:', err);
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const clearCVScore = async () => {
+    if (!user) return;
+    
+    setClearingScore(true);
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        cvScore: null,
+        cvScoreTimestamp: null,
+        cvScoreAnalysis: null,
+        cvScoreBreakdown: null,
+        cvText: null,
+        uploadedCVName: null
+      });
+      
+      // Clear local state
+      setCvScore(null);
+      setCvScoreTimestamp(null);
+      setCvScoreAnalysis(null);
+      setShowDetails(false);
+      
+      console.log('CV score cleared successfully');
+    } catch (error) {
+      console.error('Error clearing CV score:', error);
+      alert('Failed to clear CV score. Please try again.');
+    } finally {
+      setClearingScore(false);
     }
   };
 
@@ -322,156 +334,123 @@ export default function DashboardPage() {
                 Your personalized career dashboard with insights, suggestions, and progress tracking
               </p>
             </div>
-            <div className="flex justify-center">
-              <Button
-                onClick={refreshDashboard}
-                disabled={refreshing}
-                variant="outline"
-                className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30"
-              >
-                {refreshing ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                )}
-                {refreshing ? 'Refreshing...' : 'Refresh Dashboard'}
-              </Button>
-            </div>
+
           </div>
 
           {/* CV Builder Section */}
           <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl mb-8">
             <CardContent className="p-6">
-              <div className="flex items-center mb-6">
-                <TrendingUp className="h-6 w-6 text-blue-400 mr-3" />
-                <h2 className="text-2xl font-semibold text-white">Your Latest CV Score</h2>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center">
+                  <TrendingUp className="h-6 w-6 text-blue-400 mr-3" />
+                  <h2 className="text-2xl font-semibold text-white">Your Latest CV Score</h2>
+                </div>
+                {cvScore && (
+                  <Button
+                    onClick={clearCVScore}
+                    disabled={clearingScore}
+                    variant="outline"
+                    size="sm"
+                    className="bg-red-500/10 border-red-400 text-red-400 hover:bg-red-500/20 hover:text-white transition-all duration-300"
+                  >
+                    {clearingScore ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Trash2 className="h-4 w-4 mr-2" />
+                    )}
+                    {clearingScore ? 'Clearing...' : 'Clear Score'}
+                  </Button>
+                )}
               </div>
               
               <div className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-400/30 rounded-lg p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-4">
-                    <span className="text-6xl font-extrabold text-blue-400">
-                      {overallScore ? overallScore : '—'}
-                    </span>
-                    <div className="text-left">
-                      <p className="text-gray-300 text-sm">Overall Score</p>
-                      <p className="text-gray-400 text-xs">out of 100</p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-auto min-w-0 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30 whitespace-nowrap px-3 py-2 text-sm"
-                    onClick={() => setShowDetails((v) => !v)}
-                  >
-                    {showDetails ? (
-                      <>
-                        <ChevronUp className="h-4 w-4 mr-2" />
-                        Hide Details
-                      </>
-                    ) : (
-                      <>
-                        <ChevronDown className="h-4 w-4 mr-2" />
-                        View Details
-                      </>
-                    )}
-                  </Button>
-                </div>
-                
-                {cvScoreTimestamp && (
-                  <div className="flex items-center text-gray-400 text-sm">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Last updated: {formatDate(cvScoreTimestamp)}
-                  </div>
-                )}
-                
-                {/* CV Score Description - Only show if it's a detailed breakdown string */}
-                {cvScore && typeof cvScore === 'string' && cvScore.includes('Overall Score') && (
-                  <div className="mt-4 p-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg">
-                    <p className="text-gray-200 whitespace-pre-line leading-relaxed text-sm">
-                      {cvScore}
+                {!cvScore ? (
+                  // No CV score state
+                  <div className="text-center py-8">
+                    <div className="text-6xl mb-4">📄</div>
+                    <h3 className="text-xl font-semibold text-white mb-2">
+                      No CV score saved!
+                    </h3>
+                    <p className="text-gray-400 mb-6">
+                      Generate one now to see your CV performance analysis
                     </p>
+                    <Link href="/cvscore">
+                      <Button className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white">
+                        <BarChart3 className="h-4 w-4 mr-2" />
+                        Generate CV Score
+                      </Button>
+                    </Link>
                   </div>
-                )}
-                
-                {/* CV Score Breakdown - Only show when details are expanded */}
-                {showDetails && cvScoreBreakdown && typeof cvScoreBreakdown === 'object' && 
-                 cvScoreBreakdown.professionalism !== undefined && 
-                 cvScoreBreakdown.experience !== undefined && 
-                 cvScoreBreakdown.keywordScreening !== undefined && 
-                 cvScoreBreakdown.relevance !== undefined && (
-                  <div className="mt-4">
-                    <h4 className="text-white font-semibold mb-3 text-center">Score Breakdown</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div className="bg-white/5 border border-white/10 rounded-lg p-3 text-center">
-                        <div className="text-lg font-bold text-blue-400">
-                          {typeof cvScoreBreakdown.professionalism === 'number' ? cvScoreBreakdown.professionalism : '—'}
+                ) : (
+                  // CV score exists
+                  <>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-4">
+                        <span className="text-6xl font-extrabold text-blue-400">
+                          {overallScore ? overallScore : '—'}
+                        </span>
+                        <div className="text-left">
+                          <p className="text-gray-300 text-sm">Overall Score</p>
+                          <p className="text-gray-400 text-xs">out of 100</p>
                         </div>
-                        <div className="text-xs text-gray-400">Professionalism</div>
-                        <div className="text-xs text-gray-500">/25</div>
                       </div>
-                      <div className="bg-white/5 border border-white/10 rounded-lg p-3 text-center">
-                        <div className="text-lg font-bold text-green-400">
-                          {typeof cvScoreBreakdown.experience === 'number' ? cvScoreBreakdown.experience : '—'}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-auto min-w-0 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30 whitespace-nowrap px-3 py-2 text-sm"
+                        onClick={() => setShowDetails((v) => !v)}
+                      >
+                        {showDetails ? (
+                          <>
+                            <ChevronUp className="h-4 w-4 mr-2" />
+                            Hide Details
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="h-4 w-4 mr-2" />
+                            View Details
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    
+                    {cvScoreTimestamp && (
+                      <div className="flex items-center text-gray-400 text-sm mb-4">
+                        <Calendar className="h-4 w-4 mr-2" />
+                        Last updated: {formatDate(cvScoreTimestamp)}
+                      </div>
+                    )}
+                    
+                    {/* CV Score Analysis - Show when details are expanded */}
+                    {showDetails && cvScoreAnalysis && (
+                      <div className="mt-4 p-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg">
+                        <h4 className="text-white font-semibold mb-3">CV Analysis</h4>
+                        <p className="text-gray-200 whitespace-pre-line leading-relaxed text-sm">
+                          {cvScoreAnalysis}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Show message when analysis is available but details are hidden */}
+                    {!showDetails && cvScoreAnalysis && (
+                      <div className="mt-4 text-center">
+                        <div className="text-gray-400 text-sm">
+                          <Info className="h-4 w-4 inline mr-2" />
+                          Click &quot;View Details&quot; to see your CV analysis
                         </div>
-                        <div className="text-xs text-gray-400">Experience</div>
-                        <div className="text-xs text-gray-500">/25</div>
                       </div>
-                      <div className="bg-white/5 border border-white/10 rounded-lg p-3 text-center">
-                        <div className="text-lg font-bold text-yellow-400">
-                          {typeof cvScoreBreakdown.keywordScreening === 'number' ? cvScoreBreakdown.keywordScreening : '—'}
+                    )}
+                    
+                    {/* Show message when no analysis is available */}
+                    {!cvScoreAnalysis && (
+                      <div className="mt-4 text-center">
+                        <div className="text-gray-400 text-sm">
+                          <Info className="h-4 w-4 inline mr-2" />
+                          CV analysis will be available after your next CV scoring
                         </div>
-                        <div className="text-xs text-gray-400">Keywords</div>
-                        <div className="text-xs text-gray-500">/25</div>
                       </div>
-                      <div className="bg-white/5 border border-white/10 rounded-lg p-3 text-center">
-                        <div className="text-lg font-bold text-purple-400">
-                          {typeof cvScoreBreakdown.relevance === 'number' ? cvScoreBreakdown.relevance : '—'}
-                        </div>
-                        <div className="text-xs text-gray-400">Relevance</div>
-                        <div className="text-xs text-gray-500">/25</div>
-                      </div>
-                    </div>
-                    <div className="mt-3 text-center">
-                      <div className="text-sm text-gray-400">
-                        Total: <span className="text-white font-semibold">
-                          {typeof cvScoreBreakdown.professionalism === 'number' && 
-                           typeof cvScoreBreakdown.experience === 'number' && 
-                           typeof cvScoreBreakdown.keywordScreening === 'number' && 
-                           typeof cvScoreBreakdown.relevance === 'number' ? 
-                           (cvScoreBreakdown.professionalism + cvScoreBreakdown.experience + cvScoreBreakdown.keywordScreening + cvScoreBreakdown.relevance) : '—'}
-                        </span>/100
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Show message when breakdown is available but details are hidden */}
-                {!showDetails && cvScoreBreakdown && typeof cvScoreBreakdown === 'object' && 
-                 cvScoreBreakdown.professionalism !== undefined && 
-                 cvScoreBreakdown.experience !== undefined && 
-                 cvScoreBreakdown.keywordScreening !== undefined && 
-                 cvScoreBreakdown.relevance !== undefined && (
-                  <div className="mt-4 text-center">
-                    <div className="text-gray-400 text-sm">
-                      <Info className="h-4 w-4 inline mr-2" />
-                      Click &quot;View Details&quot; to see your score breakdown
-                    </div>
-                  </div>
-                )}
-                
-                {/* Show message when no breakdown is available */}
-                {(!cvScoreBreakdown || typeof cvScoreBreakdown !== 'object' || 
-                  cvScoreBreakdown.professionalism === undefined || 
-                  cvScoreBreakdown.experience === undefined || 
-                  cvScoreBreakdown.keywordScreening === undefined || 
-                  cvScoreBreakdown.relevance === undefined) && cvScore && (
-                  <div className="mt-4 text-center">
-                    <div className="text-gray-400 text-sm">
-                      <Info className="h-4 w-4 inline mr-2" />
-                      Score breakdown will be available after your next CV scoring
-                    </div>
-                  </div>
+                    )}
+                  </>
                 )}
               </div>
             </CardContent>

@@ -38,6 +38,7 @@ export default function DegreeProgressModal({
     totalCredits: ''
   });
 
+  // Reset form when modal opens/closes or when current data changes
   useEffect(() => {
     if (isOpen && currentData) {
       setFormData({
@@ -80,11 +81,10 @@ export default function DegreeProgressModal({
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <Card className="w-full max-w-md bg-gray-900/95 border-white/20 shadow-2xl">
         <CardContent className="p-6">
-          {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center">
-              <GraduationCap className="h-5 w-5 text-green-400 mr-2" />
-              <h3 className="text-lg font-semibold text-white">Edit Degree Progress</h3>
+              <GraduationCap className="h-6 w-6 text-green-400 mr-3" />
+              <h3 className="text-lg font-semibold text-white">Degree Progress</h3>
             </div>
             <button
               onClick={onClose}
@@ -147,49 +147,43 @@ export default function DegreeProgressModal({
                 required
               />
               <p className="text-xs text-gray-400 mt-1">
-                Number of semesters until graduation (0 if graduated)
+                How many semesters do you have left?
               </p>
             </div>
 
             {/* Credits Section */}
-            <div>
-              <div className="flex items-center mb-2">
-                <label className="block text-sm font-medium text-white">
-                  Credit Information
+            <div className="border-t border-gray-700 pt-4">
+              <h4 className="text-sm font-medium text-white mb-3">Credit Information (Optional)</h4>
+              
+              {/* Credits Completed */}
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Credits Completed
                 </label>
-                <span className="text-xs text-gray-400 ml-2">(Optional)</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.creditsCompleted}
+                  onChange={(e) => handleInputChange('creditsCompleted', e.target.value)}
+                  placeholder="e.g., 90"
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-gray-300 mb-1">
-                    Credits Completed
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.creditsCompleted}
-                    onChange={(e) => handleInputChange('creditsCompleted', e.target.value)}
-                    placeholder="0"
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-300 mb-1">
-                    Total Credits Required
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={formData.totalCredits}
-                    onChange={(e) => handleInputChange('totalCredits', e.target.value)}
-                    placeholder="120"
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
+
+              {/* Total Credits */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Total Credits Required
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={formData.totalCredits}
+                  onChange={(e) => handleInputChange('totalCredits', e.target.value)}
+                  placeholder="e.g., 120"
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
               </div>
-              <p className="text-xs text-gray-400 mt-1">
-                Leave blank if you don&apos;t know your credit count
-              </p>
             </div>
 
             {/* Action Buttons */}
@@ -198,15 +192,15 @@ export default function DegreeProgressModal({
                 type="button"
                 onClick={onClose}
                 variant="outline"
-                className="flex-1 bg-gray-800 border-gray-600 text-white hover:bg-gray-700 hover:border-gray-500"
+                className="flex-1 bg-transparent border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
               >
-                Save Changes
+                Save Progress
               </Button>
             </div>
           </form>

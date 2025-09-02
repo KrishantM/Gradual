@@ -212,13 +212,13 @@ export default function CVRewriteDisplay({
                     </div>
                   ) : (
                     <div className="flex items-center">
-                      <RefreshCw className="h-5 w-5 mr-2" />
+                      <TrendingUp className="h-5 w-5 mr-2" />
                       Score Rewritten CV
                     </div>
                   )}
                 </Button>
                 <p className="text-gray-400 text-sm mt-2">
-                  Compare the new score with your original CV
+                  Get your AI-enhanced CV scored and saved to your profile
                 </p>
               </div>
             </>
@@ -226,14 +226,14 @@ export default function CVRewriteDisplay({
         </CardContent>
       </Card>
 
-      {/* Score Comparison */}
+      {/* Rewritten CV Score */}
       {newScore && (
         <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl">
           <CardContent className="p-8">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center">
                 <TrendingUp className="h-6 w-6 text-green-400 mr-3" />
-                <h2 className="text-2xl font-semibold text-white">Score Comparison</h2>
+                <h2 className="text-2xl font-semibold text-white">Rewritten CV Score</h2>
               </div>
               <Button
                 variant="ghost"
@@ -251,45 +251,29 @@ export default function CVRewriteDisplay({
 
             {!scoreComparisonCollapsed && (
               <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-400/30 rounded-lg p-6">
-                <div className="grid md:grid-cols-3 gap-6 mb-6">
-                  {/* Original Score */}
-                  <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-4 text-center">
-                    <h3 className="text-lg font-semibold text-gray-300 mb-2">Original CV</h3>
-                    <div className="text-3xl font-bold text-blue-400">{originalScoreValue}</div>
-                    <p className="text-gray-400 text-sm">/ 100</p>
-                  </div>
-                  
-                  {/* Score Improvement */}
-                  <div className="bg-white/10 backdrop-blur-sm border border-white-20 rounded-lg p-4 text-center">
-                    <h3 className="text-lg font-semibold text-gray-300 mb-2">Improvement</h3>
-                    <div className={`text-3xl font-bold ${scoreImprovement >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {scoreImprovement >= 0 ? '+' : ''}{scoreImprovement}
+                {/* Single Score Display */}
+                <div className="text-center mb-6">
+                  <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-8 max-w-md mx-auto">
+                    <h3 className="text-xl font-semibold text-gray-300 mb-4">Your Rewritten CV Score</h3>
+                    <div className="text-6xl font-bold text-green-400 mb-2">{newScoreValue}</div>
+                    <p className="text-gray-400 text-lg">/ 100</p>
+                    <div className="mt-4 text-sm text-green-300 bg-green-500/20 px-3 py-2 rounded-lg inline-block">
+                      ✨ AI-Enhanced CV
                     </div>
-                    <p className="text-gray-400 text-sm">points</p>
-                    {scoreImprovement > 0 && (
-                      <div className="mt-2 text-xs text-green-300 bg-green-500/20 px-2 py-1 rounded">
-                        ✅ Improved!
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* New Score */}
-                  <div className="bg-white/10 backdrop-blur-sm border border-white-20 rounded-lg p-4 text-center">
-                    <h3 className="text-lg font-semibold text-gray-300 mb-2">Rewritten CV</h3>
-                    <div className="text-3xl font-bold text-green-400">{newScoreValue}</div>
-                    <p className="text-gray-400 text-sm">/ 100</p>
                   </div>
                 </div>
                 
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-4">
+                {/* Score Analysis */}
+                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-6">
+                  <h4 className="text-lg font-semibold text-white mb-3">Score Analysis</h4>
                   <p className="text-gray-200 whitespace-pre-line leading-relaxed">
                     {newScore}
                   </p>
                 </div>
                 
-                <div className="mt-4 flex items-center text-gray-400 text-sm">
+                <div className="mt-4 flex items-center justify-center text-gray-400 text-sm">
                   <Check className="h-4 w-4 mr-2" />
-                  Comparison complete - see the detailed breakdown above
+                  Your rewritten CV has been scored and saved to your profile
                 </div>
               </div>
             )}

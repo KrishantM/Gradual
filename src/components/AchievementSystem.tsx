@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Trophy, Star, Target, Zap, BookOpen, Globe, Code, Heart, User } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -23,8 +23,11 @@ interface AchievementSystemProps {
 }
 
 export default function AchievementSystem({ userId, profileData, cvScore }: AchievementSystemProps) {
-  // Helper function to safely extract numerical CV score
-  const getNumericalCVScore = (): number => {
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [showUnlocked, setShowUnlocked] = useState(true);
+
+  // Memoize helper functions to prevent infinite re-renders
+  const getNumericalCVScore = useMemo((): number => {
     if (!cvScore) return 0;
     
     if (typeof cvScore === 'string') {
@@ -34,22 +37,18 @@ export default function AchievementSystem({ userId, profileData, cvScore }: Achi
     }
     
     return typeof cvScore === 'number' ? cvScore : 0;
-  };
+  }, [cvScore]);
 
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [showUnlocked, setShowUnlocked] = useState(true);
-
-  // Helper functions
-  const isProfileComplete = () => {
+  const isProfileComplete = useMemo(() => {
     const requiredFields = ['fullName', 'university', 'degree', 'gpa', 'interests', 'city', 'country'];
     return requiredFields.every(field => profileData[field] && profileData[field].toString().trim() !== '');
-  };
+  }, [profileData]);
 
-  const getProfileCompletion = () => {
+  const getProfileCompletion = useMemo(() => {
     const requiredFields = ['fullName', 'university', 'degree', 'gpa', 'interests', 'city', 'country'];
     const completedFields = requiredFields.filter(field => profileData[field] && profileData[field].toString().trim() !== '');
     return Math.round((completedFields.length / requiredFields.length) * 100);
-  };
+  }, [profileData]);
 
   const generateAchievements = useCallback(() => {
     const allAchievements: Achievement[] = [
@@ -60,8 +59,8 @@ export default function AchievementSystem({ userId, profileData, cvScore }: Achi
         description: 'Complete all required profile fields',
         icon: '👤',
         category: 'profile',
-        unlocked: isProfileComplete(),
-        progress: getProfileCompletion(),
+        unlocked: isProfileComplete,
+        progress: getProfileCompletion,
         maxProgress: 100
       },
       {
@@ -102,8 +101,8 @@ export default function AchievementSystem({ userId, profileData, cvScore }: Achi
         description: 'Achieve a CV score of 80+',
         icon: '🏆',
         category: 'cv',
-        unlocked: getNumericalCVScore() >= 80,
-        progress: getNumericalCVScore(),
+        unlocked: getNumericalCVScore >= 80,
+        progress: getNumericalCVScore,
         maxProgress: 100
       },
       {
@@ -112,8 +111,8 @@ export default function AchievementSystem({ userId, profileData, cvScore }: Achi
         description: 'Achieve a CV score of 90+',
         icon: '👑',
         category: 'cv',
-        unlocked: getNumericalCVScore() >= 90,
-        progress: getNumericalCVScore(),
+        unlocked: getNumericalCVScore >= 90,
+        progress: getNumericalCVScore,
         maxProgress: 100
       },
 
@@ -163,7 +162,7 @@ export default function AchievementSystem({ userId, profileData, cvScore }: Achi
     ];
 
     setAchievements(allAchievements);
-  }, [profileData, cvScore, getNumericalCVScore, isProfileComplete, getProfileCompletion]);
+  }, [profileData, getNumericalCVScore, isProfileComplete, getProfileCompletion]);
 
   useEffect(() => {
     generateAchievements();
