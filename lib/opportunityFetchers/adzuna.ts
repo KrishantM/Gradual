@@ -113,19 +113,19 @@ function buildSearchQuery(profile: any): string {
   // Add degree-related terms
   if (profile.degree) {
     const degreeWords = profile.degree.toLowerCase().split(' ');
-    queries.push(...degreeWords.filter(word => word.length > 3));
+    queries.push(...degreeWords.filter((word: string) => word.length > 3));
   }
   
   // Add interest-related terms
   if (profile.interests) {
     const interests = profile.interests.toLowerCase().split(/[,\s]+/);
-    queries.push(...interests.filter(interest => interest.length > 3));
+    queries.push(...interests.filter((interest: string) => interest.length > 3));
   }
   
   // Add preferred industries
   if (profile.preferredIndustries) {
     const industries = profile.preferredIndustries.toLowerCase().split(/[,\s]+/);
-    queries.push(...industries.filter(industry => industry.length > 3));
+    queries.push(...industries.filter((industry: string) => industry.length > 3));
   }
   
   // Add common graduate terms

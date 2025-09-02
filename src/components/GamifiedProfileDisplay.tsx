@@ -73,7 +73,7 @@ export default function GamifiedProfileDisplay({
     if (formData.bio && formData.bio.length > 100) newAchievements.push('Storyteller');
     
     setAchievements(newAchievements);
-  }, [formData, cvScore]);
+  }, [formData, cvScore, getNumericalCVScore]);
 
   useEffect(() => {
     calculateGamificationStats();

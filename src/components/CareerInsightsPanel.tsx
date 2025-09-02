@@ -62,30 +62,7 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
   // Degree progress modal state
   const [degreeModalOpen, setDegreeModalOpen] = useState(false);
 
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
-    
-    // Load AI insights
-    const insights = await aiInsightsService.generateInsights({
-      degree: formData.degree,
-      interests: formData.interests,
-      city: formData.city,
-      country: formData.country,
-      gpa: formData.gpa
-    });
-    setIndustryInsights(insights);
-    
-    // Load academic progress from localStorage or initialize
-    loadAcademicProgress();
-    
-    setIsLoading(false);
-  }, [formData.degree, formData.interests, formData.city, formData.country, formData.gpa]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-    const loadAcademicProgress = () => {
+  const loadAcademicProgress = useCallback(() => {
     const stored = localStorage.getItem('gradual_academic_progress');
     if (stored) {
       try {
@@ -100,7 +77,7 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
       // Initialize with default data
       initializeDefaultProgress();
     }
-  };
+  }, []);
 
   const initializeDefaultProgress = () => {
     const defaultProgress: AcademicProgress = {
@@ -155,6 +132,29 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
   const saveAcademicProgress = (progress: AcademicProgress) => {
     localStorage.setItem('gradual_academic_progress', JSON.stringify(progress));
   };
+
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    
+    // Load AI insights
+    const insights = await aiInsightsService.generateInsights({
+      degree: formData.degree,
+      interests: formData.interests,
+      city: formData.city,
+      country: formData.country,
+      gpa: formData.gpa
+    });
+    setIndustryInsights(insights);
+    
+    // Load academic progress from localStorage or initialize
+    loadAcademicProgress();
+    
+    setIsLoading(false);
+  }, [formData.degree, formData.interests, formData.city, formData.country, formData.gpa, loadAcademicProgress]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const toggleInsightExpansion = (insightId: string) => {
     const newExpanded = new Set(expandedInsights);
