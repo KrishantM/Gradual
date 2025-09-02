@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Tooltip } from 'recharts';
 import { Trophy, Target, TrendingUp, Zap, Edit3, Eye, X, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,7 +27,7 @@ export default function GamifiedProfileDisplay({
   const [xp, setXp] = useState(0);
 
   // Helper function to safely extract numerical CV score
-  const getNumericalCVScore = (): number => {
+  const getNumericalCVScore = useMemo((): number => {
     if (!cvScore) return 0;
     
     if (typeof cvScore === 'string') {
@@ -37,7 +37,7 @@ export default function GamifiedProfileDisplay({
     }
     
     return typeof cvScore === 'number' ? cvScore : 0;
-  };
+  }, [cvScore]);
 
   const calculateGamificationStats = useCallback(() => {
     let profileCompletion = 0;
@@ -54,7 +54,7 @@ export default function GamifiedProfileDisplay({
     
     // Calculate XP based on profile completion and CV score
     const profileXP = Math.round((profileCompletion / totalFields) * 100);
-    const cvScoreXP = getNumericalCVScore();
+    const cvScoreXP = getNumericalCVScore;
     const totalXP = profileXP + cvScoreXP;
     
     // Calculate level (every 100 XP = 1 level, minimum level 1)
@@ -73,7 +73,7 @@ export default function GamifiedProfileDisplay({
     if (formData.bio && formData.bio.length > 100) newAchievements.push('Storyteller');
     
     setAchievements(newAchievements);
-  }, [formData, cvScore, getNumericalCVScore]);
+  }, [formData, getNumericalCVScore]);
 
   useEffect(() => {
     calculateGamificationStats();
@@ -82,7 +82,7 @@ export default function GamifiedProfileDisplay({
   // Generate radar chart data with more relevant metrics
   const generateRadarData = () => {
     // CV Score - ensure it's a valid number
-    const cvScoreValue = getNumericalCVScore();
+    const cvScoreValue = getNumericalCVScore;
     
     // Academic Performance - based on GPA and education completeness
     let academicScore = 0;
@@ -418,7 +418,7 @@ export default function GamifiedProfileDisplay({
               <h3 className="text-lg sm:text-xl font-semibold text-white">Your Strengths</h3>
             </div>
             <div className="space-y-2 sm:space-y-3">
-              {getNumericalCVScore() >= 80 && (
+              {getNumericalCVScore >= 80 && (
                 <div className="bg-green-500/20 border border-green-400/30 rounded-lg p-2 sm:p-3 animate-pulse hover:scale-105 transition-transform duration-300">
                   <div className="text-green-300 text-xs sm:text-sm font-medium">🎯 CV Excellence</div>
                   <div className="text-green-200 text-xs">Your CV is performing exceptionally well!</div>
@@ -436,7 +436,7 @@ export default function GamifiedProfileDisplay({
                   <div className="text-green-200 text-xs">You have a well-rounded skill set</div>
                 </div>
               )}
-              {(getNumericalCVScore() < 80) && (!formData.gpa || parseFloat(formData.gpa) < 3.8) && (!formData.interests || formData.interests.split(',').length < 3) && (
+              {(getNumericalCVScore < 80) && (!formData.gpa || parseFloat(formData.gpa) < 3.8) && (!formData.interests || formData.interests.split(',').length < 3) && (
                 <div className="text-gray-400 text-xs sm:text-sm italic">
                   Complete your profile to discover your strengths!
                 </div>
@@ -453,7 +453,7 @@ export default function GamifiedProfileDisplay({
               <h3 className="text-lg sm:text-xl font-semibold text-white">Areas to Improve</h3>
             </div>
             <div className="space-y-2 sm:space-y-3">
-              {getNumericalCVScore() < 60 && (
+              {getNumericalCVScore < 60 && (
                 <div className="bg-orange-500/20 border border-orange-400/30 rounded-lg p-2 sm:p-3 animate-pulse hover:scale-105 transition-transform duration-300">
                   <div className="text-orange-300 text-xs sm:text-sm font-medium">📝 CV Enhancement</div>
                   <div className="text-orange-200 text-xs">Consider improving your CV content and structure</div>
@@ -471,7 +471,7 @@ export default function GamifiedProfileDisplay({
                   <div className="text-orange-200 text-xs">Add portfolio, LinkedIn, or GitHub links</div>
                 </div>
               )}
-              {getNumericalCVScore() >= 60 && formData.bio && formData.bio.length >= 50 && formData.portfolioLinks && formData.portfolioLinks.trim() !== '' && (
+              {getNumericalCVScore >= 60 && formData.bio && formData.bio.length >= 50 && formData.portfolioLinks && formData.portfolioLinks.trim() !== '' && (
                 <div className="text-green-400 text-xs sm:text-sm font-medium animate-pulse">
                   🎉 Great job! Keep maintaining your profile!
                 </div>

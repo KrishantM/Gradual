@@ -62,24 +62,11 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
   // Degree progress modal state
   const [degreeModalOpen, setDegreeModalOpen] = useState(false);
 
-  const loadAcademicProgress = useCallback(() => {
-    const stored = localStorage.getItem('gradual_academic_progress');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        setAcademicProgress(parsed);
-      } catch (error) {
-        console.error('Error parsing stored academic progress:', error);
-        // If parsing fails, initialize with default data
-        initializeDefaultProgress();
-      }
-    } else {
-      // Initialize with default data
-      initializeDefaultProgress();
-    }
+  const saveAcademicProgress = useCallback((progress: AcademicProgress) => {
+    localStorage.setItem('gradual_academic_progress', JSON.stringify(progress));
   }, []);
 
-  const initializeDefaultProgress = () => {
+  const initializeDefaultProgress = useCallback(() => {
     const defaultProgress: AcademicProgress = {
       semestersRemaining: 3,
       totalSemestersRequired: 6,
@@ -127,11 +114,24 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
     };
     setAcademicProgress(defaultProgress);
     saveAcademicProgress(defaultProgress);
-  };
+  }, [saveAcademicProgress]);
 
-  const saveAcademicProgress = (progress: AcademicProgress) => {
-    localStorage.setItem('gradual_academic_progress', JSON.stringify(progress));
-  };
+  const loadAcademicProgress = useCallback(() => {
+    const stored = localStorage.getItem('gradual_academic_progress');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setAcademicProgress(parsed);
+      } catch (error) {
+        console.error('Error parsing stored academic progress:', error);
+        // If parsing fails, initialize with default data
+        initializeDefaultProgress();
+      }
+    } else {
+      // Initialize with default data
+      initializeDefaultProgress();
+    }
+  }, [initializeDefaultProgress]);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
