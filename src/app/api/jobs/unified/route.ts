@@ -1,21 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '../../../../../lib/firebase-admin';
+import { fetchAdzunaJobs, UnifiedJob } from '../../../../../lib/opportunityFetchers/adzuna';
 
-interface UnifiedJob {
-  id: string;
-  title: string;
-  description: string;
-  location: string;
-  company: string;
-  url: string;
-  type: 'internship' | 'job';
-  category: string;
-  created: string;
-  salary_min?: number;
-  salary_max?: number;
-  source: 'adzuna';
-  score?: number;
-}
+
 
 interface JobSource {
   name: 'adzuna';
@@ -145,83 +132,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Fetch jobs from Adzuna (existing Firestore data)
-async function fetchAdzunaJobs(profile: any, limit: number): Promise<UnifiedJob[]> {
-  try {
-    // Import the database directly
-    const { db } = await import('@/lib/firebase-admin');
-    
-    // Fetch opportunities from Firestore
-    const opportunitiesRef = db.collection('opportunities');
-    const q = opportunitiesRef.orderBy('created', 'desc').limit(100);
-    
-    const querySnapshot = await q.get();
-    const opportunities: any[] = [];
-    
-    querySnapshot.forEach((doc: any) => {
-      opportunities.push({
-        id: doc.id,
-        ...doc.data()
-      });
-    });
-    
-    // If no opportunities in database, return mock data for testing
-    if (opportunities.length === 0) {
-      const mockOpportunities = [
-        {
-          id: 'mock-1',
-          title: 'Software Engineer',
-          description: 'We are looking for a talented software engineer to join our team. Experience with React, Node.js, and cloud platforms preferred.',
-          location: 'Auckland, NZ',
-          company: 'TechCorp',
-          url: 'https://example.com/job1',
-          type: 'job' as const,
-          category: 'Technology',
-          created: new Date().toISOString(),
-          source: 'adzuna'
-        },
-        {
-          id: 'mock-2',
-          title: 'Data Analyst Intern',
-          description: 'Join our data team and learn about analytics, machine learning, and business intelligence.',
-          location: 'Wellington, NZ',
-          company: 'DataFlow',
-          url: 'https://example.com/job2',
-          type: 'internship' as const,
-          category: 'Data',
-          created: new Date().toISOString(),
-          source: 'adzuna'
-        },
-        {
-          id: 'mock-3',
-          title: 'Marketing Coordinator',
-          description: 'Help us grow our brand through digital marketing, social media, and content creation.',
-          location: 'Christchurch, NZ',
-          company: 'GrowthMarketing',
-          url: 'https://example.com/job3',
-          type: 'job' as const,
-          category: 'Marketing',
-          created: new Date().toISOString(),
-          source: 'adzuna'
-        }
-      ];
-      
-      return mockOpportunities.map(job => ({
-        ...job,
-        source: 'adzuna' as const
-      }));
-    }
-    
-    return opportunities.map((job: any) => ({
-      ...job,
-      type: job.type as 'internship' | 'job',
-      source: 'adzuna' as const
-    }));
-  } catch (error) {
-    console.error('Adzuna fetch error:', error);
-    return [];
-  }
-}
+
 
 // Deduplicate jobs based on title and company
 function deduplicateJobs(jobs: UnifiedJob[]): UnifiedJob[] {

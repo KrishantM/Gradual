@@ -308,7 +308,10 @@ export default function GamifiedProfileDisplay({
           {/* Chart Container with better proportions */}
           <div className="h-80 sm:h-96 w-full max-w-4xl mx-auto">
             <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={generateRadarData()} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+              <RadarChart 
+                data={generateRadarData()} 
+                margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+              >
                 {/* Enhanced Polar Grid */}
                 <PolarGrid 
                   stroke="#4B5563" 

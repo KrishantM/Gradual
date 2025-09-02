@@ -22,7 +22,8 @@ import {
   Target, 
   MapPin, 
   ExternalLink, 
-  Calendar 
+  Calendar,
+  TrendingUp
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -53,6 +54,7 @@ export default function SuggestionsPage() {
   const [starringLoading, setStarringLoading] = useState<string | null>(null);
   const [starredOpportunities, setStarredOpportunities] = useState<string[]>([]);
   const [extraContext, setExtraContext] = useState('');
+  const [fetchingJobs, setFetchingJobs] = useState(false);
 
   // Helper function to check if GPA is valid
   const isGPAValid = (gpa: string, scale: string) => {
@@ -248,6 +250,45 @@ export default function SuggestionsPage() {
       alert('Failed to save opportunity');
     } finally {
       setStarringLoading(null);
+    }
+  };
+
+  const fetchNewJobs = async () => {
+    if (!user) return;
+    
+    setFetchingJobs(true);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch('/api/jobs/fetch', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          limit: 20,
+          country: 'nz'
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch jobs');
+      }
+      
+      const result = await response.json();
+      
+      if (result.jobsAdded > 0) {
+        alert(`Successfully fetched ${result.jobsAdded} new job opportunities!`);
+        // Refresh the opportunities to show any new ones
+        await fetchOpportunities();
+      } else {
+        alert('No new job opportunities found at this time.');
+      }
+    } catch (error) {
+      console.error('Error fetching new jobs:', error);
+      alert('Failed to fetch new jobs. Please try again.');
+    } finally {
+      setFetchingJobs(false);
     }
   };
 
@@ -459,11 +500,21 @@ export default function SuggestionsPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={fetchOpportunities}
-                    disabled={opportunitiesLoading}
-                    className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                    onClick={fetchNewJobs}
+                    disabled={fetchingJobs}
+                    className="bg-green-600/20 border-green-400/30 text-green-300 hover:bg-green-600/30 hover:border-green-400/50"
                   >
-                    {opportunitiesLoading ? 'Refreshing...' : 'Refresh'}
+                    {fetchingJobs ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Fetching...
+                      </>
+                    ) : (
+                      <>
+                        <TrendingUp className="h-4 w-4 mr-2" />
+                        Fetch New Jobs
+                      </>
+                    )}
                   </Button>
                 </div>
 
