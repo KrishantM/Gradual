@@ -52,6 +52,7 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
   const [academicProgress, setAcademicProgress] = useState<AcademicProgress | null>(null);
   const [expandedInsights, setExpandedInsights] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
+  const [academicProgressLoaded, setAcademicProgressLoaded] = useState(false);
   
   // Modal states
   const [modalOpen, setModalOpen] = useState(false);
@@ -63,7 +64,13 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
   const [degreeModalOpen, setDegreeModalOpen] = useState(false);
 
   const saveAcademicProgress = useCallback((progress: AcademicProgress) => {
-    localStorage.setItem('gradual_academic_progress', JSON.stringify(progress));
+    try {
+      const progressString = JSON.stringify(progress);
+      localStorage.setItem('gradual_academic_progress', progressString);
+      console.log('Academic progress saved successfully:', progress);
+    } catch (error) {
+      console.error('Error saving academic progress to localStorage:', error);
+    }
   }, []);
 
   const initializeDefaultProgress = useCallback(() => {
@@ -113,25 +120,55 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
       ]
     };
     setAcademicProgress(defaultProgress);
-    saveAcademicProgress(defaultProgress);
-  }, [saveAcademicProgress]);
+    // Save to localStorage directly to avoid circular dependency
+    try {
+      const progressString = JSON.stringify(defaultProgress);
+      localStorage.setItem('gradual_academic_progress', progressString);
+      console.log('Default academic progress saved successfully:', defaultProgress);
+    } catch (error) {
+      console.error('Error saving default academic progress to localStorage:', error);
+    }
+    setAcademicProgressLoaded(true);
+  }, []);
 
   const loadAcademicProgress = useCallback(() => {
-    const stored = localStorage.getItem('gradual_academic_progress');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        setAcademicProgress(parsed);
-      } catch (error) {
-        console.error('Error parsing stored academic progress:', error);
-        // If parsing fails, initialize with default data
-        initializeDefaultProgress();
-      }
-    } else {
-      // Initialize with default data
-      initializeDefaultProgress();
+    // Prevent multiple loads
+    if (academicProgressLoaded) {
+      console.log('Academic progress already loaded, skipping');
+      return;
     }
-  }, [initializeDefaultProgress]);
+    
+    try {
+      const stored = localStorage.getItem('gradual_academic_progress');
+      console.log('Loading academic progress from localStorage:', stored ? 'Data found' : 'No data found');
+      
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          console.log('Successfully parsed academic progress:', parsed);
+          setAcademicProgress(parsed);
+          setAcademicProgressLoaded(true);
+        } catch (error) {
+          console.error('Error parsing stored academic progress:', error);
+          // If parsing fails, initialize with default data
+          console.log('Falling back to default progress due to parsing error');
+          initializeDefaultProgress();
+          setAcademicProgressLoaded(true);
+        }
+      } else {
+        // Initialize with default data
+        console.log('No stored data found, initializing with default progress');
+        initializeDefaultProgress();
+        setAcademicProgressLoaded(true);
+      }
+    } catch (error) {
+      console.error('Error accessing localStorage:', error);
+      // If localStorage is not available (e.g., in private browsing), initialize with default data
+      console.log('localStorage not available, initializing with default progress');
+      initializeDefaultProgress();
+      setAcademicProgressLoaded(true);
+    }
+  }, [initializeDefaultProgress, academicProgressLoaded]);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -146,11 +183,13 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
     });
     setIndustryInsights(insights);
     
-    // Load academic progress from localStorage or initialize
-    loadAcademicProgress();
+    // Load academic progress from localStorage or initialize (only if not already loaded)
+    if (!academicProgressLoaded) {
+      loadAcademicProgress();
+    }
     
     setIsLoading(false);
-  }, [formData.degree, formData.interests, formData.city, formData.country, formData.gpa, loadAcademicProgress]);
+  }, [formData.degree, formData.interests, formData.city, formData.country, formData.gpa, loadAcademicProgress, academicProgressLoaded]);
 
   useEffect(() => {
     loadData();
