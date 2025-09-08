@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Tooltip } from 'recharts';
-import { Trophy, Target, TrendingUp, Zap, Edit3, Eye, X, RefreshCw } from 'lucide-react';
+import { Trophy, Target, TrendingUp, Zap, Edit3, Eye, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import CareerInsightsPanel from './CareerInsightsPanel';
@@ -38,6 +38,7 @@ export default function GamifiedProfileDisplay({
     
     return typeof cvScore === 'number' ? cvScore : 0;
   }, [cvScore]);
+
 
   const calculateGamificationStats = useCallback(() => {
     let profileCompletion = 0;
@@ -280,7 +281,10 @@ export default function GamifiedProfileDisplay({
       </Card>
 
       {/* Career Insights Panel */}
-      <CareerInsightsPanel formData={formData} cvScore={cvScore} />
+      <CareerInsightsPanel 
+        formData={formData} 
+        cvScore={cvScore} 
+      />
 
       {/* Enhanced Radar Chart */}
       <Card className="bg-gradient-to-br from-slate-900/50 to-blue-900/30 backdrop-blur-md border-blue-400/20 shadow-2xl animate-slide-in-up stagger-2">

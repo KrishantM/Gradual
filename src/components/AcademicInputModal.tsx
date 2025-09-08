@@ -77,12 +77,22 @@ export default function AcademicInputModal({
     const item: AcademicItem = {
       id: existingItem?.id || `item_${Date.now()}`,
       title: formData.title.trim(),
-      deadline: formData.deadline || undefined,
-      progress: formData.progress || 0,
-      type: formData.type || undefined,
-      role: formData.role || undefined,
-      description: formData.description || undefined
+      progress: formData.progress || 0
     };
+
+    // Only add optional fields if they have values
+    if (formData.deadline && formData.deadline.trim()) {
+      item.deadline = formData.deadline.trim();
+    }
+    if (formData.type && formData.type.trim()) {
+      item.type = formData.type.trim();
+    }
+    if (formData.role && formData.role.trim()) {
+      item.role = formData.role.trim();
+    }
+    if (formData.description && formData.description.trim()) {
+      item.description = formData.description.trim();
+    }
 
     onSave(item);
     onClose();

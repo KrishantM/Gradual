@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import { aiInsightsService, type IndustryInsight } from '@/lib/ai-insights-service';
 import AcademicInputModal from './AcademicInputModal';
 import DegreeProgressModal from './DegreeProgressModal';
+import { useAuth } from '@/context/AuthContext';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface CareerInsightsPanelProps {
   formData: any;
@@ -35,6 +38,7 @@ interface AcademicProgress {
 }
 
 export default function CareerInsightsPanel({ formData, cvScore }: CareerInsightsPanelProps) {
+  const { user } = useAuth();
   // Helper function to safely extract numerical CV score
   const getNumericalCVScore = (): number => {
     if (!cvScore) return 0;
@@ -63,17 +67,33 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
   // Degree progress modal state
   const [degreeModalOpen, setDegreeModalOpen] = useState(false);
 
-  const saveAcademicProgress = useCallback((progress: AcademicProgress) => {
+  const saveAcademicProgress = useCallback(async (progress: AcademicProgress) => {
     try {
-      const progressString = JSON.stringify(progress);
+      // Clean the progress data to remove any undefined values
+      const cleanProgress = JSON.parse(JSON.stringify(progress));
+      
+      // Save to localStorage
+      const progressString = JSON.stringify(cleanProgress);
       localStorage.setItem('gradual_academic_progress', progressString);
-      console.log('Academic progress saved successfully:', progress);
+      console.log('Academic progress saved to localStorage successfully:', cleanProgress);
+      
+      // Also save to Firebase as backup
+      if (user) {
+        try {
+          const userRef = doc(db, 'users', user.uid);
+          await setDoc(userRef, { academicProgress: cleanProgress }, { merge: true });
+          console.log('Academic progress saved to Firebase successfully');
+          
+        } catch (firebaseError) {
+          console.error('Error saving academic progress to Firebase:', firebaseError);
+        }
+      }
     } catch (error) {
       console.error('Error saving academic progress to localStorage:', error);
     }
-  }, []);
+  }, [user]);
 
-  const initializeDefaultProgress = useCallback(() => {
+  const initializeDefaultProgress = useCallback(async () => {
     const defaultProgress: AcademicProgress = {
       semestersRemaining: 3,
       totalSemestersRequired: 6,
@@ -120,55 +140,105 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
       ]
     };
     setAcademicProgress(defaultProgress);
-    // Save to localStorage directly to avoid circular dependency
+    
+    // Save to both localStorage and Firebase
     try {
       const progressString = JSON.stringify(defaultProgress);
       localStorage.setItem('gradual_academic_progress', progressString);
-      console.log('Default academic progress saved successfully:', defaultProgress);
+      console.log('Default academic progress saved to localStorage successfully:', defaultProgress);
+      
+      // Also save to Firebase
+      if (user) {
+        try {
+          const userRef = doc(db, 'users', user.uid);
+          await setDoc(userRef, { academicProgress: defaultProgress }, { merge: true });
+          console.log('Default academic progress saved to Firebase successfully');
+        } catch (firebaseError) {
+          console.error('Error saving default academic progress to Firebase:', firebaseError);
+        }
+      }
     } catch (error) {
       console.error('Error saving default academic progress to localStorage:', error);
     }
     setAcademicProgressLoaded(true);
-  }, []);
+  }, [user]);
 
-  const loadAcademicProgress = useCallback(() => {
+  const loadAcademicProgress = useCallback(async () => {
     // Prevent multiple loads
     if (academicProgressLoaded) {
       console.log('Academic progress already loaded, skipping');
       return;
     }
     
-    try {
-      const stored = localStorage.getItem('gradual_academic_progress');
-      console.log('Loading academic progress from localStorage:', stored ? 'Data found' : 'No data found');
-      
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          console.log('Successfully parsed academic progress:', parsed);
-          setAcademicProgress(parsed);
+    let progressFound = false;
+    
+    // First try to load from Firebase (more reliable across devices)
+    if (user) {
+      try {
+        console.log('Attempting to load academic progress from Firebase...');
+        const userRef = doc(db, 'users', user.uid);
+        const userSnap = await getDoc(userRef);
+        
+        if (userSnap.exists() && userSnap.data().academicProgress) {
+          const firebaseProgress = userSnap.data().academicProgress;
+          console.log('Found academic progress in Firebase:', firebaseProgress);
+          setAcademicProgress(firebaseProgress);
           setAcademicProgressLoaded(true);
-        } catch (error) {
-          console.error('Error parsing stored academic progress:', error);
-          // If parsing fails, initialize with default data
-          console.log('Falling back to default progress due to parsing error');
-          initializeDefaultProgress();
-          setAcademicProgressLoaded(true);
+          progressFound = true;
+          
+          // Also update localStorage with Firebase data
+          try {
+            localStorage.setItem('gradual_academic_progress', JSON.stringify(firebaseProgress));
+            console.log('Updated localStorage with Firebase data');
+          } catch (localStorageError) {
+            console.error('Error updating localStorage with Firebase data:', localStorageError);
+          }
         }
-      } else {
-        // Initialize with default data
-        console.log('No stored data found, initializing with default progress');
-        initializeDefaultProgress();
-        setAcademicProgressLoaded(true);
+      } catch (firebaseError) {
+        console.error('Error loading academic progress from Firebase:', firebaseError);
       }
-    } catch (error) {
-      console.error('Error accessing localStorage:', error);
-      // If localStorage is not available (e.g., in private browsing), initialize with default data
-      console.log('localStorage not available, initializing with default progress');
-      initializeDefaultProgress();
+    }
+    
+    // If Firebase didn't work, try localStorage
+    if (!progressFound) {
+      try {
+        const stored = localStorage.getItem('gradual_academic_progress');
+        console.log('Loading academic progress from localStorage:', stored ? 'Data found' : 'No data found');
+        
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            console.log('Successfully parsed academic progress from localStorage:', parsed);
+            setAcademicProgress(parsed);
+            setAcademicProgressLoaded(true);
+            progressFound = true;
+            
+            // Also save to Firebase for future consistency
+            if (user) {
+              try {
+                const userRef = doc(db, 'users', user.uid);
+                await setDoc(userRef, { academicProgress: parsed }, { merge: true });
+                console.log('Saved localStorage data to Firebase for consistency');
+              } catch (firebaseError) {
+                console.error('Error saving localStorage data to Firebase:', firebaseError);
+              }
+            }
+          } catch (error) {
+            console.error('Error parsing stored academic progress from localStorage:', error);
+          }
+        }
+      } catch (error) {
+        console.error('Error accessing localStorage:', error);
+      }
+    }
+    
+    // If neither Firebase nor localStorage worked, initialize with default data
+    if (!progressFound) {
+      console.log('No data found in Firebase or localStorage, initializing with default progress');
+      await initializeDefaultProgress();
       setAcademicProgressLoaded(true);
     }
-  }, [initializeDefaultProgress, academicProgressLoaded]);
+  }, [initializeDefaultProgress, academicProgressLoaded, user]);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -183,9 +253,9 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
     });
     setIndustryInsights(insights);
     
-    // Load academic progress from localStorage or initialize (only if not already loaded)
+    // Load academic progress from Firebase/localStorage or initialize (only if not already loaded)
     if (!academicProgressLoaded) {
-      loadAcademicProgress();
+      await loadAcademicProgress();
     }
     
     setIsLoading(false);
@@ -219,7 +289,7 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
     setModalOpen(true);
   };
 
-  const handleSaveAcademicItem = (item: AcademicItem) => {
+  const handleSaveAcademicItem = async (item: AcademicItem) => {
     if (!academicProgress) return;
 
     const newProgress = { ...academicProgress };
@@ -259,10 +329,10 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
     }
 
     setAcademicProgress(newProgress);
-    saveAcademicProgress(newProgress);
+    await saveAcademicProgress(newProgress);
   };
 
-  const deleteAcademicItem = (itemId: string, itemType: 'paper' | 'assessment' | 'club') => {
+  const deleteAcademicItem = async (itemId: string, itemType: 'paper' | 'assessment' | 'club') => {
     if (!academicProgress) return;
 
     const newProgress = { ...academicProgress };
@@ -280,10 +350,10 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
     }
 
     setAcademicProgress(newProgress);
-    saveAcademicProgress(newProgress);
+    await saveAcademicProgress(newProgress);
   };
 
-  const handleSaveDegreeProgress = (data: {
+  const handleSaveDegreeProgress = async (data: {
     graduationDate: string;
     semestersRemaining: number;
     totalSemestersRequired: number;
@@ -296,18 +366,21 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
       ...academicProgress,
       graduationDate: data.graduationDate,
       semestersRemaining: data.semestersRemaining,
-      totalSemestersRequired: data.totalSemestersRequired,
-      ...(data.creditsCompleted && data.totalCredits ? {
-        creditsCompleted: data.creditsCompleted,
-        totalCredits: data.totalCredits
-      } : {
-        creditsCompleted: undefined,
-        totalCredits: undefined
-      })
+      totalSemestersRequired: data.totalSemestersRequired
     };
+
+    // Only add credit fields if they have values
+    if (data.creditsCompleted && data.totalCredits) {
+      updatedProgress.creditsCompleted = data.creditsCompleted;
+      updatedProgress.totalCredits = data.totalCredits;
+    } else {
+      // Remove credit fields if they exist
+      delete updatedProgress.creditsCompleted;
+      delete updatedProgress.totalCredits;
+    }
     
     setAcademicProgress(updatedProgress);
-    saveAcademicProgress(updatedProgress);
+    await saveAcademicProgress(updatedProgress);
     setDegreeModalOpen(false);
   };
 
