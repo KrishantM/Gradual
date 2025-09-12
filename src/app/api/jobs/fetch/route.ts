@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
         const docRef = opportunitiesRef.doc();
         
         // Filter out undefined values to avoid Firestore errors
-        const jobData = {
+        const jobData: any = {
           id: job.id,
           title: job.title,
           description: job.description,
