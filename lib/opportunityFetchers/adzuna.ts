@@ -1,22 +1,22 @@
 interface AdzunaJob {
   id: string;
-  title: string;
-  description: string;
-  location: {
-    display_name: string;
-    area: string[];
+  title?: string;
+  description?: string;
+  location?: {
+    display_name?: string;
+    area?: string[];
   };
-  company: {
-    display_name: string;
+  company?: {
+    display_name?: string;
   };
-  redirect_url: string;
-  contract_type: string;
+  redirect_url?: string;
+  contract_type?: string;
   salary_min?: number;
   salary_max?: number;
-  created: string;
-  category: {
-    tag: string;
-    label: string;
+  created?: string;
+  category?: {
+    tag?: string;
+    label?: string;
   };
 }
 
@@ -55,48 +55,80 @@ export async function fetchAdzunaJobs(
       return getMockAdzunaJobs(limit);
     }
 
-    // Build search parameters
-    const searchParams = new URLSearchParams({
-      app_id: appId,
-      app_key: appKey,
-      results_per_page: limit.toString(),
-      what: buildSearchQuery(profile),
-      where: profile?.city || 'Auckland',
-      country: country,
-      sort_by: 'date',
-      sort_direction: 'desc',
-      content_type: 'application/json'
-    });
+    const location = profile?.city || 'Auckland';
+    
+    // Try multiple search queries if the first one returns no results
+    const searchQueries = [
+      buildSearchQuery(profile),
+      'graduate',
+      'entry level',
+      'junior',
+      'internship',
+      'jobs'
+    ];
+    
+    for (let i = 0; i < searchQueries.length; i++) {
+      const searchQuery = searchQueries[i];
+      
+      const searchParams = new URLSearchParams({
+        app_id: appId,
+        app_key: appKey,
+        results_per_page: limit.toString(),
+        what: searchQuery,
+        where: location,
+        sort_by: 'date'
+      });
 
-    const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?${searchParams}`;
-    
-    console.log('Fetching jobs from Adzuna API...');
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error(`Adzuna API error: ${response.status} ${response.statusText}`);
+      const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?${searchParams}`;
+      
+      console.log(`Fetching jobs from Adzuna API (attempt ${i + 1}/${searchQueries.length})...`);
+      console.log('Search query:', searchQuery);
+      console.log('Location:', location);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Gradual-App/1.0'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Adzuna API error response:', errorText);
+        throw new Error(`Adzuna API error: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+      
+      const data: AdzunaResponse = await response.json();
+      
+      // If we got results, use them; otherwise try the next query
+      if (data.results && data.results.length > 0) {
+        // Transform Adzuna jobs to unified format
+        const unifiedJobs: UnifiedJob[] = data.results.map((job: AdzunaJob) => ({
+          id: `adzuna_${job.id}`,
+          title: job.title || 'Untitled Position',
+          description: job.description || 'No description available',
+          location: job.location?.display_name || 'Location not specified',
+          company: job.company?.display_name || 'Company not specified',
+          url: job.redirect_url || '#',
+          type: determineJobType(job.contract_type, job.title || ''),
+          category: job.category?.label || job.category?.tag || 'General',
+          created: job.created || new Date().toISOString(),
+          salary_min: job.salary_min,
+          salary_max: job.salary_max,
+          source: 'adzuna' as const
+        }));
+        
+        console.log(`Successfully fetched ${unifiedJobs.length} jobs from Adzuna using query: "${searchQuery}"`);
+        return unifiedJobs;
+      } else {
+        console.log(`No results for query: "${searchQuery}", trying next...`);
+      }
     }
     
-    const data: AdzunaResponse = await response.json();
-    
-    // Transform Adzuna jobs to unified format
-    const unifiedJobs: UnifiedJob[] = data.results.map((job: AdzunaJob) => ({
-      id: `adzuna_${job.id}`,
-      title: job.title,
-      description: job.description || 'No description available',
-      location: job.location.display_name,
-      company: job.company.display_name,
-      url: job.redirect_url,
-      type: determineJobType(job.contract_type, job.title),
-      category: job.category.label || job.category.tag || 'General',
-      created: job.created,
-      salary_min: job.salary_min,
-      salary_max: job.salary_max,
-      source: 'adzuna' as const
-    }));
-    
-    console.log(`Successfully fetched ${unifiedJobs.length} jobs from Adzuna`);
-    return unifiedJobs;
+    // If all queries returned no results, fall back to mock data
+    console.log('No results found with any search query, falling back to mock data...');
+    return getMockAdzunaJobs(limit);
     
   } catch (error) {
     console.error('Error fetching Adzuna jobs:', error);
@@ -106,39 +138,64 @@ export async function fetchAdzunaJobs(
 }
 
 function buildSearchQuery(profile: any): string {
-  if (!profile) return 'graduate entry level';
+  if (!profile) return 'graduate';
   
   const queries = [];
   
-  // Add degree-related terms
-  if (profile.degree) {
+  // Add degree-related terms (limit to 2 most relevant words)
+  if (profile.degree && typeof profile.degree === 'string') {
     const degreeWords = profile.degree.toLowerCase().split(' ');
-    queries.push(...degreeWords.filter((word: string) => word.length > 3));
+    const relevantWords = degreeWords.filter((word: string) => 
+      word.length > 3 && 
+      !['the', 'and', 'or', 'of', 'in', 'at', 'to', 'for', 'with', 'by', 'bachelor', 'masters', 'degree'].includes(word)
+    );
+    queries.push(...relevantWords.slice(0, 2));
   }
   
-  // Add interest-related terms
-  if (profile.interests) {
+  // Add interest-related terms (limit to 2 most relevant words)
+  if (profile.interests && typeof profile.interests === 'string') {
     const interests = profile.interests.toLowerCase().split(/[,\s]+/);
-    queries.push(...interests.filter((interest: string) => interest.length > 3));
+    const relevantInterests = interests.filter((interest: string) => 
+      interest.length > 3 && 
+      !['the', 'and', 'or', 'of', 'in', 'at', 'to', 'for', 'with', 'by'].includes(interest)
+    );
+    queries.push(...relevantInterests.slice(0, 2));
   }
   
-  // Add preferred industries
-  if (profile.preferredIndustries) {
+  // Add preferred industries (limit to 1 most relevant)
+  if (profile.preferredIndustries && typeof profile.preferredIndustries === 'string') {
     const industries = profile.preferredIndustries.toLowerCase().split(/[,\s]+/);
-    queries.push(...industries.filter((industry: string) => industry.length > 3));
+    const relevantIndustries = industries.filter((industry: string) => 
+      industry.length > 3 && 
+      !['the', 'and', 'or', 'of', 'in', 'at', 'to', 'for', 'with', 'by'].includes(industry)
+    );
+    queries.push(...relevantIndustries.slice(0, 1));
   }
   
-  // Add common graduate terms
-  queries.push('graduate', 'entry level', 'junior', 'trainee');
+  // Add ONE primary graduate term (prioritize most common ones)
+  const graduateTerms = ['graduate', 'entry level', 'junior', 'trainee', 'internship'];
+  // Use a more predictable selection based on profile content
+  const hasTechnicalProfile = queries.some(q => 
+    ['computer', 'software', 'engineering', 'technology', 'data', 'programming'].includes(q.toLowerCase())
+  );
   
-  // Remove duplicates and join
+  if (hasTechnicalProfile) {
+    queries.push('graduate'); // More likely to find tech jobs with "graduate"
+  } else {
+    queries.push('entry level'); // More general term for other fields
+  }
+  
+  // Remove duplicates and limit to 3 terms maximum
   const uniqueQueries = [...new Set(queries)];
-  return uniqueQueries.slice(0, 5).join(' '); // Limit to 5 terms
+  const finalQuery = uniqueQueries.slice(0, 3).join(' ');
+  
+  // Ensure we have a valid query
+  return finalQuery.trim() || 'graduate';
 }
 
-function determineJobType(contractType: string, title: string): 'internship' | 'job' {
+function determineJobType(contractType: string | undefined, title: string): 'internship' | 'job' {
   const titleLower = title.toLowerCase();
-  const contractLower = contractType.toLowerCase();
+  const contractLower = (contractType || '').toLowerCase();
   
   if (titleLower.includes('intern') || 
       titleLower.includes('internship') || 

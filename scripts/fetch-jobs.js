@@ -110,7 +110,31 @@ async function storeJobsInFirestore(jobs) {
     
     if (existingQuery.empty) {
       const docRef = opportunitiesRef.doc();
-      batch.set(docRef, job);
+      
+      // Filter out undefined values to avoid Firestore errors
+      const jobData = {
+        id: job.id,
+        title: job.title,
+        description: job.description,
+        location: job.location,
+        company: job.company,
+        url: job.url,
+        type: job.type,
+        category: job.category,
+        created: job.created,
+        source: job.source,
+        fetched_at: job.fetched_at || new Date().toISOString()
+      };
+      
+      // Only add salary fields if they have values
+      if (job.salary_min !== undefined && job.salary_min !== null) {
+        jobData.salary_min = job.salary_min;
+      }
+      if (job.salary_max !== undefined && job.salary_max !== null) {
+        jobData.salary_max = job.salary_max;
+      }
+      
+      batch.set(docRef, jobData);
       console.log(`Queued job: ${job.title} at ${job.company}`);
     } else {
       console.log(`Job already exists: ${job.title} at ${job.company}`);
