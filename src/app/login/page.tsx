@@ -168,7 +168,7 @@ export default function LoginPage() {
             </CardContent>
           </Card>
 
-          {/* Footer */}
+          {/* Terms Agreement */}
           <div className="text-center mt-8">
             <p className="text-gray-500 text-sm">
               By signing in, you agree to our{' '}

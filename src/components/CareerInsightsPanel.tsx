@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { TrendingUp, GraduationCap, Calendar, BookOpen, Users, Plus, ChevronDown, ChevronUp, Edit3, Trash2 } from 'lucide-react';
+import { TrendingUp, GraduationCap, Calendar, BookOpen, Users, Plus, ChevronDown, ChevronUp, Edit3, Trash2, RefreshCw } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { aiInsightsService, type IndustryInsight } from '@/lib/ai-insights-service';
@@ -57,6 +57,7 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
   const [expandedInsights, setExpandedInsights] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [academicProgressLoaded, setAcademicProgressLoaded] = useState(false);
+  const [isRefreshingInsights, setIsRefreshingInsights] = useState(false);
   
   // Modal states
   const [modalOpen, setModalOpen] = useState(false);
@@ -261,9 +262,36 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
     setIsLoading(false);
   }, [formData.degree, formData.interests, formData.city, formData.country, formData.gpa, loadAcademicProgress, academicProgressLoaded]);
 
+  const refreshInsights = useCallback(async () => {
+    setIsRefreshingInsights(true);
+    try {
+      const insights = await aiInsightsService.refreshInsights({
+        degree: formData.degree,
+        interests: formData.interests,
+        city: formData.city,
+        country: formData.country,
+        gpa: formData.gpa
+      });
+      setIndustryInsights(insights);
+    } catch (error) {
+      console.error('Failed to refresh insights:', error);
+    } finally {
+      setIsRefreshingInsights(false);
+    }
+  }, [formData.degree, formData.interests, formData.city, formData.country, formData.gpa]);
+
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Auto-refresh insights every 4 hours
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshInsights();
+    }, 4 * 60 * 60 * 1000); // 4 hours
+
+    return () => clearInterval(interval);
+  }, [refreshInsights]);
 
   const toggleInsightExpansion = (insightId: string) => {
     const newExpanded = new Set(expandedInsights);
@@ -450,18 +478,14 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
                 <h3 className="text-lg font-semibold text-white">Industry Insights</h3>
               </div>
               <Button
-                onClick={() => aiInsightsService.refreshInsights({
-                  degree: formData.degree,
-                  interests: formData.interests,
-                  city: formData.city,
-                  country: formData.country,
-                  gpa: formData.gpa
-                }).then(setIndustryInsights)}
+                onClick={refreshInsights}
                 variant="ghost"
                 size="sm"
-                className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/30"
+                disabled={isRefreshingInsights}
+                className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/30 disabled:opacity-50"
               >
-                Refresh
+                <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshingInsights ? 'animate-spin' : ''}`} />
+                {isRefreshingInsights ? 'Refreshing...' : 'Refresh'}
               </Button>
             </div>
             

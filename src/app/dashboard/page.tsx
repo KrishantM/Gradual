@@ -175,22 +175,20 @@ export default function DashboardPage() {
   const fetchSavedOpportunities = async (savedIds: string[]) => {
     setOpportunitiesLoading(true);
     try {
-      const opportunitiesRef = collection(db, 'opportunities');
-      const opportunities: SavedOpportunity[] = [];
+      const userRef = doc(db, 'users', user!.uid);
+      const userSnap = await getDoc(userRef);
       
-      // Fetch each saved opportunity
-      for (const id of savedIds) {
-        const oppRef = doc(db, 'opportunities', id);
-        const oppSnap = await getDoc(oppRef);
-        if (oppSnap.exists()) {
-          opportunities.push({
-            id: oppSnap.id,
-            ...oppSnap.data()
-          } as SavedOpportunity);
-        }
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        const savedOpportunitiesData = userData.savedOpportunitiesData || [];
+        
+        // Filter to only include opportunities that are still in the savedIds array
+        const validOpportunities = savedOpportunitiesData.filter((opp: SavedOpportunity) => 
+          savedIds.includes(opp.id)
+        );
+        
+        setSavedOpportunities(validOpportunities);
       }
-      
-      setSavedOpportunities(opportunities);
     } catch (error) {
       console.error('Error fetching saved opportunities:', error);
     } finally {
@@ -280,8 +278,13 @@ export default function DashboardPage() {
     setUnstarringLoading(opportunityId);
     try {
       const userRef = doc(db, 'users', user.uid);
+      
+      // Find the opportunity data to remove
+      const opportunityToRemove = savedOpportunities.find(opp => opp.id === opportunityId);
+      
       await updateDoc(userRef, {
-        savedOpportunities: arrayRemove(opportunityId)
+        savedOpportunities: arrayRemove(opportunityId),
+        savedOpportunitiesData: opportunityToRemove ? arrayRemove(opportunityToRemove) : []
       });
       
       // Remove from local state

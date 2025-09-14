@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Tooltip } from 'recharts';
-import { Trophy, Target, TrendingUp, Zap, Edit3, Eye, RefreshCw } from 'lucide-react';
+import { Trophy, Target, TrendingUp, Zap, Edit3, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import CareerInsightsPanel from './CareerInsightsPanel';
@@ -12,15 +12,13 @@ interface GamifiedProfileDisplayProps {
   cvScore: number | string | null;
   onEditProfile: () => void;
   onViewCV: () => void;
-  onRefreshCVScore?: () => void;
 }
 
 export default function GamifiedProfileDisplay({ 
   formData, 
   cvScore, 
   onEditProfile, 
-  onViewCV,
-  onRefreshCVScore
+  onViewCV
 }: GamifiedProfileDisplayProps) {
   const [achievements, setAchievements] = useState<string[]>([]);
   const [level, setLevel] = useState(1);
@@ -295,18 +293,6 @@ export default function GamifiedProfileDisplay({
               Profile Performance Radar
             </h2>
             <p className="text-gray-300 text-base sm:text-lg">Your comprehensive profile strength across key professional areas</p>
-            <div className="mt-4">
-              <Button
-                onClick={onRefreshCVScore}
-                variant="outline"
-                size="sm"
-                className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30"
-                disabled={!onRefreshCVScore}
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh CV Score
-              </Button>
-            </div>
           </div>
           
           {/* Chart Container with better proportions */}

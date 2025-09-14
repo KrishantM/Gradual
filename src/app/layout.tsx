@@ -3,8 +3,10 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import MaintenancePage from "@/components/MaintenancePage";
 import StructuredData from "@/components/StructuredData";
+import ConditionalLayout from "@/components/ConditionalLayout";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -89,10 +91,12 @@ export default function RootLayout({
       <head>
         <StructuredData />
       </head>
-      <body className={inter.className}>
+      <body className={`${inter.className} min-h-screen flex flex-col`}>
         <AuthProvider>
           <Navbar />
-          {children}
+          <ConditionalLayout>
+            {children}
+          </ConditionalLayout>
         </AuthProvider>
       </body>
     </html>

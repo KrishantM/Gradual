@@ -190,7 +190,7 @@ export default function AboutPage() {
             </Card>
 
             {/* Contact */}
-            <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl">
+            <Card id="contact" className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl">
               <CardContent className="p-6 sm:p-8">
                 <h2 className="text-2xl sm:text-3xl font-bold text-white mb-6 text-center sm:text-left">
                   Get In Touch

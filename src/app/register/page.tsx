@@ -229,7 +229,7 @@ export default function Register() {
             </CardContent>
           </Card>
 
-          {/* Footer */}
+          {/* Terms Agreement */}
           <div className="text-center mt-8">
             <p className="text-gray-500 text-sm">
               By creating an account, you agree to our{' '}

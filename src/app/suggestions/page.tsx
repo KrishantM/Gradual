@@ -239,11 +239,15 @@ export default function SuggestionsPage() {
         });
         setStarredOpportunities(prev => prev.filter(id => id !== opportunityId));
       } else {
-        // Add to starred
-        await updateDoc(userRef, {
-          savedOpportunities: arrayUnion(opportunityId)
-        });
-        setStarredOpportunities(prev => [...prev, opportunityId]);
+        // Add to starred - store both ID and full opportunity data
+        const opportunity = opportunities.find(opp => opp.id === opportunityId);
+        if (opportunity) {
+          await updateDoc(userRef, {
+            savedOpportunities: arrayUnion(opportunityId),
+            savedOpportunitiesData: arrayUnion(opportunity)
+          });
+          setStarredOpportunities(prev => [...prev, opportunityId]);
+        }
       }
     } catch (error) {
       console.error('Error toggling star:', error);

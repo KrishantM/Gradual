@@ -542,7 +542,6 @@ export default function ProfilePage() {
                 cvScore={cvScore}
                 onEditProfile={() => setActiveTab('edit')}
                 onViewCV={() => setShowCVText(true)}
-                onRefreshCVScore={handleRefreshCVScore}
               />
             )}
 
