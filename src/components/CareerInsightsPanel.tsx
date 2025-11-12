@@ -1,10 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { TrendingUp, GraduationCap, Calendar, BookOpen, Users, Plus, ChevronDown, ChevronUp, Edit3, Trash2, RefreshCw } from 'lucide-react';
+import { GraduationCap, Calendar, BookOpen, Users, Plus, Edit3, Trash2, Award, Target, Clock, CheckCircle, AlertCircle, TrendingUp, BarChart3 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { aiInsightsService, type IndustryInsight } from '@/lib/ai-insights-service';
 import AcademicInputModal from './AcademicInputModal';
 import DegreeProgressModal from './DegreeProgressModal';
 import { useAuth } from '@/context/AuthContext';
@@ -24,6 +23,10 @@ interface AcademicItem {
   type?: string;
   role?: string;
   description?: string;
+  priority?: 'low' | 'medium' | 'high';
+  status?: 'not-started' | 'in-progress' | 'completed' | 'overdue';
+  grade?: string;
+  credits?: number;
 }
 
 interface AcademicProgress {
@@ -35,6 +38,10 @@ interface AcademicProgress {
   currentPapers: AcademicItem[];
   upcomingAssessments: AcademicItem[];
   clubs: AcademicItem[];
+  gpa?: number;
+  targetGpa?: number;
+  completedCourses: AcademicItem[];
+  achievements: AcademicItem[];
 }
 
 export default function CareerInsightsPanel({ formData, cvScore }: CareerInsightsPanelProps) {
@@ -52,17 +59,15 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
     return typeof cvScore === 'number' ? cvScore : 0;
   };
 
-  const [industryInsights, setIndustryInsights] = useState<IndustryInsight[]>([]);
   const [academicProgress, setAcademicProgress] = useState<AcademicProgress | null>(null);
-  const [expandedInsights, setExpandedInsights] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [academicProgressLoaded, setAcademicProgressLoaded] = useState(false);
-  const [isRefreshingInsights, setIsRefreshingInsights] = useState(false);
+  const [activeAcademicTab, setActiveAcademicTab] = useState<'progress' | 'achievements'>('progress');
   
   // Modal states
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
-  const [modalItemType, setModalItemType] = useState<'paper' | 'assessment' | 'club'>('paper');
+  const [modalItemType, setModalItemType] = useState<'paper' | 'assessment' | 'club' | 'achievement' | 'course'>('paper');
   const [editingItem, setEditingItem] = useState<AcademicItem | undefined>();
   
   // Degree progress modal state
@@ -99,18 +104,26 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
       semestersRemaining: 3,
       totalSemestersRequired: 6,
       graduationDate: 'Spring 2025',
+      gpa: 3.2,
+      targetGpa: 3.5,
       currentPapers: [
         {
           id: '1',
           title: 'Capstone Project: AI-Powered Career Platform',
           deadline: '2024-12-15',
-          progress: 65
+          progress: 65,
+          priority: 'high',
+          status: 'in-progress',
+          credits: 6
         },
         {
           id: '2',
           title: 'Research Paper: Machine Learning Applications',
           deadline: '2024-11-30',
-          progress: 40
+          progress: 40,
+          priority: 'medium',
+          status: 'in-progress',
+          credits: 3
         }
       ],
       upcomingAssessments: [
@@ -118,25 +131,65 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
           id: '3',
           title: 'Data Structures Final',
           deadline: '2024-12-10',
-          type: 'Final Exam'
+          type: 'Final Exam',
+          priority: 'high',
+          status: 'not-started'
         },
         {
           id: '4',
           title: 'Software Engineering Project Demo',
           deadline: '2024-12-05',
-          type: 'Presentation'
+          type: 'Presentation',
+          priority: 'high',
+          status: 'in-progress'
         }
       ],
       clubs: [
         {
           id: '5',
           title: 'Computer Science Club',
-          role: 'Vice President'
+          role: 'Vice President',
+          status: 'in-progress'
         },
         {
           id: '6',
           title: 'AI Research Group',
-          role: 'Member'
+          role: 'Member',
+          status: 'in-progress'
+        }
+      ],
+      completedCourses: [
+        {
+          id: '7',
+          title: 'Introduction to Programming',
+          deadline: '2023-12',
+          grade: 'A-',
+          status: 'completed'
+        },
+        {
+          id: '8',
+          title: 'Data Structures and Algorithms',
+          deadline: '2023-12',
+          grade: 'B+',
+          status: 'completed'
+        }
+      ],
+      achievements: [
+        {
+          id: '9',
+          title: 'Dean\'s List Fall 2023',
+          deadline: '2023-12',
+          type: 'Academic Achievement',
+          status: 'completed',
+          description: 'Achieved Dean\'s List recognition for maintaining a GPA above 3.5 during Fall 2023 semester.'
+        },
+        {
+          id: '10',
+          title: 'Hackathon Winner - Tech Innovation Challenge',
+          deadline: '2024-03',
+          type: 'Competition',
+          status: 'completed',
+          description: 'Won first place in the university\'s annual tech innovation hackathon with a team of 4 students, developing an AI-powered study assistant.'
         }
       ]
     };
@@ -183,13 +236,21 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
         if (userSnap.exists() && userSnap.data().academicProgress) {
           const firebaseProgress = userSnap.data().academicProgress;
           console.log('Found academic progress in Firebase:', firebaseProgress);
-          setAcademicProgress(firebaseProgress);
+          
+          // Ensure all arrays are initialized
+          const initializedProgress = {
+            ...firebaseProgress,
+            completedCourses: firebaseProgress.completedCourses || [],
+            achievements: firebaseProgress.achievements || []
+          };
+          
+          setAcademicProgress(initializedProgress);
           setAcademicProgressLoaded(true);
           progressFound = true;
           
           // Also update localStorage with Firebase data
           try {
-            localStorage.setItem('gradual_academic_progress', JSON.stringify(firebaseProgress));
+            localStorage.setItem('gradual_academic_progress', JSON.stringify(initializedProgress));
             console.log('Updated localStorage with Firebase data');
           } catch (localStorageError) {
             console.error('Error updating localStorage with Firebase data:', localStorageError);
@@ -210,7 +271,15 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
           try {
             const parsed = JSON.parse(stored);
             console.log('Successfully parsed academic progress from localStorage:', parsed);
-            setAcademicProgress(parsed);
+            
+            // Ensure all arrays are initialized
+            const initializedProgress = {
+              ...parsed,
+              completedCourses: parsed.completedCourses || [],
+              achievements: parsed.achievements || []
+            };
+            
+            setAcademicProgress(initializedProgress);
             setAcademicProgressLoaded(true);
             progressFound = true;
             
@@ -218,7 +287,7 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
             if (user) {
               try {
                 const userRef = doc(db, 'users', user.uid);
-                await setDoc(userRef, { academicProgress: parsed }, { merge: true });
+                await setDoc(userRef, { academicProgress: initializedProgress }, { merge: true });
                 console.log('Saved localStorage data to Firebase for consistency');
               } catch (firebaseError) {
                 console.error('Error saving localStorage data to Firebase:', firebaseError);
@@ -244,73 +313,26 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
   const loadData = useCallback(async () => {
     setIsLoading(true);
     
-    // Load AI insights
-    const insights = await aiInsightsService.generateInsights({
-      degree: formData.degree,
-      interests: formData.interests,
-      city: formData.city,
-      country: formData.country,
-      gpa: formData.gpa
-    });
-    setIndustryInsights(insights);
-    
     // Load academic progress from Firebase/localStorage or initialize (only if not already loaded)
     if (!academicProgressLoaded) {
       await loadAcademicProgress();
     }
     
     setIsLoading(false);
-  }, [formData.degree, formData.interests, formData.city, formData.country, formData.gpa, loadAcademicProgress, academicProgressLoaded]);
-
-  const refreshInsights = useCallback(async () => {
-    setIsRefreshingInsights(true);
-    try {
-      const insights = await aiInsightsService.refreshInsights({
-        degree: formData.degree,
-        interests: formData.interests,
-        city: formData.city,
-        country: formData.country,
-        gpa: formData.gpa
-      });
-      setIndustryInsights(insights);
-    } catch (error) {
-      console.error('Failed to refresh insights:', error);
-    } finally {
-      setIsRefreshingInsights(false);
-    }
-  }, [formData.degree, formData.interests, formData.city, formData.country, formData.gpa]);
+  }, [loadAcademicProgress, academicProgressLoaded]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  // Auto-refresh insights every 4 hours
-  useEffect(() => {
-    const interval = setInterval(() => {
-      refreshInsights();
-    }, 4 * 60 * 60 * 1000); // 4 hours
-
-    return () => clearInterval(interval);
-  }, [refreshInsights]);
-
-  const toggleInsightExpansion = (insightId: string) => {
-    const newExpanded = new Set(expandedInsights);
-    if (newExpanded.has(insightId)) {
-      newExpanded.delete(insightId);
-    } else {
-      newExpanded.add(insightId);
-    }
-    setExpandedInsights(newExpanded);
-  };
-
-  const openAddModal = (itemType: 'paper' | 'assessment' | 'club') => {
+  const openAddModal = (itemType: 'paper' | 'assessment' | 'club' | 'achievement' | 'course') => {
     setModalItemType(itemType);
     setModalMode('add');
     setEditingItem(undefined);
     setModalOpen(true);
   };
 
-  const openEditModal = (item: AcademicItem, itemType: 'paper' | 'assessment' | 'club') => {
+  const openEditModal = (item: AcademicItem, itemType: 'paper' | 'assessment' | 'club' | 'achievement' | 'course') => {
     setModalItemType(itemType);
     setModalMode('edit');
     setEditingItem(item);
@@ -334,6 +356,12 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
         case 'club':
           newProgress.clubs = [...newProgress.clubs, item];
           break;
+        case 'achievement':
+          newProgress.achievements = [...newProgress.achievements, item];
+          break;
+        case 'course':
+          newProgress.completedCourses = [...newProgress.completedCourses, item];
+          break;
       }
     } else {
       // Edit existing item
@@ -353,6 +381,16 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
             c.id === item.id ? item : c
           );
           break;
+        case 'achievement':
+          newProgress.achievements = newProgress.achievements.map(a => 
+            a.id === item.id ? item : a
+          );
+          break;
+        case 'course':
+          newProgress.completedCourses = newProgress.completedCourses.map(c => 
+            c.id === item.id ? item : c
+          );
+          break;
       }
     }
 
@@ -360,7 +398,7 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
     await saveAcademicProgress(newProgress);
   };
 
-  const deleteAcademicItem = async (itemId: string, itemType: 'paper' | 'assessment' | 'club') => {
+  const deleteAcademicItem = async (itemId: string, itemType: 'paper' | 'assessment' | 'club' | 'achievement' | 'course') => {
     if (!academicProgress) return;
 
     const newProgress = { ...academicProgress };
@@ -375,6 +413,12 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
       case 'club':
         newProgress.clubs = newProgress.clubs.filter(c => c.id !== itemId);
         break;
+      case 'achievement':
+        newProgress.achievements = newProgress.achievements.filter(a => a.id !== itemId);
+        break;
+      case 'course':
+        newProgress.completedCourses = newProgress.completedCourses.filter(c => c.id !== itemId);
+        break;
     }
 
     setAcademicProgress(newProgress);
@@ -387,6 +431,8 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
     totalSemestersRequired: number;
     creditsCompleted?: number;
     totalCredits?: number;
+    gpa?: number;
+    targetGpa?: number;
   }) => {
     if (!academicProgress) return;
     
@@ -406,6 +452,14 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
       delete updatedProgress.creditsCompleted;
       delete updatedProgress.totalCredits;
     }
+
+    // Add GPA fields if provided
+    if (data.gpa !== undefined) {
+      updatedProgress.gpa = data.gpa;
+    }
+    if (data.targetGpa !== undefined) {
+      updatedProgress.targetGpa = data.targetGpa;
+    }
     
     setAcademicProgress(updatedProgress);
     await saveAcademicProgress(updatedProgress);
@@ -418,34 +472,59 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
     return 'from-red-500 to-pink-500';
   };
 
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high': return 'text-red-400 bg-red-900/30';
+      case 'medium': return 'text-yellow-400 bg-yellow-900/30';
+      case 'low': return 'text-green-400 bg-green-900/30';
+      default: return 'text-gray-400 bg-gray-900/30';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'text-green-400 bg-green-900/30';
+      case 'in-progress': return 'text-blue-400 bg-blue-900/30';
+      case 'overdue': return 'text-red-400 bg-red-900/30';
+      case 'not-started': return 'text-gray-400 bg-gray-900/30';
+      default: return 'text-gray-400 bg-gray-900/30';
+    }
+  };
+
   const formatDeadline = (deadline: string) => {
-    const daysLeft = Math.ceil((new Date(deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-    if (daysLeft < 0) return 'Overdue';
-    if (daysLeft === 0) return 'Due today';
-    if (daysLeft === 1) return 'Due tomorrow';
-    return `${daysLeft} days left`;
+    if (!deadline) return '';
+    
+    try {
+      // Check if it's a month-year format (YYYY-MM)
+      if (deadline.match(/^\d{4}-\d{2}$/)) {
+        const date = new Date(deadline + '-01'); // Add day to make it a valid date
+        return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      }
+      
+      // Check if it's a full date format
+      const date = new Date(deadline);
+      if (isNaN(date.getTime())) return deadline; // Return as-is if invalid
+      
+      const daysLeft = Math.ceil((date.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+      if (daysLeft < 0) return 'Overdue';
+      if (daysLeft === 0) return 'Due today';
+      if (daysLeft === 1) return 'Due tomorrow';
+      return `${daysLeft} days left`;
+    } catch (error) {
+      return deadline; // Return as-is if parsing fails
+    }
+  };
+
+  const getGpaColor = (gpa: number) => {
+    if (gpa >= 3.7) return 'text-green-400';
+    if (gpa >= 3.3) return 'text-blue-400';
+    if (gpa >= 3.0) return 'text-yellow-400';
+    return 'text-red-400';
   };
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-slide-in-up stagger-2">
-        <Card className="bg-gradient-to-br from-blue-900/30 to-cyan-900/30 backdrop-blur-md border-blue-400/20 shadow-xl">
-          <CardContent className="p-6">
-            <div className="animate-pulse">
-              <div className="h-6 bg-blue-800/50 rounded mb-4"></div>
-              <div className="space-y-4">
-                {[1, 2, 3, 4].map(i => (
-                  <div key={i} className="bg-blue-800/30 rounded-lg p-3">
-                    <div className="h-4 bg-blue-700/50 rounded mb-2"></div>
-                    <div className="h-3 bg-blue-700/30 rounded mb-2"></div>
-                    <div className="h-3 bg-blue-700/30 rounded w-2/3"></div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
+      <div className="grid grid-cols-1 gap-6 animate-slide-in-up stagger-2">
         <Card className="bg-gradient-to-br from-green-900/30 to-emerald-900/30 backdrop-blur-md border-green-400/20 shadow-xl">
           <CardContent className="p-6">
             <div className="animate-pulse">
@@ -468,85 +547,8 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
 
   return (
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-slide-in-up stagger-2">
-        {/* Left Panel: Industry Insights */}
-        <Card className="bg-gradient-to-br from-blue-900/30 to-cyan-900/30 backdrop-blur-md border-blue-400/20 shadow-xl">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center">
-                <TrendingUp className="h-5 w-5 text-blue-400 mr-2" />
-                <h3 className="text-lg font-semibold text-white">Industry Insights</h3>
-              </div>
-              <Button
-                onClick={refreshInsights}
-                variant="ghost"
-                size="sm"
-                disabled={isRefreshingInsights}
-                className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/30 disabled:opacity-50"
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshingInsights ? 'animate-spin' : ''}`} />
-                {isRefreshingInsights ? 'Refreshing...' : 'Refresh'}
-              </Button>
-            </div>
-            
-            <div className="space-y-4">
-              {industryInsights.map((insight) => (
-                <div key={insight.id} className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-3 hover:bg-white/15 transition-colors duration-200">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-xs text-blue-300 bg-blue-900/50 px-2 py-1 rounded-full">
-                      {insight.category}
-                    </span>
-                    <span className="text-xs text-gray-400">{insight.timestamp}</span>
-                  </div>
-                  <h4 className="text-sm font-medium text-white mb-2 line-clamp-2">
-                    {insight.title}
-                  </h4>
-                  <p className="text-xs text-gray-300 line-clamp-3 mb-3">
-                    {insight.summary}
-                  </p>
-                  
-                  {insight.expandedDetails && (
-                    <div className="mb-3">
-                      <button
-                        onClick={() => toggleInsightExpansion(insight.id)}
-                        className="flex items-center text-xs text-blue-400 hover:text-blue-300 transition-colors duration-200"
-                      >
-                        {expandedInsights.has(insight.id) ? (
-                          <>
-                            <ChevronUp className="h-3 w-3 mr-1" />
-                            Show less
-                          </>
-                        ) : (
-                          <>
-                            <ChevronDown className="h-3 w-3 mr-1" />
-                            Show more
-                          </>
-                        )}
-                      </button>
-                      
-                      {expandedInsights.has(insight.id) && (
-                        <div className="mt-2 p-2 bg-blue-900/20 rounded border border-blue-800/30">
-                          <p className="text-xs text-blue-200 leading-relaxed">
-                            {insight.expandedDetails}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center">
-                      <div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>
-                      <span className="text-xs text-blue-300">{insight.relevance}% relevant</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Right Panel: Academic Progress & Management */}
+      <div className="grid grid-cols-1 gap-6 animate-slide-in-up stagger-2">
+        {/* Left Panel: Academic Progress & Management */}
         <Card className="bg-gradient-to-br from-green-900/30 to-emerald-900/30 backdrop-blur-md border-green-400/20 shadow-xl">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
@@ -556,212 +558,422 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
               </div>
             </div>
 
+            {/* Tab Navigation */}
+            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-2 mb-6">
+              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                <button
+                  onClick={() => setActiveAcademicTab('progress')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 sm:px-4 rounded-md transition-all duration-300 text-sm ${
+                    activeAcademicTab === 'progress'
+                      ? 'bg-green-600 text-white shadow-lg'
+                      : 'text-gray-300 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <BookOpen className="h-4 w-4 sm:h-4 sm:w-4" />
+                  Progress
+                </button>
+                <button
+                  onClick={() => setActiveAcademicTab('achievements')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 sm:px-4 rounded-md transition-all duration-300 text-sm ${
+                    activeAcademicTab === 'achievements'
+                      ? 'bg-green-600 text-white shadow-lg'
+                      : 'text-gray-300 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <Award className="h-4 w-4 sm:h-4 sm:w-4" />
+                  Achievements/Goals
+                </button>
+              </div>
+            </div>
+
             {academicProgress && (
               <div className="space-y-4">
-                {/* Degree Progress */}
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-3">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-sm text-white font-medium">Degree Progress</span>
-                    <Button
-                      onClick={() => setDegreeModalOpen(true)}
-                      size="sm"
-                      variant="ghost"
-                      className="h-5 w-5 p-0 text-gray-400 hover:text-green-300 transition-colors"
-                    >
-                      <Edit3 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                  
-                  {/* Semester Progress Bar - Always Visible */}
-                  <div className="mb-3">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs text-gray-300">Semester Progress</span>
-                      <span className="text-xs text-green-300">
-                        {academicProgress.totalSemestersRequired - academicProgress.semestersRemaining}/{academicProgress.totalSemestersRequired} semesters
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
-                      <div
-                        className={`bg-gradient-to-r ${getProgressColor(((academicProgress.totalSemestersRequired - academicProgress.semestersRemaining) / academicProgress.totalSemestersRequired) * 100)} h-2 rounded-full transition-all duration-1000 ease-out`}
-                        style={{ width: `${((academicProgress.totalSemestersRequired - academicProgress.semestersRemaining) / academicProgress.totalSemestersRequired) * 100}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                  
-                  {/* Credit Progress Bar - Only show if credits are entered */}
-                  {academicProgress.creditsCompleted && academicProgress.totalCredits && (
-                    <div className="mb-3">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs text-gray-300">Credit Progress</span>
-                        <span className="text-xs text-blue-300">
-                          {academicProgress.creditsCompleted}/{academicProgress.totalCredits} credits
-                        </span>
+                {/* Progress Tab Content */}
+                {activeAcademicTab === 'progress' && (
+                  <>
+                    {/* Degree Progress */}
+                    <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-3">
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-sm text-white font-medium">Degree Progress</span>
+                        <Button
+                          onClick={() => setDegreeModalOpen(true)}
+                          size="sm"
+                          variant="ghost"
+                          className="h-5 w-5 p-0 text-gray-400 hover:text-green-300 transition-colors"
+                        >
+                          <Edit3 className="h-3 w-3" />
+                        </Button>
                       </div>
-                      <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
-                        <div
-                          className={`bg-gradient-to-r ${getProgressColor((academicProgress.creditsCompleted / academicProgress.totalCredits) * 100)} h-2 rounded-full transition-all duration-1000 ease-out`}
-                          style={{ width: `${(academicProgress.creditsCompleted / academicProgress.totalCredits) * 100}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="flex justify-between text-xs text-gray-300">
-                    <span>{academicProgress.semestersRemaining} semesters remaining</span>
-                    <span>Graduate {academicProgress.graduationDate}</span>
-                  </div>
-                </div>
-
-                {/* Current Courses */}
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center">
-                      <BookOpen className="h-4 w-4 text-green-400 mr-2" />
-                      <span className="text-sm text-white font-medium">Current Courses</span>
-                    </div>
-                    <Button
-                      onClick={() => openAddModal('paper')}
-                      size="sm"
-                      className="h-6 px-2 bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    {academicProgress.currentPapers.map((paper, index) => (
-                      <div key={paper.id} className="text-xs group relative">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-white font-medium line-clamp-1">{paper.title}</span>
-                          <div className="flex items-center space-x-1">
-                            <span className="text-green-300">{paper.progress}%</span>
-                            <Button
-                              onClick={() => openEditModal(paper, 'paper')}
-                              size="sm"
-                              variant="ghost"
-                              className="h-4 w-4 p-0 text-gray-400 hover:text-green-300 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <Edit3 className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              onClick={() => deleteAcademicItem(paper.id, 'paper')}
-                              size="sm"
-                              variant="ghost"
-                              className="h-4 w-4 p-0 text-gray-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
+                      
+                      {/* GPA Display */}
+                      {academicProgress.gpa && (
+                        <div className="mb-3">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-xs text-gray-300">Current GPA</span>
+                            <span className={`text-xs font-medium ${getGpaColor(academicProgress.gpa)}`}>
+                              {academicProgress.gpa.toFixed(2)}
+                            </span>
                           </div>
+                          {academicProgress.targetGpa && (
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-xs text-gray-300">Target GPA</span>
+                              <span className="text-xs text-blue-300">
+                                {academicProgress.targetGpa.toFixed(2)}
+                              </span>
+                            </div>
+                          )}
                         </div>
-                        <div className="w-full bg-gray-700 rounded-full h-1.5 overflow-hidden mb-1">
+                      )}
+                      
+                      {/* Semester Progress Bar - Always Visible */}
+                      <div className="mb-3">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs text-gray-300">Semester Progress</span>
+                          <span className="text-xs text-green-300">
+                            {academicProgress.totalSemestersRequired - academicProgress.semestersRemaining}/{academicProgress.totalSemestersRequired} semesters
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
                           <div
-                            className={`bg-gradient-to-r ${getProgressColor(paper.progress || 0)} h-1.5 rounded-full transition-all duration-500`}
-                            style={{ width: `${paper.progress || 0}%` }}
+                            className={`bg-gradient-to-r ${getProgressColor(((academicProgress.totalSemestersRequired - academicProgress.semestersRemaining) / academicProgress.totalSemestersRequired) * 100)} h-2 rounded-full transition-all duration-1000 ease-out`}
+                            style={{ width: `${((academicProgress.totalSemestersRequired - academicProgress.semestersRemaining) / academicProgress.totalSemestersRequired) * 100}%` }}
                           ></div>
                         </div>
-                        <span className="text-gray-400">{formatDeadline(paper.deadline || '')}</span>
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Upcoming Assessments */}
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center">
-                      <Calendar className="h-4 w-4 text-green-400 mr-2" />
-                      <span className="text-sm text-white font-medium">Upcoming Assessments</span>
-                    </div>
-                    <Button
-                      onClick={() => openAddModal('assessment')}
-                      size="sm"
-                      className="h-6 px-2 bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    {academicProgress.upcomingAssessments.map((assessment, index) => (
-                      <div key={assessment.id} className="text-xs group relative">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <span className="text-white font-medium">{assessment.title}</span>
-                            <div className="text-gray-400">{assessment.type}</div>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <span className="text-green-300">{formatDeadline(assessment.deadline || '')}</span>
-                            <Button
-                              onClick={() => openEditModal(assessment, 'assessment')}
-                              size="sm"
-                              variant="ghost"
-                              className="h-4 w-4 p-0 text-gray-400 hover:text-green-300 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <Edit3 className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              onClick={() => deleteAcademicItem(assessment.id, 'assessment')}
-                              size="sm"
-                              variant="ghost"
-                              className="h-4 w-4 p-0 text-gray-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* University Clubs */}
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center">
-                      <Users className="h-4 w-4 text-green-400 mr-2" />
-                      <span className="text-sm text-white font-medium">University Involvement</span>
-                    </div>
-                    <Button
-                      onClick={() => openAddModal('club')}
-                      size="sm"
-                      className="h-6 px-2 bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    {academicProgress.clubs.map((club, index) => (
-                      <div key={club.id} className="text-xs group relative">
-                        <div className="flex justify-between items-center">
-                          <span className="text-white">{club.title}</span>
-                          <div className="flex items-center space-x-1">
-                            <span className="text-green-300 bg-green-900/50 px-2 py-1 rounded-full">
-                              {club.role}
+                      
+                      {/* Credit Progress Bar - Only show if credits are entered */}
+                      {academicProgress.creditsCompleted && academicProgress.totalCredits && (
+                        <div className="mb-3">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-xs text-gray-300">Credit Progress</span>
+                            <span className="text-xs text-blue-300">
+                              {academicProgress.creditsCompleted}/{academicProgress.totalCredits} credits
                             </span>
-                            <Button
-                              onClick={() => openEditModal(club, 'club')}
-                              size="sm"
-                              variant="ghost"
-                              className="h-4 w-4 p-0 text-gray-400 hover:text-green-300 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <Edit3 className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              onClick={() => deleteAcademicItem(club.id, 'club')}
-                              size="sm"
-                              variant="ghost"
-                              className="h-4 w-4 p-0 text-gray-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
+                          </div>
+                          <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
+                            <div
+                              className={`bg-gradient-to-r ${getProgressColor((academicProgress.creditsCompleted / academicProgress.totalCredits) * 100)} h-2 rounded-full transition-all duration-1000 ease-out`}
+                              style={{ width: `${(academicProgress.creditsCompleted / academicProgress.totalCredits) * 100}%` }}
+                            ></div>
                           </div>
                         </div>
+                      )}
+                      
+                      <div className="flex justify-between text-xs text-gray-300">
+                        <span>{academicProgress.semestersRemaining} semesters remaining</span>
+                        <span>Graduate {academicProgress.graduationDate}</span>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </div>
+
+                    {/* Current Courses */}
+                    <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center">
+                          <BookOpen className="h-4 w-4 text-green-400 mr-2" />
+                          <span className="text-sm text-white font-medium">Current Courses</span>
+                        </div>
+                        <Button
+                          onClick={() => openAddModal('paper')}
+                          size="sm"
+                          className="h-6 px-2 bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <div className="space-y-2">
+                        {(academicProgress.currentPapers || []).map((paper, index) => (
+                          <div key={paper.id} className="text-xs group relative">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-white font-medium line-clamp-1">{paper.title}</span>
+                              <div className="flex items-center space-x-1">
+                                {paper.priority && (
+                                  <span className={`text-xs px-1 py-0.5 rounded ${getPriorityColor(paper.priority)}`}>
+                                    {paper.priority}
+                                  </span>
+                                )}
+                                <span className="text-green-300">{paper.progress}%</span>
+                                <Button
+                                  onClick={() => openEditModal(paper, 'paper')}
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-4 w-4 p-0 text-gray-400 hover:text-green-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <Edit3 className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  onClick={() => deleteAcademicItem(paper.id, 'paper')}
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-4 w-4 p-0 text-gray-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="w-full bg-gray-700 rounded-full h-1.5 overflow-hidden mb-1">
+                              <div
+                                className={`bg-gradient-to-r ${getProgressColor(paper.progress || 0)} h-1.5 rounded-full transition-all duration-500`}
+                                style={{ width: `${paper.progress || 0}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-gray-400">{formatDeadline(paper.deadline || '')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Upcoming Assessments */}
+                    <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center">
+                          <Calendar className="h-4 w-4 text-green-400 mr-2" />
+                          <span className="text-sm text-white font-medium">Upcoming Assessments</span>
+                        </div>
+                        <Button
+                          onClick={() => openAddModal('assessment')}
+                          size="sm"
+                          className="h-6 px-2 bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <div className="space-y-2">
+                        {(academicProgress.upcomingAssessments || []).map((assessment, index) => (
+                          <div key={assessment.id} className="text-xs group relative">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <span className="text-white font-medium">{assessment.title}</span>
+                                <div className="text-gray-400">{assessment.type}</div>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                {assessment.priority && (
+                                  <span className={`text-xs px-1 py-0.5 rounded ${getPriorityColor(assessment.priority)}`}>
+                                    {assessment.priority}
+                                  </span>
+                                )}
+                                <span className="text-green-300">{formatDeadline(assessment.deadline || '')}</span>
+                                <Button
+                                  onClick={() => openEditModal(assessment, 'assessment')}
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-4 w-4 p-0 text-gray-400 hover:text-green-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <Edit3 className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  onClick={() => deleteAcademicItem(assessment.id, 'assessment')}
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-4 w-4 p-0 text-gray-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* University Clubs */}
+                    <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center">
+                          <Users className="h-4 w-4 text-green-400 mr-2" />
+                          <span className="text-sm text-white font-medium">University Involvement</span>
+                        </div>
+                        <Button
+                          onClick={() => openAddModal('club')}
+                          size="sm"
+                          className="h-6 px-2 bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <div className="space-y-2">
+                        {(academicProgress.clubs || []).map((club, index) => (
+                          <div key={club.id} className="text-xs group relative">
+                            <div className="flex justify-between items-center">
+                              <span className="text-white">{club.title}</span>
+                              <div className="flex items-center space-x-1">
+                                <span className="text-green-300 bg-green-900/50 px-2 py-1 rounded-full">
+                                  {club.role}
+                                </span>
+                                <Button
+                                  onClick={() => openEditModal(club, 'club')}
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-4 w-4 p-0 text-gray-400 hover:text-green-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <Edit3 className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  onClick={() => deleteAcademicItem(club.id, 'club')}
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-4 w-4 p-0 text-gray-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Achievements Tab Content */}
+                {activeAcademicTab === 'achievements' && (
+                  <>
+                    {/* Completed Courses */}
+                    <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center">
+                          <CheckCircle className="h-4 w-4 text-green-400 mr-2" />
+                          <span className="text-sm text-white font-medium">Completed Courses</span>
+                        </div>
+                        <Button
+                          onClick={() => openAddModal('course')}
+                          size="sm"
+                          className="h-6 px-2 bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <div className="space-y-2">
+                        {(academicProgress.completedCourses || []).map((course, index) => (
+                          <div key={course.id} className="text-xs group relative">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <span className="text-white font-medium">{course.title}</span>
+                                <div className="text-gray-400">{formatDeadline(course.deadline || '')}</div>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <span className={`text-xs px-2 py-1 rounded ${getGpaColor(parseFloat(course.grade || '0'))}`}>
+                                  {course.grade}
+                                </span>
+                                <Button
+                                  onClick={() => openEditModal(course, 'course')}
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-4 w-4 p-0 text-gray-400 hover:text-green-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <Edit3 className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  onClick={() => deleteAcademicItem(course.id, 'course')}
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-4 w-4 p-0 text-gray-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Achievements */}
+                    <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center">
+                          <Award className="h-4 w-4 text-green-400 mr-2" />
+                          <span className="text-sm text-white font-medium">Achievements</span>
+                        </div>
+                        <Button
+                          onClick={() => openAddModal('achievement')}
+                          size="sm"
+                          className="h-6 px-2 bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <div className="space-y-2">
+                        {(academicProgress.achievements || []).map((achievement, index) => (
+                          <div key={achievement.id} className="text-xs group relative">
+                            <div className="flex justify-between items-center">
+                              <div className="flex-1">
+                                <span className="text-white font-medium">{achievement.title}</span>
+                                <div className="text-gray-400">{achievement.type}</div>
+                                {achievement.description && (
+                                  <details className="mt-1">
+                                    <summary className="text-blue-400 cursor-pointer hover:text-blue-300 text-xs">
+                                      View Description
+                                    </summary>
+                                    <div className="mt-1 p-2 bg-blue-900/20 rounded border border-blue-800/30">
+                                      <p className="text-blue-200 text-xs leading-relaxed">
+                                        {achievement.description}
+                                      </p>
+                                    </div>
+                                  </details>
+                                )}
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <span className={`text-xs px-2 py-1 rounded ${getStatusColor(achievement.status || 'completed')}`}>
+                                  {achievement.status || 'completed'}
+                                </span>
+                                <Button
+                                  onClick={() => openEditModal(achievement, 'achievement')}
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-4 w-4 p-0 text-gray-400 hover:text-green-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <Edit3 className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  onClick={() => deleteAcademicItem(achievement.id, 'achievement')}
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-4 w-4 p-0 text-gray-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+
+                    {/* Academic Statistics */}
+                    <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-3">
+                      <div className="flex items-center mb-3">
+                        <BarChart3 className="h-4 w-4 text-green-400 mr-2" />
+                        <span className="text-sm text-white font-medium">Academic Statistics</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div className="text-center">
+                          <div className="text-green-300 font-medium">
+                            {(academicProgress.completedCourses || []).length}
+                          </div>
+                          <div className="text-gray-400">Courses Completed</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-green-300 font-medium">
+                            {(academicProgress.achievements || []).length}
+                          </div>
+                          <div className="text-gray-400">Achievements</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-green-300 font-medium">
+                            {(academicProgress.clubs || []).length}
+                          </div>
+                          <div className="text-gray-400">Clubs/Activities</div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </CardContent>
         </Card>
+
       </div>
 
       {/* Academic Input Modal */}
@@ -784,7 +996,9 @@ export default function CareerInsightsPanel({ formData, cvScore }: CareerInsight
           semestersRemaining: academicProgress?.semestersRemaining || 0,
           totalSemestersRequired: academicProgress?.totalSemestersRequired || 6,
           creditsCompleted: academicProgress?.creditsCompleted,
-          totalCredits: academicProgress?.totalCredits
+          totalCredits: academicProgress?.totalCredits,
+          gpa: academicProgress?.gpa,
+          targetGpa: academicProgress?.targetGpa
         }}
       />
     </>

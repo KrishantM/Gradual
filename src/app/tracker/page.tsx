@@ -31,6 +31,7 @@ import {
   MoreVertical,
   ArrowUpDown
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface JobApplication {
   id: string;
@@ -416,18 +417,50 @@ export default function TrackerPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black">
+    <motion.div 
+      className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.8 }}
+    >
       <div className="container mx-auto px-4 py-20">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="text-center mb-12">
-            <h1 className="text-4xl lg:text-5xl font-bold text-white mb-4">
-              Job Application <span className="text-blue-400">Tracker</span>
-            </h1>
-            <p className="text-gray-300 text-lg max-w-2xl mx-auto">
+          <motion.div 
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <motion.h1 
+              className="text-4xl lg:text-5xl font-bold text-white mb-4"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            >
+              Job Application <motion.span 
+                className="text-blue-400"
+                animate={{ 
+                  textShadow: [
+                    "0 0 0px rgba(59, 130, 246, 0)",
+                    "0 0 20px rgba(59, 130, 246, 0.5)",
+                    "0 0 0px rgba(59, 130, 246, 0)"
+                  ]
+                }}
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                Tracker
+              </motion.span>
+            </motion.h1>
+            <motion.p 
+              className="text-gray-300 text-lg max-w-2xl mx-auto"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+            >
               Track your job applications and manage your career search progress
-            </p>
-          </div>
+            </motion.p>
+          </motion.div>
 
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -847,6 +880,6 @@ export default function TrackerPage() {
         onSubmit={handleUpdateActionItem}
         actionItem={actionItems.find(item => item.id === editingActionItem)}
       />
-    </div>
+    </motion.div>
   );
 } 

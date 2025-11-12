@@ -14,6 +14,8 @@ interface DegreeProgressModalProps {
     totalSemestersRequired: number;
     creditsCompleted?: number;
     totalCredits?: number;
+    gpa?: number;
+    targetGpa?: number;
   }) => void;
   currentData: {
     graduationDate: string;
@@ -21,6 +23,8 @@ interface DegreeProgressModalProps {
     totalSemestersRequired: number;
     creditsCompleted?: number;
     totalCredits?: number;
+    gpa?: number;
+    targetGpa?: number;
   };
 }
 
@@ -35,7 +39,9 @@ export default function DegreeProgressModal({
     semestersRemaining: 0,
     totalSemestersRequired: 6,
     creditsCompleted: '',
-    totalCredits: ''
+    totalCredits: '',
+    gpa: '',
+    targetGpa: ''
   });
 
   // Reset form when modal opens/closes or when current data changes
@@ -46,7 +52,9 @@ export default function DegreeProgressModal({
         semestersRemaining: currentData.semestersRemaining || 0,
         totalSemestersRequired: currentData.totalSemestersRequired || 6,
         creditsCompleted: currentData.creditsCompleted?.toString() || '',
-        totalCredits: currentData.totalCredits?.toString() || ''
+        totalCredits: currentData.totalCredits?.toString() || '',
+        gpa: currentData.gpa?.toString() || '',
+        targetGpa: currentData.targetGpa?.toString() || ''
       });
     }
   }, [isOpen, currentData]);
@@ -61,6 +69,12 @@ export default function DegreeProgressModal({
       ...(formData.creditsCompleted && formData.totalCredits && {
         creditsCompleted: parseInt(formData.creditsCompleted),
         totalCredits: parseInt(formData.totalCredits)
+      }),
+      ...(formData.gpa && {
+        gpa: parseFloat(formData.gpa)
+      }),
+      ...(formData.targetGpa && {
+        targetGpa: parseFloat(formData.targetGpa)
       })
     };
     
@@ -181,6 +195,45 @@ export default function DegreeProgressModal({
                   value={formData.totalCredits}
                   onChange={(e) => handleInputChange('totalCredits', e.target.value)}
                   placeholder="e.g., 120"
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            {/* GPA Section */}
+            <div className="border-t border-gray-700 pt-4">
+              <h4 className="text-sm font-medium text-white mb-3">GPA Information (Optional)</h4>
+              
+              {/* Current GPA */}
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Current GPA
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="4"
+                  step="0.01"
+                  value={formData.gpa}
+                  onChange={(e) => handleInputChange('gpa', e.target.value)}
+                  placeholder="e.g., 3.25"
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Target GPA */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Target GPA
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="4"
+                  step="0.01"
+                  value={formData.targetGpa}
+                  onChange={(e) => handleInputChange('targetGpa', e.target.value)}
+                  placeholder="e.g., 3.5"
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 />
               </div>

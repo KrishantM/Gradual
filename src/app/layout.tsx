@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
-import Navbar from "@/components/Navbar";
+// Navbar is now handled conditionally in ConditionalLayout
 import Footer from "@/components/Footer";
 import MaintenancePage from "@/components/MaintenancePage";
 import StructuredData from "@/components/StructuredData";
 import ConditionalLayout from "@/components/ConditionalLayout";
+import PageTransition from "@/components/PageTransition";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -93,9 +94,10 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} min-h-screen flex flex-col`}>
         <AuthProvider>
-          <Navbar />
           <ConditionalLayout>
-            {children}
+            <PageTransition>
+              {children}
+            </PageTransition>
           </ConditionalLayout>
         </AuthProvider>
       </body>

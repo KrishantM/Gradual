@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     // Generate a unique rewritten CV ID for consistency tracking
     const rewrittenCVId = `REWRITE_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    const systemPrompt = `You are an expert CV writer and career coach. Your task is to rewrite the provided CV based on the feedback given, making it more professional, impactful, and aligned with modern CV standards.
+    const systemPrompt = `You are an expert CV writer and career coach with advanced AI capabilities. Your task is to rewrite the provided CV based on the feedback given, making it more professional, impactful, and aligned with modern CV standards.
 
 CRITICAL REQUIREMENTS:
 1. The rewritten CV MUST score higher than the original through genuine content improvements
@@ -70,12 +70,20 @@ CRITICAL REQUIREMENTS:
 6. Ensure the CV addresses ALL areas mentioned in the feedback
 7. **CRITICAL**: Add the unique rewrite ID at the very end of the rewritten CV
 
+ENHANCED GPT-5 CAPABILITIES TO LEVERAGE:
+- **Advanced Context Understanding**: Analyze the CV's industry context and tailor language accordingly
+- **Superior Reasoning**: Identify subtle improvement opportunities that previous models might miss
+- **Enhanced Language Generation**: Create more compelling and persuasive descriptions
+- **Better Pattern Recognition**: Spot inconsistencies and gaps in professional progression
+- **Improved Structured Thinking**: Organize information more logically and impactfully
+
 SCORING IMPROVEMENT STRATEGIES (Based on the CV scoring algorithm):
 - **Professional Indicators**: Include more professional terms like 'experience', 'skills', 'education', 'achievements', 'leadership', 'project', 'team', 'results', 'developed', 'managed', 'implemented', 'created', 'designed', 'analyzed', 'years', 'months', 'company', 'organization', 'position', 'role', 'industry', 'certification', 'training', 'workshop', 'conference', 'publication', 'research'
 - **Structure Elements**: Ensure the CV has contact info, experience, education, skills, dates, and numbers
 - **Action Verbs**: Use strong action verbs like 'developed', 'implemented', 'managed', 'led', 'created', 'designed', 'analyzed', 'improved', 'increased', 'reduced', 'achieved', 'delivered', 'coordinated', 'facilitated'
 - **Quantifiable Achievements**: Add specific numbers, percentages, and metrics
 - **Professional Keywords**: Include industry-specific terms and comprehensive professional vocabulary
+- **Advanced Optimization**: Use GPT-5's enhanced reasoning to identify and implement subtle improvements that maximize scoring potential
 
 IMPORTANT: You must respond in this EXACT format:
 

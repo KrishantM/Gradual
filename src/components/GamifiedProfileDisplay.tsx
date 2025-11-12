@@ -206,8 +206,8 @@ export default function GamifiedProfileDisplay({
                 </div>
 
                 {/* Profile Overview */}
-                <div className="space-y-3 animate-slide-in-up stagger-2">
-                  <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-3">
+                <div className="flex justify-center animate-slide-in-up stagger-2">
+                  <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-3 w-full max-w-sm">
                     <h3 className="text-sm font-semibold text-white mb-2 text-center">Profile Overview</h3>
                     <div className="text-xs text-gray-300 space-y-1">
                       {formData.city && formData.country && (
@@ -228,23 +228,6 @@ export default function GamifiedProfileDisplay({
                       {!formData.bio && !formData.portfolioLinks && !formData.interests && (
                         <p className="text-gray-400 italic">Complete your profile to see more details</p>
                       )}
-                    </div>
-                  </div>
-                  
-                  {/* XP Bar */}
-                  <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-3">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-gray-300 text-xs">Profile Progress</span>
-                      <span className="text-blue-400 text-xs font-medium">{xp}/100 XP</span>
-                    </div>
-                    <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
-                      <div
-                        className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-1000 ease-out animate-shimmer"
-                        style={{ width: `${xp}%` }}
-                      ></div>
-                    </div>
-                    <div className="text-gray-400 text-xs mt-1 text-center">
-                      Complete profile + CV score
                     </div>
                   </div>
                 </div>

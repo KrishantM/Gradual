@@ -1,11 +1,59 @@
 "use client";
 
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from "@/components/ui/card";
+import { ArrowLeft } from 'lucide-react';
 
 export default function TermsPage() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+  const [isRecruiter, setIsRecruiter] = useState(false);
+
+  // Check if user is a recruiter
+  useEffect(() => {
+    const checkUserRole = async () => {
+      if (user && !authLoading) {
+        try {
+          const token = await user.getIdToken();
+          const response = await fetch('/api/recruiter/verify', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          setIsRecruiter(response.ok);
+        } catch (error) {
+          console.error('Error checking recruiter status:', error);
+          setIsRecruiter(false);
+        }
+      } else {
+        setIsRecruiter(false);
+      }
+    };
+    
+    checkUserRole();
+  }, [user, authLoading]);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black flex items-center justify-center py-16">
-      <div className="w-full max-w-3xl mx-auto px-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black">
+      {/* Back Button for Recruiters */}
+      {isRecruiter && (
+        <div className="max-w-6xl mx-auto px-4 pt-8">
+          <Button
+            variant="outline"
+            onClick={() => router.push('/recruiter-dashboard')}
+            className="border-white/20 text-white hover:bg-white/10"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Dashboard
+          </Button>
+        </div>
+      )}
+      
+      <div className="flex items-center justify-center py-16">
+        <div className="w-full max-w-3xl mx-auto px-4">
         <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl">
           <CardContent className="p-8">
             <h1 className="text-3xl lg:text-4xl font-bold text-white mb-4 text-center">Gradual - Terms of Service</h1>
@@ -63,6 +111,7 @@ export default function TermsPage() {
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );

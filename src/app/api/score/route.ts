@@ -366,62 +366,56 @@ export async function POST(req: NextRequest) {
     });
 
     const systemPrompt = guest
-      ? `You are an AI CV scoring assistant. Reply in this structure:
+      ? `You are an advanced AI CV scoring assistant. Analyze the provided CV and respond with the exact format below:
 
 Overall Score (0–100): ${adjustedScore}
 
 Feedback:
-${wordCount < 50 ? '[This CV is extremely short and lacks sufficient content for proper evaluation. Professional CVs typically contain 300+ words with detailed experience, skills, and qualifications.]' : 
-  wordCount < 100 ? '[This CV is very short and lacks sufficient content for proper evaluation. Professional CVs typically contain 300+ words with detailed experience, skills, and qualifications.]' :
-  wordCount < 300 ? '[This CV is too short for comprehensive evaluation. Professional CVs typically contain 300+ words with detailed experience, skills, and qualifications.]' :
-  professionalScore < 3 ? '[This CV lacks sufficient professional indicators and structure. Consider adding more details about your work experience, skills, and achievements.]' :
-  structureScore < 2 ? '[This CV is missing essential sections like contact information, experience, or education. A complete CV should include these key components.]' :
-  '[1–2 sentences of general feedback and areas to improve based on the score of ' + adjustedScore + '.]'}
+${wordCount < 50 ? 'This CV is extremely short and lacks sufficient content for proper evaluation. Professional CVs typically contain 300+ words with detailed experience, skills, and qualifications.' : 
+  wordCount < 100 ? 'This CV is very short and lacks sufficient content for proper evaluation. Professional CVs typically contain 300+ words with detailed experience, skills, and qualifications.' :
+  wordCount < 300 ? 'This CV is too short for comprehensive evaluation. Professional CVs typically contain 300+ words with detailed experience, skills, and qualifications.' :
+  professionalScore < 3 ? 'This CV lacks sufficient professional indicators and structure. Consider adding more details about your work experience, skills, and achievements.' :
+  structureScore < 2 ? 'This CV is missing essential sections like contact information, experience, or education. A complete CV should include these key components.' :
+  'Based on the score of ' + adjustedScore + ', focus on improving professional language, adding quantifiable achievements, and enhancing overall structure and presentation.'}
 
-Do not include any introduction or closing remarks. Keep it concise and do not break from this format.`
-      : `You are an AI CV scoring assistant. Always reply in the following structure:
+Respond with ONLY the format above. No additional text.`
+      : `You are an advanced AI CV scoring assistant. Analyze the provided CV and respond with the exact format below:
 
 Overall Score (0–100): ${adjustedScore}
 
 1. Professionalism:
-${wordCount < 50 ? '[This CV is extremely short and lacks professional presentation. Score: 1/25]' :
-  wordCount < 100 ? '[This CV is very short and lacks professional presentation. Score: 2/25]' :
-  wordCount < 300 ? '[This CV is too short for comprehensive professional evaluation. Score: 8/25]' :
-  '[1–2 sentence explanation, and score out of 25]'}
+${wordCount < 50 ? 'This CV is extremely short and lacks professional presentation. Score: 1/25' :
+  wordCount < 100 ? 'This CV is very short and lacks professional presentation. Score: 2/25' :
+  wordCount < 300 ? 'This CV is too short for comprehensive professional evaluation. Score: 8/25' :
+  'Professional presentation and language quality. Score: [X]/25'}
 
 2. Experience:
-${wordCount < 50 ? '[Insufficient content to evaluate experience properly. Score: 1/25]' :
-  wordCount < 100 ? '[Very limited content to evaluate experience properly. Score: 2/25]' :
-  wordCount < 300 ? '[Limited content to evaluate experience comprehensively. Score: 8/25]' :
-  '[1–2 sentence explanation, and score out of 25]'}
+${wordCount < 50 ? 'Insufficient content to evaluate experience properly. Score: 1/25' :
+  wordCount < 100 ? 'Very limited content to evaluate experience properly. Score: 2/25' :
+  wordCount < 300 ? 'Limited content to evaluate experience comprehensively. Score: 8/25' :
+  'Work experience and career progression. Score: [X]/25'}
 
 3. Keyword Screening:
-${wordCount < 50 ? '[Extremely limited keywords and professional terms present. Score: 1/25]' :
-  wordCount < 100 ? '[Very limited keywords and professional terms present. Score: 2/25]' :
-  wordCount < 300 ? '[Limited keywords and professional terms present. Score: 8/25]' :
-  '[1–2 sentence explanation, and score out of 25]'}
+${wordCount < 50 ? 'Extremely limited keywords and professional terms present. Score: 1/25' :
+  wordCount < 100 ? 'Very limited keywords and professional terms present. Score: 2/25' :
+  wordCount < 300 ? 'Limited keywords and professional terms present. Score: 8/25' :
+  'Professional keywords and industry terminology. Score: [X]/25'}
 
 4. Relevance to Target Role:
-${wordCount < 50 ? '[Cannot assess relevance due to extremely insufficient content. Score: 1/25]' :
-  wordCount < 100 ? '[Cannot assess relevance due to very insufficient content. Score: 2/25]' :
-  wordCount < 300 ? '[Limited ability to assess relevance due to insufficient content. Score: 2/25]' :
-  '[1–2 sentence explanation, and score out of 25]'}
+${wordCount < 50 ? 'Cannot assess relevance due to extremely insufficient content. Score: 1/25' :
+  wordCount < 100 ? 'Cannot assess relevance due to very insufficient content. Score: 2/25' :
+  wordCount < 300 ? 'Limited ability to assess relevance due to insufficient content. Score: 2/25' :
+  'Relevance to target role and industry alignment. Score: [X]/25'}
 
 5. Areas to improve:
-${wordCount < 50 ? '[Add substantial content including work experience, skills, education, and achievements. Professional CVs typically contain 300+ words.]' :
-  wordCount < 100 ? '[Add substantial content including work experience, skills, education, and achievements. Professional CVs typically contain 300+ words.]' :
-  wordCount < 300 ? '[Expand your CV to include more detailed experience, skills, education, and achievements. Professional CVs typically contain 300+ words.]' :
-  professionalScore < 3 ? '[Include more professional indicators like work experience, skills, and achievements.]' :
-  structureScore < 2 ? '[Add missing essential sections like contact information, experience, or education.]' :
-  '[1–2 sentence explanation]'}
+${wordCount < 50 ? 'Add substantial content including work experience, skills, education, and achievements. Professional CVs typically contain 300+ words.' :
+  wordCount < 100 ? 'Add substantial content including work experience, skills, education, and achievements. Professional CVs typically contain 300+ words.' :
+  wordCount < 300 ? 'Expand your CV to include more detailed experience, skills, education, and achievements. Professional CVs typically contain 300+ words.' :
+  professionalScore < 3 ? 'Include more professional indicators like work experience, skills, and achievements.' :
+  structureScore < 2 ? 'Add missing essential sections like contact information, experience, or education.' :
+  'Provide a comprehensive paragraph with specific, actionable advice on how to improve this CV. Include concrete examples of what to add, modify, or enhance. Focus on professional language, quantifiable achievements, industry-specific keywords, and overall structure. Be specific about which sections need work and how to improve them.'}
 
-CRITICAL REQUIREMENTS:
-1. The overall score must be exactly ${adjustedScore}
-2. The four section scores (Professionalism + Experience + Keyword Screening + Relevance) must add up to exactly ${adjustedScore}
-3. Each section score MUST be between 1-25 points ONLY (1 for extremely poor quality, 25 for excellent)
-4. NEVER give scores above 25 for any individual category
-5. Do not include any introduction or closing remarks
-6. Do not break from this format`;
+CRITICAL: The four section scores must add up to exactly ${adjustedScore}. Each score must be between 1-25. Respond with ONLY the format above. No additional text.`;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -435,13 +429,18 @@ CRITICAL REQUIREMENTS:
           content: `Here is the CV:\n\n${cvText}`,
         },
       ],
-      temperature: 0, // Maximum consistency
+      temperature: 0,
       max_tokens: 500,
     });
 
     const score = response.choices[0].message?.content || '';
     
-    // Extract breakdown scores for dashboard display
+    console.log('GPT-4o Response:', {
+      hasContent: !!score,
+      contentLength: score.length,
+      content: score.substring(0, 200) + (score.length > 200 ? '...' : ''),
+      fullResponse: response
+    });
     const breakdownScores = {
       professionalism: 0,
       experience: 0,
@@ -594,6 +593,19 @@ CRITICAL REQUIREMENTS:
       }
       
       console.log('Final breakdown scores after adjustment:', breakdownScores);
+    }
+    
+    // Ensure we have a valid score to return
+    if (!score || score.trim() === '') {
+      console.error('Empty score from GPT-5, using fallback');
+      const fallbackScore = `Overall Score (0–100): ${adjustedScore}
+
+Feedback: Unable to generate detailed analysis. Please try again.`;
+      return NextResponse.json({ 
+        score: fallbackScore, 
+        cvHash,
+        breakdown: breakdownScores
+      });
     }
     
     return NextResponse.json({ 

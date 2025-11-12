@@ -4,119 +4,219 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Mail, Linkedin, ArrowLeft, Users, Target, Eye, MessageCircle } from "lucide-react"
+import { motion } from "framer-motion"
+import { useRef } from "react"
+import { useInView } from "framer-motion"
+
+// Animated components for About page
+const AnimatedCard = ({ children, delay = 0, className = "" }: { children: React.ReactNode, delay?: number, className?: string }) => {
+  const ref = useRef(null)
+  const isInView = useInView(ref, { once: true, margin: "-100px" })
+  
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 50 }}
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
+      transition={{ duration: 0.6, delay }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  )
+}
+
+const AnimatedFeature = ({ icon: Icon, title, description, color, delay = 0 }: { 
+  icon: any, 
+  title: string, 
+  description: string, 
+  color: string, 
+  delay?: number 
+}) => {
+  const ref = useRef(null)
+  const isInView = useInView(ref, { once: true })
+  
+  return (
+    <motion.div 
+      ref={ref}
+      className="flex items-start space-x-3"
+      initial={{ opacity: 0, x: -20 }}
+      animate={isInView ? { opacity: 1, x: 0 } : { opacity: 0, x: -20 }}
+      transition={{ duration: 0.5, delay }}
+      whileHover={{ x: 5, transition: { duration: 0.2 } }}
+    >
+      <motion.div 
+        className={`flex-shrink-0 w-6 h-6 ${color}/20 rounded-full flex items-center justify-center mt-1`}
+        whileHover={{ scale: 1.2, rotate: 5 }}
+        transition={{ duration: 0.2 }}
+      >
+        <Icon className={`w-3 h-3 ${color}`} />
+      </motion.div>
+      <div>
+        <h3 className="text-white font-semibold text-sm sm:text-base">{title}</h3>
+        <p className="text-gray-400 text-sm leading-relaxed">{description}</p>
+      </div>
+    </motion.div>
+  )
+}
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black">
+    <motion.div 
+      className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.8 }}
+    >
       <div className="container mx-auto px-4 py-8 sm:py-12 lg:py-20">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="text-center mb-8 sm:mb-12">
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
-              About <span className="text-blue-400">Gradual</span>
-            </h1>
-            <p className="text-gray-300 text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed">
+          <motion.div 
+            className="text-center mb-8 sm:mb-12"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <motion.h1 
+              className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            >
+              About <motion.span 
+                className="text-blue-400"
+                animate={{ 
+                  textShadow: [
+                    "0 0 0px rgba(59, 130, 246, 0)",
+                    "0 0 20px rgba(59, 130, 246, 0.5)",
+                    "0 0 0px rgba(59, 130, 246, 0)"
+                  ]
+                }}
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                Gradual
+              </motion.span>
+            </motion.h1>
+            <motion.p 
+              className="text-gray-300 text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+            >
               The future of career building is here
-            </p>
-          </div>
+            </motion.p>
+          </motion.div>
 
           {/* Main Content */}
           <div className="space-y-6 sm:space-y-8">
             {/* Mission Statement */}
-            <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl">
-              <CardContent className="p-6 sm:p-8">
-                <div className="space-y-4 sm:space-y-6">
-                  <div className="text-center sm:text-left">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
-                      Our Mission
-                    </h2>
-                    <p className="text-gray-300 text-base sm:text-lg leading-relaxed mb-4">
-                      We&apos;re building an intelligent platform that helps students and industry professionals land the right opportunities faster.
-                    </p>
-                    <p className="text-gray-300 text-base sm:text-lg leading-relaxed">
-                      From AI-powered CV scoring to personalized job matches and career guidance, Gradual gives users the tools to stand out in a noisy job market.
-                    </p>
+            <AnimatedCard delay={0.6}>
+              <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl hover-lift">
+                <CardContent className="p-6 sm:p-8">
+                  <div className="space-y-4 sm:space-y-6">
+                    <div className="text-center sm:text-left">
+                      <motion.h2 
+                        className="text-2xl sm:text-3xl font-bold text-white mb-4"
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5 }}
+                        viewport={{ once: true }}
+                      >
+                        Our Mission
+                      </motion.h2>
+                      <motion.p 
+                        className="text-gray-300 text-base sm:text-lg leading-relaxed mb-4"
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: 0.2 }}
+                        viewport={{ once: true }}
+                      >
+                        We&apos;re building an intelligent platform that helps students and industry professionals land the right opportunities faster.
+                      </motion.p>
+                      <motion.p 
+                        className="text-gray-300 text-base sm:text-lg leading-relaxed"
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: 0.4 }}
+                        viewport={{ once: true }}
+                      >
+                        From AI-powered CV scoring to personalized job matches and career guidance, Gradual gives users the tools to stand out in a noisy job market.
+                      </motion.p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </AnimatedCard>
 
             {/* What We Offer */}
-            <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl">
-              <CardContent className="p-6 sm:p-8">
-                <h2 className="text-2xl sm:text-3xl font-bold text-white mb-6 text-center sm:text-left">
-                  What We Offer
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                  <div className="space-y-3">
-                    <div className="flex items-start space-x-3">
-                      <div className="flex-shrink-0 w-6 h-6 bg-blue-500/20 rounded-full flex items-center justify-center mt-1">
-                        <Target className="w-3 h-3 text-blue-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-white font-semibold text-sm sm:text-base">CV Scoring & Optimization</h3>
-                        <p className="text-gray-400 text-sm leading-relaxed">Get AI-powered feedback to improve your resume</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start space-x-3">
-                      <div className="flex-shrink-0 w-6 h-6 bg-green-500/20 rounded-full flex items-center justify-center mt-1">
-                        <Eye className="w-3 h-3 text-green-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-white font-semibold text-sm sm:text-base">Smart Job Matching</h3>
-                        <p className="text-gray-400 text-sm leading-relaxed">Personalized suggestions for internships and graduate roles</p>
-                      </div>
+            <AnimatedCard delay={0.8}>
+              <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl hover-lift">
+                <CardContent className="p-6 sm:p-8">
+                  <motion.h2 
+                    className="text-2xl sm:text-3xl font-bold text-white mb-6 text-center sm:text-left"
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    viewport={{ once: true }}
+                  >
+                    What We Offer
+                  </motion.h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                    <div className="space-y-3">
+                      <AnimatedFeature 
+                        icon={Target} 
+                        title="CV Scoring & Optimization" 
+                        description="Get AI-powered feedback to improve your resume" 
+                        color="text-blue-400" 
+                        delay={0.2}
+                      />
+                      <AnimatedFeature 
+                        icon={Eye} 
+                        title="Smart Job Matching" 
+                        description="Personalized suggestions for internships and graduate roles" 
+                        color="text-green-400" 
+                        delay={0.4}
+                      />
+                      <AnimatedFeature 
+                        icon={Users} 
+                        title="Progress Tracking" 
+                        description="Dynamic dashboard with actionable to-do lists" 
+                        color="text-yellow-400" 
+                        delay={0.6}
+                      />
                     </div>
 
-                    <div className="flex items-start space-x-3">
-                      <div className="flex-shrink-0 w-6 h-6 bg-yellow-500/20 rounded-full flex items-center justify-center mt-1">
-                        <Users className="w-3 h-3 text-yellow-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-white font-semibold text-sm sm:text-base">Progress Tracking</h3>
-                        <p className="text-gray-400 text-sm leading-relaxed">Dynamic dashboard with actionable to-do lists</p>
-                      </div>
+                    <div className="space-y-3">
+                      <AnimatedFeature 
+                        icon={MessageCircle} 
+                        title="Live CV Assistant" 
+                        description="Real-time career guidance and goal setting (coming soon)" 
+                        color="text-purple-400" 
+                        delay={0.8}
+                      />
+                      <AnimatedFeature 
+                        icon={Users} 
+                        title="Professional Profile" 
+                        description="Build a profile that evolves with your career goals" 
+                        color="text-cyan-400" 
+                        delay={1.0}
+                      />
+                      <AnimatedFeature 
+                        icon={Eye} 
+                        title="Recruiter Portal" 
+                        description="Advanced candidate insights for recruiters (coming soon)" 
+                        color="text-orange-400" 
+                        delay={1.2}
+                      />
                     </div>
                   </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-start space-x-3">
-                      <div className="flex-shrink-0 w-6 h-6 bg-purple-500/20 rounded-full flex items-center justify-center mt-1">
-                        <MessageCircle className="w-3 h-3 text-purple-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-white font-semibold text-sm sm:text-base">Live CV Assistant</h3>
-                        <p className="text-gray-400 text-sm leading-relaxed">Real-time career guidance and goal setting <span className="text-gray-500 italic">(coming soon)</span></p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start space-x-3">
-                      <div className="flex-shrink-0 w-6 h-6 bg-cyan-500/20 rounded-full flex items-center justify-center mt-1">
-                        <Users className="w-3 h-3 text-cyan-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-white font-semibold text-sm sm:text-base">Professional Profile</h3>
-                        <p className="text-gray-400 text-sm leading-relaxed">Build a profile that evolves with your career goals</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start space-x-3">
-                      <div className="flex-shrink-0 w-6 h-6 bg-orange-500/20 rounded-full flex items-center justify-center mt-1">
-                        <Eye className="w-3 h-3 text-orange-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-white font-semibold text-sm sm:text-base">Recruiter Portal</h3>
-                        <p className="text-gray-400 text-sm leading-relaxed">Advanced candidate insights for recruiters <span className="text-gray-500 italic">(coming soon)</span></p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </AnimatedCard>
 
             {/* Who Is Gradual For */}
-            <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl">
+            <AnimatedCard delay={1.0}>
+              <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl hover-lift">
               <CardContent className="p-6 sm:p-8">
                 <h2 className="text-2xl sm:text-3xl font-bold text-white mb-6 text-center sm:text-left">
                   Who Is Gradual For?
@@ -151,10 +251,12 @@ export default function AboutPage() {
                   </div>
                 </div>
               </CardContent>
-            </Card>
+              </Card>
+            </AnimatedCard>
 
             {/* Our Vision */}
-            <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl">
+            <AnimatedCard delay={1.2}>
+              <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl hover-lift">
               <CardContent className="p-6 sm:p-8">
                 <h2 className="text-2xl sm:text-3xl font-bold text-white mb-6 text-center sm:text-left">
                   Our Vision
@@ -230,10 +332,11 @@ export default function AboutPage() {
                   </div>
                 </div>
               </CardContent>
-            </Card>
+              </Card>
+            </AnimatedCard>
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 } 

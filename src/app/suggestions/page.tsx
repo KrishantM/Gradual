@@ -26,6 +26,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Opportunity {
   id: string;
@@ -53,8 +54,9 @@ export default function SuggestionsPage() {
   const [opportunitiesLoading, setOpportunitiesLoading] = useState(false);
   const [starringLoading, setStarringLoading] = useState<string | null>(null);
   const [starredOpportunities, setStarredOpportunities] = useState<string[]>([]);
-  const [extraContext, setExtraContext] = useState('');
   const [fetchingJobs, setFetchingJobs] = useState(false);
+  const [activeTab, setActiveTab] = useState<'suggestions' | 'opportunities'>('opportunities');
+  const [extraContext, setExtraContext] = useState('');
 
   // Helper function to check if GPA is valid
   const isGPAValid = (gpa: string, scale: string) => {
@@ -321,20 +323,52 @@ export default function SuggestionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black">
+    <motion.div 
+      className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.8 }}
+    >
       <div className="container mx-auto px-4 py-20">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
-          <div className="text-center mb-12">
+          <motion.div 
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
             <div className="mb-6">
-              <h1 className="text-4xl lg:text-5xl font-bold text-white mb-4">
-                Career <span className="text-blue-400">Suggestions</span>
-              </h1>
-              <p className="text-gray-300 text-lg max-w-2xl mx-auto">
+              <motion.h1 
+                className="text-4xl lg:text-5xl font-bold text-white mb-4"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+              >
+                Career <motion.span 
+                  className="text-blue-400"
+                  animate={{ 
+                    textShadow: [
+                      "0 0 0px rgba(59, 130, 246, 0)",
+                      "0 0 20px rgba(59, 130, 246, 0.5)",
+                      "0 0 0px rgba(59, 130, 246, 0)"
+                    ]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  Suggestions
+                </motion.span>
+              </motion.h1>
+              <motion.p 
+                className="text-gray-300 text-lg max-w-2xl mx-auto"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+              >
                 Get AI-powered career recommendations and discover relevant opportunities tailored to your profile
-              </p>
+              </motion.p>
             </div>
-          </div>
+          </motion.div>
 
           {/* Profile Summary */}
           {profile && (
@@ -409,213 +443,275 @@ export default function SuggestionsPage() {
             </>
           )}
 
-          {/* Input Section */}
+
+          {/* Tab Navigation */}
           <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl mb-8">
             <CardContent className="p-6">
-              <div className="mb-6">
-                <div className="flex items-center mb-3">
-                  <Sparkles className="h-5 w-5 text-green-400 mr-2" />
-                  <p className="text-green-400 text-sm font-medium">Suggestions are based on your profile</p>
-                </div>
-                <div className="mb-6">
-                  <label className="block text-white font-medium mb-2">
-                    <Sparkles className="inline h-4 w-4 mr-2 text-blue-400" />
-                    Extra Context (Optional)
-                  </label>
-                  <p className="text-orange-300 text-sm">Add extra context for more specific results</p>
-                </div>
-                <textarea
-                  className="w-full p-4 rounded-lg bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20 resize-none"
-                  rows={4}
-                  placeholder="e.g., I'm particularly interested in remote work, or I want to focus on AI/ML roles..."
-                  value={extraContext}
-                  onChange={(e) => setExtraContext(e.target.value)}
-                />
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                  onClick={handleGenerate}
-                  disabled={loading || !profile || !isProfileComplete(profile)}
-                >
-                  {loading ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Generating...
-                    </div>
-                  ) : (
-                    <div className="flex items-center">
-                      <Brain className="h-5 w-5 mr-2" />
-                      {(!profile || !isProfileComplete(profile)) 
-                        ? 'Complete Profile First' 
-                        : 'Generate Suggestions'
-                      }
-                    </div>
-                  )}
-                </Button>
-
-                <Link href="/dashboard">
-                  <Button
-                    variant="outline"
-                    className="w-full sm:w-auto bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30 transition-all duration-300"
+              <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-2">
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                  <button
+                    onClick={() => setActiveTab('opportunities')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-md transition-all duration-300 text-sm ${
+                      activeTab === 'opportunities'
+                        ? 'bg-blue-600 text-white shadow-lg'
+                        : 'text-gray-300 hover:text-white hover:bg-white/10'
+                    }`}
                   >
-                    View Saved Opportunities
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
+                    <Briefcase className="h-4 w-4 sm:h-5 sm:w-5" />
+                    Job Opportunities
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('suggestions')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-md transition-all duration-300 text-sm ${
+                      activeTab === 'suggestions'
+                        ? 'bg-blue-600 text-white shadow-lg'
+                        : 'text-gray-300 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <Brain className="h-4 w-4 sm:h-5 sm:w-5" />
+                    Career Suggestions
+                  </button>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <div className="grid lg:grid-cols-2 gap-8">
-            {/* AI Suggestions Results */}
-            {suggestions.length > 0 && (
-              <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl">
-                <CardContent className="p-6">
-                  <div className="flex items-center mb-6">
-                    <Brain className="h-6 w-6 text-green-400 mr-3" />
-                    <h2 className="text-2xl font-semibold text-white">AI Career Suggestions</h2>
-                  </div>
-                  <div className="space-y-4">
-                    {suggestions.map((suggestion, index) => (
-                      <div
-                        key={index}
-                        className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-4 hover:bg-white/15 transition-all duration-300"
-                      >
-                        <p className="text-gray-200 leading-relaxed whitespace-pre-wrap">
-                          {suggestion}
-                        </p>
+          {/* Tab Content */}
+          <AnimatePresence mode="wait">
+            {activeTab === 'opportunities' && (
+              <motion.div
+                key="opportunities"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center">
+                        <Briefcase className="h-6 w-6 text-blue-400 mr-3" />
+                        <h2 className="text-2xl font-semibold text-white">Matched Job Opportunities</h2>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={fetchNewJobs}
+                        disabled={fetchingJobs}
+                        className="bg-green-600/20 border-green-400/30 text-green-300 hover:bg-green-600/30 hover:border-green-400/50"
+                      >
+                        {fetchingJobs ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Fetching...
+                          </>
+                        ) : (
+                          <>
+                            <TrendingUp className="h-4 w-4 mr-2" />
+                            Fetch New Jobs
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    {opportunitiesLoading ? (
+                      <div className="text-center py-12">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
+                        <h3 className="text-xl font-semibold text-white mb-2">Finding Opportunities</h3>
+                        <p className="text-gray-300">Searching for jobs that match your profile...</p>
+                      </div>
+                    ) : opportunities.length > 0 ? (
+                      <div className="grid gap-6">
+                        {opportunities.map((opportunity) => {
+                          const isStarred = starredOpportunities.includes(opportunity.id);
+                          return (
+                            <div
+                              key={opportunity.id}
+                              className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-6 hover:bg-white/15 transition-all duration-300 hover:scale-[1.02]"
+                            >
+                              <div className="flex items-start justify-between mb-4">
+                                <div className="flex-1">
+                                  <h3 className="text-white font-semibold text-lg mb-2 line-clamp-2">
+                                    {opportunity.title}
+                                  </h3>
+                                  <p className="text-gray-300 text-base mb-3">{opportunity.company}</p>
+                                </div>
+                                <div className="flex items-center space-x-3 ml-4">
+                                  <div className={`px-3 py-1.5 rounded-full text-sm font-semibold border ${getScoreBgColor(opportunity.score)} ${getScoreColor(opportunity.score)}`}>
+                                    {opportunity.score}% Match
+                                  </div>
+                                  <button
+                                    onClick={() => toggleStarOpportunity(opportunity.id)}
+                                    disabled={starringLoading === opportunity.id}
+                                    className={`p-2 rounded-full transition-all duration-200 ${
+                                      isStarred 
+                                        ? 'text-yellow-400 bg-yellow-400/20 hover:bg-yellow-400/30' 
+                                        : 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/20'
+                                    }`}
+                                  >
+                                    {starringLoading === opportunity.id ? (
+                                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current"></div>
+                                    ) : (
+                                      <Star className={`h-5 w-5 ${isStarred ? 'fill-current' : ''}`} />
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center text-gray-400 text-sm mb-4 space-x-6">
+                                <div className="flex items-center">
+                                  <MapPin className="h-4 w-4 mr-2" />
+                                  {opportunity.location}
+                                </div>
+                                <div className="flex items-center">
+                                  <Calendar className="h-4 w-4 mr-2" />
+                                  {formatDate(opportunity.created)}
+                                </div>
+                                <div className="flex items-center">
+                                  <Star className="h-4 w-4 mr-2" />
+                                  {opportunity.type}
+                                </div>
+                              </div>
+
+                              <p className="text-gray-300 text-base mb-4 line-clamp-3 leading-relaxed">
+                                {opportunity.description}
+                              </p>
+
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-400 capitalize bg-white/5 px-3 py-1 rounded-full">
+                                  {opportunity.category}
+                                </span>
+                                <div className="flex items-center space-x-3">
+                                  <a
+                                    href={opportunity.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-all duration-300 hover:scale-105"
+                                  >
+                                    Apply Now
+                                    <ExternalLink className="h-4 w-4 ml-2" />
+                                  </a>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-16">
+                        <Briefcase className="h-20 w-20 text-gray-500 mx-auto mb-6" />
+                        <h3 className="text-2xl font-semibold text-white mb-3">No Opportunities Found</h3>
+                        <p className="text-gray-400 mb-6 max-w-md mx-auto">We couldn't find any job opportunities that match your profile. Try updating your profile or check back later for new listings.</p>
+                        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                          <Link href="/profile">
+                            <Button className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold px-6 py-3 rounded-lg transition-all duration-300">
+                              Update Profile
+                            </Button>
+                          </Link>
+                          <Button
+                            variant="outline"
+                            onClick={fetchNewJobs}
+                            disabled={fetchingJobs}
+                            className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30"
+                          >
+                            {fetchingJobs ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Fetching...
+                              </>
+                            ) : (
+                              <>
+                                <TrendingUp className="h-4 w-4 mr-2" />
+                                Fetch New Jobs
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
             )}
 
-            {/* Matched Opportunities */}
-            <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center">
-                    <Briefcase className="h-6 w-6 text-blue-400 mr-3" />
-                    <h2 className="text-2xl font-semibold text-white">Matched Opportunities</h2>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={fetchNewJobs}
-                    disabled={fetchingJobs}
-                    className="bg-green-600/20 border-green-400/30 text-green-300 hover:bg-green-600/30 hover:border-green-400/50"
-                  >
-                    {fetchingJobs ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Fetching...
-                      </>
-                    ) : (
-                      <>
-                        <TrendingUp className="h-4 w-4 mr-2" />
-                        Fetch New Jobs
-                      </>
+            {activeTab === 'suggestions' && (
+              <motion.div
+                key="suggestions"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl">
+                  <CardContent className="p-6">
+                    <div className="flex items-center mb-6">
+                      <Brain className="h-6 w-6 text-green-400 mr-3" />
+                      <h2 className="text-2xl font-semibold text-white">AI Career Suggestions</h2>
+                    </div>
+                    
+                    {/* Extra Context Section - Only in Suggestions Tab */}
+                    <div className="mb-6">
+                      <div className="flex items-center mb-3">
+                        <Sparkles className="h-5 w-5 text-green-400 mr-2" />
+                        <p className="text-green-400 text-sm font-medium">Suggestions are based on your profile</p>
+                      </div>
+                      <div className="mb-4">
+                        <label className="block text-white font-medium mb-2">
+                          <Sparkles className="inline h-4 w-4 mr-2 text-blue-400" />
+                          Extra Context (Optional)
+                        </label>
+                        <p className="text-orange-300 text-sm mb-3">Add extra context for more specific results</p>
+                        <textarea
+                          className="w-full p-4 rounded-lg bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20 resize-none"
+                          rows={4}
+                          placeholder="e.g., I'm particularly interested in remote work, or I want to focus on AI/ML roles..."
+                          value={extraContext}
+                          onChange={(e) => setExtraContext(e.target.value)}
+                        />
+                      </div>
+                      <Button
+                        className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                        onClick={handleGenerate}
+                        disabled={loading || !profile || !isProfileComplete(profile)}
+                      >
+                        {loading ? (
+                          <div className="flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Generating...
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center">
+                            <Brain className="h-5 w-5 mr-2" />
+                            {(!profile || !isProfileComplete(profile)) 
+                              ? 'Complete Profile First' 
+                              : 'Generate Suggestions'
+                            }
+                          </div>
+                        )}
+                      </Button>
+                    </div>
+                    
+                    {suggestions.length > 0 && (
+                      <div className="space-y-4">
+                        {suggestions.map((suggestion, index) => (
+                          <div
+                            key={index}
+                            className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-4 hover:bg-white/15 transition-all duration-300"
+                          >
+                            <p className="text-gray-200 leading-relaxed whitespace-pre-wrap">
+                              {suggestion}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
                     )}
-                  </Button>
-                </div>
-
-                {opportunitiesLoading ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
-                    <p className="text-gray-300">Finding relevant opportunities...</p>
-                  </div>
-                ) : opportunities.length > 0 ? (
-                  <div className="space-y-4">
-                    {opportunities.map((opportunity) => {
-                      const isStarred = starredOpportunities.includes(opportunity.id);
-                      return (
-                        <div
-                          key={opportunity.id}
-                          className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-4 hover:bg-white/15 transition-all duration-300"
-                        >
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex-1">
-                              <h3 className="text-white font-semibold mb-1 line-clamp-2">
-                                {opportunity.title}
-                              </h3>
-                              <p className="text-gray-300 text-sm mb-2">{opportunity.company}</p>
-                            </div>
-                            <div className="flex items-center space-x-2 ml-3">
-                              <div className={`px-2 py-1 rounded-full text-xs font-semibold border ${getScoreBgColor(opportunity.score)} ${getScoreColor(opportunity.score)}`}>
-                                {opportunity.score}%
-                              </div>
-                              <button
-                                onClick={() => toggleStarOpportunity(opportunity.id)}
-                                disabled={starringLoading === opportunity.id}
-                                className={`p-1.5 rounded-full transition-all duration-200 ${
-                                  isStarred 
-                                    ? 'text-yellow-400 bg-yellow-400/20 hover:bg-yellow-400/30' 
-                                    : 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/20'
-                                }`}
-                              >
-                                {starringLoading === opportunity.id ? (
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
-                                ) : (
-                                  <Star className={`h-4 w-4 ${isStarred ? 'fill-current' : ''}`} />
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center text-gray-400 text-sm mb-3 space-x-4">
-                            <div className="flex items-center">
-                              <MapPin className="h-3 w-3 mr-1" />
-                              {opportunity.location}
-                            </div>
-                            <div className="flex items-center">
-                              <Calendar className="h-3 w-3 mr-1" />
-                              {formatDate(opportunity.created)}
-                            </div>
-                            <div className="flex items-center">
-                              <Star className="h-3 w-3 mr-1" />
-                              {opportunity.type}
-                            </div>
-                          </div>
-
-                          <p className="text-gray-300 text-sm mb-3 line-clamp-2">
-                            {opportunity.description}
-                          </p>
-
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-400 capitalize">
-                              {opportunity.category}
-                            </span>
-                            <div className="flex items-center space-x-2">
-                              <a
-                                href={opportunity.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors"
-                              >
-                                Apply Now
-                                <ExternalLink className="h-3 w-3 ml-1" />
-                              </a>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Briefcase className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-                    <p className="text-gray-400">No relevant opportunities found</p>
-                    <p className="text-gray-500 text-sm mt-2">Try updating your profile or check back later</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

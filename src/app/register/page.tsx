@@ -54,11 +54,48 @@ export default function Register() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
 
-      await setDoc(doc(db, 'users', uid), {
-        email,
-        role,
-        createdAt: new Date(),
-      });
+      if (role === 'recruiter') {
+        // Create recruiter profile
+        const response = await fetch('/api/recruiter/create-profile', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${await userCredential.user.getIdToken()}`
+          },
+          body: JSON.stringify({
+            email,
+            role,
+            // Default recruiter data - will be completed in onboarding
+            companyName: '',
+            fullName: '',
+            jobTitle: '',
+            department: '',
+            industry: '',
+            companySize: 'small'
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to create recruiter profile');
+        }
+        
+        // Also create a user document for role detection
+        await setDoc(doc(db, 'users', uid), {
+          email,
+          role,
+          createdAt: new Date(),
+        });
+      } else {
+        // Create student profile
+        await setDoc(doc(db, 'users', uid), {
+          email,
+          role,
+          createdAt: new Date(),
+          // Default privacy settings for students
+          isProfilePublic: true,
+          allowRecruiterContact: true,
+        });
+      }
 
       alert('Registration successful! Please sign in.');
       router.push('/login');

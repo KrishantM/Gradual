@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '../../../lib/firebase';
 import { doc, getDoc, getDocs, collection, query, where, updateDoc, arrayRemove } from 'firebase/firestore';
+import { UserRoleService } from '@/lib/user-role';
 import Link from 'next/link';
 import ToDoList from '@/components/ToDoList';
 import { Button } from '@/components/ui/button';
@@ -30,8 +31,61 @@ import {
   Settings,
   Info,
   Trash2,
-  X
+  X,
+  Target
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Animated components for dashboard
+const AnimatedCard = ({ children, delay = 0, className = "" }: { children: React.ReactNode, delay?: number, className?: string }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.6, delay }}
+      whileHover={{ 
+        y: -5, 
+        scale: 1.02,
+        transition: { duration: 0.3 }
+      }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  )
+}
+
+const LoadingSpinner = () => (
+  <motion.div 
+    className="flex items-center justify-center"
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    transition={{ duration: 0.3 }}
+  >
+    <motion.div
+      animate={{ rotate: 360 }}
+      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+    >
+      <Loader2 className="h-8 w-8 text-blue-400" />
+    </motion.div>
+  </motion.div>
+)
+
+const PulseCard = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
+  <motion.div
+    className={className}
+    animate={{ 
+      boxShadow: [
+        "0 0 0px rgba(59, 130, 246, 0)",
+        "0 0 20px rgba(59, 130, 246, 0.3)",
+        "0 0 0px rgba(59, 130, 246, 0)"
+      ]
+    }}
+    transition={{ duration: 2, repeat: Infinity }}
+  >
+    {children}
+  </motion.div>
+)
 
 interface SavedOpportunity {
   id: string;
@@ -88,6 +142,260 @@ function formatOpportunityDate(dateString: string) {
   return date.toLocaleDateString();
 }
 
+// Enhanced CV Score Display Component for Dashboard
+const EnhancedDashboardScoreDisplay = ({ score, analysis }: { score: string | number | null, analysis: string | null }) => {
+  const [showDetails, setShowDetails] = useState(false);
+  const parseScore = (scoreText: string | number | null) => {
+    if (!scoreText) return { overall: null, sections: [] };
+    
+    let text = typeof scoreText === 'number' ? scoreText.toString() : scoreText;
+    
+    // Extract overall score - try multiple patterns
+    let overall = null;
+    
+    // Pattern 1: "Overall Score (0–100): 85"
+    const overallMatch1 = text.match(/Overall Score \(0–100\):\s*(\d+)/);
+    if (overallMatch1) {
+      overall = parseInt(overallMatch1[1]);
+    }
+    
+    // Pattern 2: Just a number (if score is stored as number)
+    if (!overall && typeof scoreText === 'number') {
+      overall = scoreText;
+    }
+    
+    // Pattern 3: Extract number from any text
+    if (!overall) {
+      const numberMatch = text.match(/(\d+)/);
+      if (numberMatch) {
+        const num = parseInt(numberMatch[1]);
+        if (num >= 0 && num <= 100) {
+          overall = num;
+        }
+      }
+    }
+    
+    // Extract category scores and feedback
+    const sections: Array<{name: string, score: number, feedback: string}> = [];
+    
+    const categoryPatterns = [
+      { name: 'Content Quality', pattern: /1\. Content Quality:\s*(\d+)/ },
+      { name: 'Structure & Format', pattern: /2\. Structure & Format:\s*(\d+)/ },
+      { name: 'Professional Language', pattern: /3\. Professional Language:\s*(\d+)/ },
+      { name: 'Achievements & Impact', pattern: /4\. Achievements & Impact:\s*(\d+)/ }
+    ];
+    
+    categoryPatterns.forEach(category => {
+      const match = text.match(category.pattern);
+      if (match) {
+        const score = parseInt(match[1]);
+        sections.push({ name: category.name, score, feedback: '' });
+      }
+    });
+    
+    return { overall, sections };
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'text-emerald-400';
+    if (score >= 60) return 'text-blue-400';
+    if (score >= 40) return 'text-yellow-400';
+    return 'text-red-400';
+  };
+
+  const getOverallColor = (score: number) => {
+    if (score >= 80) return 'from-emerald-500/20 to-emerald-600/20 border-emerald-400/30';
+    if (score >= 60) return 'from-blue-500/20 to-cyan-500/20 border-blue-400/30';
+    if (score >= 40) return 'from-yellow-500/20 to-orange-500/20 border-yellow-400/30';
+    return 'from-red-500/20 to-pink-500/20 border-red-400/30';
+  };
+
+  const getCategoryFeedback = (analysis: string | null, categoryName: string) => {
+    if (!analysis) return '';
+    
+    const lines = analysis.split('\n');
+    let inCategory = false;
+    let feedback = '';
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      if (line.includes(categoryName)) {
+        inCategory = true;
+        continue;
+      }
+      
+      if (inCategory && line && !line.match(/^\d+\./)) {
+        feedback += line + ' ';
+      } else if (inCategory && line.match(/^\d+\./)) {
+        break;
+      }
+    }
+    
+    return feedback.trim();
+  };
+
+  const { overall, sections } = parseScore(score);
+  const areasToImprove = analysis?.split('5. Areas to improve:')[1]?.trim() || '';
+
+  // If we can't parse a score, show a fallback
+  if (!overall) {
+    return (
+      <div className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-400/30 rounded-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <span className="text-6xl font-extrabold text-blue-400">
+              {typeof score === 'number' ? score : '—'}
+            </span>
+            <div className="text-left">
+              <p className="text-gray-300 text-sm">Overall Score</p>
+              <p className="text-gray-400 text-xs">out of 100</p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-auto min-w-0 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30 whitespace-nowrap px-3 py-2 text-sm"
+            onClick={() => setShowDetails((v) => !v)}
+          >
+            {showDetails ? (
+              <>
+                <ChevronUp className="h-4 w-4 mr-2" />
+                Hide Details
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-4 w-4 mr-2" />
+                View Details
+              </>
+            )}
+          </Button>
+        </div>
+        
+        {showDetails && analysis && (
+          <div className="mt-4 p-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg">
+            <h4 className="text-white font-semibold mb-3">CV Analysis</h4>
+            <p className="text-gray-200 whitespace-pre-line leading-relaxed text-sm">
+              {analysis}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Overall Score - Always Visible */}
+      <motion.div 
+        className={`bg-gradient-to-br ${getOverallColor(overall)} backdrop-blur-md border rounded-lg p-6`}
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <span className={`text-6xl font-extrabold ${getScoreColor(overall)}`}>
+              {overall}
+            </span>
+            <div className="text-left">
+              <p className="text-gray-300 text-sm">Overall Score</p>
+              <p className="text-gray-400 text-xs">out of 100</p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-auto min-w-0 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30 whitespace-nowrap px-3 py-2 text-sm"
+            onClick={() => setShowDetails((v) => !v)}
+          >
+            {showDetails ? (
+              <>
+                <ChevronUp className="h-4 w-4 mr-2" />
+                Hide Details
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-4 w-4 mr-2" />
+                View Details
+              </>
+            )}
+          </Button>
+        </div>
+      </motion.div>
+
+      {/* Collapsible Details */}
+      <AnimatePresence>
+        {showDetails && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-6"
+          >
+            {/* Areas to Improve */}
+            {areasToImprove && (
+              <motion.div 
+                className="bg-gradient-to-br from-green-500/20 to-emerald-600/20 backdrop-blur-md border border-green-400/30 rounded-lg p-6"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+              >
+                <div className="flex items-center mb-4">
+                  <Target className="h-6 w-6 text-green-400 mr-3" />
+                  <h3 className="text-xl font-semibold text-white">Areas to Improve</h3>
+                </div>
+                <p className="text-gray-200 leading-relaxed">
+                  {areasToImprove}
+                </p>
+              </motion.div>
+            )}
+
+            {/* Scoring Breakdown */}
+            {sections.length > 0 && (
+              <motion.div 
+                className="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-lg p-6"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
+                <div className="flex items-center mb-6">
+                  <Brain className="h-6 w-6 text-blue-400 mr-3" />
+                  <h3 className="text-xl font-semibold text-white">Scoring Breakdown</h3>
+                </div>
+                <div className="grid gap-3">
+                  {sections.map((section, index) => (
+                    <motion.div
+                      key={section.name}
+                      className="bg-slate-800/50 backdrop-blur-sm border border-white/10 rounded-lg p-3"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.4, delay: 0.3 + index * 0.1 }}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-white font-medium">{section.name}</h4>
+                        <div className={`text-2xl font-bold ${getScoreColor(section.score)}`}>
+                          {section.score}
+                        </div>
+                      </div>
+                      {getCategoryFeedback(analysis, section.name) && (
+                        <p className="text-gray-300 text-sm">
+                          {getCategoryFeedback(analysis, section.name)}
+                        </p>
+                      )}
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 export default function DashboardPage() {
   const { user, logout } = useAuth();
   const router = useRouter();
@@ -96,7 +404,6 @@ export default function DashboardPage() {
   const [cvScore, setCvScore] = useState<string | number | null>(null);
   const [cvScoreTimestamp, setCvScoreTimestamp] = useState<any>(null);
   const [cvScoreAnalysis, setCvScoreAnalysis] = useState<string | null>(null);
-  const [showDetails, setShowDetails] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savedOpportunities, setSavedOpportunities] = useState<SavedOpportunity[]>([]);
   const [opportunitiesLoading, setOpportunitiesLoading] = useState(false);
@@ -111,6 +418,30 @@ export default function DashboardPage() {
       router.push('/login');
       return;
     }
+
+    // Check user role and redirect if necessary
+    const checkUserRole = async () => {
+      try {
+        console.log('Checking user role for:', user.email);
+        const userRole = await UserRoleService.getUserRole(user);
+        console.log('Detected user role:', userRole);
+        
+        if (userRole.role === 'recruiter') {
+          console.log('Redirecting recruiter to recruiter dashboard');
+          // Redirect recruiters to their dashboard
+          router.push('/recruiter-dashboard');
+          return;
+        }
+        
+        console.log('Continuing with student dashboard');
+        // Continue with student dashboard logic
+        await fetchData();
+      } catch (error) {
+        console.error('Error checking user role:', error);
+        // Fallback to student dashboard
+        await fetchData();
+      }
+    };
 
     const fetchData = async () => {
       try {
@@ -169,7 +500,7 @@ export default function DashboardPage() {
       }
     };
 
-    fetchData();
+    checkUserRole();
   }, [user, router]);
 
   const fetchSavedOpportunities = async (savedIds: string[]) => {
@@ -261,7 +592,6 @@ export default function DashboardPage() {
       setCvScore(null);
       setCvScoreTimestamp(null);
       setCvScoreAnalysis(null);
-      setShowDetails(false);
       
       console.log('CV score cleared successfully');
     } catch (error) {
@@ -336,77 +666,163 @@ export default function DashboardPage() {
     }
   };
 
-  const overallScore = extractOverallScore(cvScore);
-
   if (loading || !user) return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black flex items-center justify-center">
-      <div className="text-center">
-        <Loader2 className="h-8 w-8 text-blue-400 animate-spin mx-auto mb-4" />
-        <p className="text-gray-300">Loading your dashboard...</p>
-      </div>
-    </div>
+    <motion.div 
+      className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black flex items-center justify-center"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      <motion.div 
+        className="text-center"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.2 }}
+      >
+        <motion.div
+          animate={{ 
+            rotate: 360,
+            scale: [1, 1.1, 1]
+          }}
+          transition={{ 
+            rotate: { duration: 1, repeat: Infinity, ease: "linear" },
+            scale: { duration: 2, repeat: Infinity, ease: "easeInOut" }
+          }}
+        >
+          <Loader2 className="h-8 w-8 text-blue-400 mx-auto mb-4" />
+        </motion.div>
+        <motion.p 
+          className="text-gray-300"
+          animate={{ opacity: [0.5, 1, 0.5] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+        >
+          Loading your dashboard<span className="loading-dots"></span>
+        </motion.p>
+      </motion.div>
+    </motion.div>
   );
 
   if (hasError) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 text-red-400 animate-spin mx-auto mb-4" />
-          <p className="text-gray-300">Failed to load your dashboard. Please try again later.</p>
+      <motion.div 
+        className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black flex items-center justify-center"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <motion.div 
+          className="text-center"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          <motion.div
+            animate={{ 
+              rotate: 360,
+              scale: [1, 1.2, 1]
+            }}
+            transition={{ 
+              rotate: { duration: 1, repeat: Infinity, ease: "linear" },
+              scale: { duration: 2, repeat: Infinity, ease: "easeInOut" }
+            }}
+          >
+            <Loader2 className="h-12 w-12 text-red-400 mx-auto mb-4" />
+          </motion.div>
+          <motion.p 
+            className="text-gray-300 mb-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+          >
+            Failed to load your dashboard. Please try again later.
+          </motion.p>
           {user && (
-            <Button onClick={refreshDashboard} className="mt-4 bg-red-600 hover:bg-red-700">
-              Refresh Dashboard
-            </Button>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.6 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Button onClick={refreshDashboard} className="bg-red-600 hover:bg-red-700">
+                Refresh Dashboard
+              </Button>
+            </motion.div>
           )}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black">
+    <motion.div 
+      className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.8 }}
+    >
       <div className="container mx-auto px-4 py-20">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
-          <div className="text-center mb-12">
+          <motion.div 
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
             <div className="mb-6">
-              <h1 className="text-4xl lg:text-5xl font-bold text-white mb-4">
-                Welcome{name && `, ${name}`}! 👋
-              </h1>
-              <p className="text-gray-300 text-lg max-w-2xl mx-auto">
+              <motion.h1 
+                className="text-4xl lg:text-5xl font-bold text-white mb-4"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+              >
+                Welcome{name && `, ${name}`}! 
+                <motion.span
+                  animate={{ rotate: [0, 10, -10, 0] }}
+                  transition={{ duration: 0.5, delay: 0.8 }}
+                >
+                  👋
+                </motion.span>
+              </motion.h1>
+              <motion.p 
+                className="text-gray-300 text-lg max-w-2xl mx-auto"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+              >
                 Your personalized career dashboard with insights, suggestions, and progress tracking
-              </p>
+              </motion.p>
             </div>
+          </motion.div>
 
-          </div>
-
-          {/* CV Builder Section */}
-          <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl mb-8">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center">
-                  <TrendingUp className="h-6 w-6 text-blue-400 mr-3" />
-                  <h2 className="text-2xl font-semibold text-white">Your Latest CV Score</h2>
+          {/* CV Score Section */}
+          <AnimatedCard delay={0.6}>
+            <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl mb-8 hover-lift">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center">
+                    <TrendingUp className="h-6 w-6 text-blue-400 mr-3" />
+                    <h2 className="text-2xl font-semibold text-white">Your Latest CV Score</h2>
+                  </div>
+                  {cvScore && (
+                    <Button
+                      onClick={clearCVScore}
+                      disabled={clearingScore}
+                      variant="outline"
+                      size="sm"
+                      className="bg-red-500/10 border-red-400 text-red-400 hover:bg-red-500/20 hover:text-white transition-all duration-300"
+                    >
+                      {clearingScore ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Trash2 className="h-4 w-4 mr-2" />
+                      )}
+                      {clearingScore ? 'Clearing...' : 'Clear Score'}
+                    </Button>
+                  )}
                 </div>
-                {cvScore && (
-                  <Button
-                    onClick={clearCVScore}
-                    disabled={clearingScore}
-                    variant="outline"
-                    size="sm"
-                    className="bg-red-500/10 border-red-400 text-red-400 hover:bg-red-500/20 hover:text-white transition-all duration-300"
-                  >
-                    {clearingScore ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Trash2 className="h-4 w-4 mr-2" />
-                    )}
-                    {clearingScore ? 'Clearing...' : 'Clear Score'}
-                  </Button>
-                )}
-              </div>
-              
-              <div className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-400/30 rounded-lg p-6">
+                
                 {!cvScore ? (
                   // No CV score state
                   <div className="text-center py-8">
@@ -425,84 +841,30 @@ export default function DashboardPage() {
                     </Link>
                   </div>
                 ) : (
-                  // CV score exists
+                  // CV score exists - use enhanced display
                   <>
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-4">
-                        <span className="text-6xl font-extrabold text-blue-400">
-                          {overallScore ? overallScore : '—'}
-                        </span>
-                        <div className="text-left">
-                          <p className="text-gray-300 text-sm">Overall Score</p>
-                          <p className="text-gray-400 text-xs">out of 100</p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-auto min-w-0 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30 whitespace-nowrap px-3 py-2 text-sm"
-                        onClick={() => setShowDetails((v) => !v)}
-                      >
-                        {showDetails ? (
-                          <>
-                            <ChevronUp className="h-4 w-4 mr-2" />
-                            Hide Details
-                          </>
-                        ) : (
-                          <>
-                            <ChevronDown className="h-4 w-4 mr-2" />
-                            View Details
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                    
                     {cvScoreTimestamp && (
-                      <div className="flex items-center text-gray-400 text-sm mb-4">
+                      <div className="flex items-center text-gray-400 text-sm mb-6">
                         <Calendar className="h-4 w-4 mr-2" />
                         Last updated: {formatDate(cvScoreTimestamp)}
                       </div>
                     )}
                     
-                    {/* CV Score Analysis - Show when details are expanded */}
-                    {showDetails && cvScoreAnalysis && (
-                      <div className="mt-4 p-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg">
-                        <h4 className="text-white font-semibold mb-3">CV Analysis</h4>
-                        <p className="text-gray-200 whitespace-pre-line leading-relaxed text-sm">
-                          {cvScoreAnalysis}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Show message when analysis is available but details are hidden */}
-                    {!showDetails && cvScoreAnalysis && (
-                      <div className="mt-4 text-center">
-                        <div className="text-gray-400 text-sm">
-                          <Info className="h-4 w-4 inline mr-2" />
-                          Click &quot;View Details&quot; to see your CV analysis
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Show message when no analysis is available */}
-                    {!cvScoreAnalysis && (
-                      <div className="mt-4 text-center">
-                        <div className="text-gray-400 text-sm">
-                          <Info className="h-4 w-4 inline mr-2" />
-                          CV analysis will be available after your next CV scoring
-                        </div>
-                      </div>
-                    )}
+                    <EnhancedDashboardScoreDisplay 
+                      score={cvScore} 
+                      analysis={cvScoreAnalysis} 
+                    />
                   </>
                 )}
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </AnimatedCard>
 
           {/* Main Content Grid */}
           <div className="grid lg:grid-cols-2 gap-8 mb-8">
             {/* Saved Suggestions */}
-            <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl">
+            <AnimatedCard delay={0.8}>
+              <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl hover-lift">
               <CardContent className="p-6">
                 <div className="flex items-center mb-6">
                   <Sparkles className="h-6 w-6 text-blue-400 mr-3" />
@@ -531,9 +893,11 @@ export default function DashboardPage() {
                 )}
               </CardContent>
             </Card>
+            </AnimatedCard>
 
             {/* To-Do List */}
-            <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl">
+            <AnimatedCard delay={1.0}>
+              <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl hover-lift">
               <CardContent className="p-6">
                 <div className="flex items-center mb-6">
                   <CheckCircle className="h-6 w-6 text-blue-400 mr-3" />
@@ -542,10 +906,12 @@ export default function DashboardPage() {
                 {user && <ToDoList userId={user.uid} />}
               </CardContent>
             </Card>
+            </AnimatedCard>
           </div>
 
           {/* Saved Opportunities Section */}
-          <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl mb-8">
+          <AnimatedCard delay={1.2}>
+            <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl mb-8 hover-lift">
             <CardContent className="p-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
                 <div className="flex items-center">
@@ -666,9 +1032,11 @@ export default function DashboardPage() {
               )}
             </CardContent>
           </Card>
+          </AnimatedCard>
 
           {/* Action Buttons */}
-          <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl">
+          <AnimatedCard delay={1.4}>
+            <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl hover-lift">
             <CardContent className="p-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <Link href="/profile" className="w-full">
@@ -733,8 +1101,9 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
+          </AnimatedCard>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

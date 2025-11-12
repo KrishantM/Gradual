@@ -24,6 +24,12 @@ export default function Footer() {
           {/* Center - Links */}
           <div className="flex items-center space-x-6">
             <Link 
+              href="/pricing" 
+              className="text-gray-400 hover:text-blue-400 transition-colors duration-200 text-sm"
+            >
+              Pricing
+            </Link>
+            <Link 
               href="/terms" 
               className="text-gray-400 hover:text-blue-400 transition-colors duration-200 text-sm"
             >
@@ -34,12 +40,6 @@ export default function Footer() {
               className="text-gray-400 hover:text-blue-400 transition-colors duration-200 text-sm"
             >
               Privacy Policy
-            </Link>
-            <Link 
-              href="/about" 
-              className="text-gray-400 hover:text-blue-400 transition-colors duration-200 text-sm"
-            >
-              About
             </Link>
           </div>
 
@@ -56,12 +56,12 @@ export default function Footer() {
               Your AI-powered career development platform
             </p>
             <div className="flex items-center space-x-4">
-              <Link 
-                href="/about#contact" 
+              <a 
+                href="mailto:admin@gradual.co.nz" 
                 className="text-gray-500 hover:text-blue-400 transition-colors duration-200 text-xs"
               >
                 Contact Us
-              </Link>
+              </a>
             </div>
           </div>
         </div>
