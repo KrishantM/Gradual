@@ -5,7 +5,7 @@ import { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { ButtonProps } from '@/components/ui/button';
 
-interface AnimatedButtonProps extends ButtonProps {
+interface AnimatedButtonProps extends Omit<ButtonProps, 'variant'> {
   children: ReactNode;
   variant?: 'default' | 'gradient' | 'glow' | 'pulse';
   animationType?: 'scale' | 'lift' | 'glow' | 'wiggle';
