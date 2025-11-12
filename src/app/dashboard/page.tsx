@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '../../../lib/firebase';
@@ -148,7 +148,7 @@ const EnhancedDashboardScoreDisplay = ({ score, analysis }: { score: string | nu
   const parseScore = (scoreText: string | number | null) => {
     if (!scoreText) return { overall: null, sections: [] };
     
-    let text = typeof scoreText === 'number' ? scoreText.toString() : scoreText;
+    const text = typeof scoreText === 'number' ? scoreText.toString() : scoreText;
     
     // Extract overall score - try multiple patterns
     let overall = null;
@@ -413,6 +413,31 @@ export default function DashboardPage() {
   const [clearingScore, setClearingScore] = useState(false);
   const [fetchingJobs, setFetchingJobs] = useState(false);
 
+  const fetchSavedOpportunities = useCallback(async (savedIds: string[]) => {
+    if (!user) return;
+    setOpportunitiesLoading(true);
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
+      
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        const savedOpportunitiesData = userData.savedOpportunitiesData || [];
+        
+        // Filter to only include opportunities that are still in the savedIds array
+        const validOpportunities = savedOpportunitiesData.filter((opp: SavedOpportunity) => 
+          savedIds.includes(opp.id)
+        );
+        
+        setSavedOpportunities(validOpportunities);
+      }
+    } catch (error) {
+      console.error('Error fetching saved opportunities:', error);
+    } finally {
+      setOpportunitiesLoading(false);
+    }
+  }, [user]);
+
   useEffect(() => {
     if (!user) {
       router.push('/login');
@@ -501,31 +526,7 @@ export default function DashboardPage() {
     };
 
     checkUserRole();
-  }, [user, router]);
-
-  const fetchSavedOpportunities = async (savedIds: string[]) => {
-    setOpportunitiesLoading(true);
-    try {
-      const userRef = doc(db, 'users', user!.uid);
-      const userSnap = await getDoc(userRef);
-      
-      if (userSnap.exists()) {
-        const userData = userSnap.data();
-        const savedOpportunitiesData = userData.savedOpportunitiesData || [];
-        
-        // Filter to only include opportunities that are still in the savedIds array
-        const validOpportunities = savedOpportunitiesData.filter((opp: SavedOpportunity) => 
-          savedIds.includes(opp.id)
-        );
-        
-        setSavedOpportunities(validOpportunities);
-      }
-    } catch (error) {
-      console.error('Error fetching saved opportunities:', error);
-    } finally {
-      setOpportunitiesLoading(false);
-    }
-  };
+  }, [user, router, fetchSavedOpportunities]);
 
   const refreshDashboard = async () => {
     if (!user) return;

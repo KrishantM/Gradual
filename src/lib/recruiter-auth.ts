@@ -250,7 +250,7 @@ export class RecruiterAuthService {
       }
       
       // Query students collection with filters
-      let studentsQuery = db.collection('users').limit(limit);
+      const studentsQuery = db.collection('users').limit(limit);
       
       // Apply filters if provided
       if (filters) {

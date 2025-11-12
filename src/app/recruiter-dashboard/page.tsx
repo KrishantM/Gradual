@@ -17,7 +17,7 @@
  * - Privacy-respecting data filtering
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -76,6 +76,36 @@ export default function RecruiterDashboard() {
   const [shortlists, setShortlists] = useState<any[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   
+  // Load students with current filters
+  const loadStudents = useCallback(async () => {
+    if (!user) return;
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch('/api/recruiter/students', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          search: searchQuery,
+          filters: filters,
+          limit: 20
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to load students');
+      }
+      
+      const data = await response.json();
+      setStudents(data.students);
+    } catch (err: any) {
+      setError(err.message);
+      console.error('Failed to load students:', err);
+    }
+  }, [user, searchQuery, filters]);
+  
   // Load recruiter profile and permissions
   useEffect(() => {
     if (authLoading) return;
@@ -122,36 +152,7 @@ export default function RecruiterDashboard() {
     };
     
     loadRecruiterData();
-  }, [user, authLoading, router]);
-  
-  // Load students with current filters
-  const loadStudents = async () => {
-    try {
-      const token = await user?.getIdToken();
-      const response = await fetch('/api/recruiter/students', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          search: searchQuery,
-          filters: filters,
-          limit: 20
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to load students');
-      }
-      
-      const data = await response.json();
-      setStudents(data.students);
-    } catch (err: any) {
-      setError(err.message);
-      console.error('Failed to load students:', err);
-    }
-  };
+  }, [user, authLoading, router, loadStudents]);
   
   // Handle search
   const handleSearch = () => {

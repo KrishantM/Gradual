@@ -212,7 +212,7 @@ export default function StudentPrivacySettings() {
             <div className="flex items-start space-x-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
               <Info className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
               <p className="text-blue-300 text-sm">
-                Recruiters won't be able to contact you directly, but they can still view your profile if it's public.
+                Recruiters won&apos;t be able to contact you directly, but they can still view your profile if it&apos;s public.
               </p>
             </div>
           )}

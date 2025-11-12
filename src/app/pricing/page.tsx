@@ -322,7 +322,7 @@ export default function PricingPage() {
               <h3 className="text-lg font-semibold text-white mb-3">Can I change plans anytime?</h3>
               <p className="text-gray-300">
                 Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately, 
-                and we'll prorate any billing differences.
+                and we&apos;ll prorate any billing differences.
               </p>
             </CardContent>
           </Card>
@@ -349,7 +349,7 @@ export default function PricingPage() {
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold text-white mb-3">Can I cancel anytime?</h3>
               <p className="text-gray-300">
-                Absolutely! Cancel anytime with no cancellation fees. You'll retain access until the end of your billing period.
+                Absolutely! Cancel anytime with no cancellation fees. You&apos;ll retain access until the end of your billing period.
               </p>
             </CardContent>
           </Card>
