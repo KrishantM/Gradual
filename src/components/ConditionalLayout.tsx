@@ -16,13 +16,16 @@ export default function ConditionalLayout({ children }: ConditionalLayoutProps) 
   const { user } = useAuth();
   const [shouldShowNavbar, setShouldShowNavbar] = useState(true);
   
+  // Handle null pathname
+  const currentPath = pathname || '/';
+  
   // Don't show footer on the main landing page (root path)
-  const shouldShowFooter = pathname !== '/';
+  const shouldShowFooter = currentPath !== '/';
   
   // Check if current page is a recruiter page, pricing page, or legal pages
-  const isRecruiterPage = pathname.startsWith('/recruiter');
-  const isPricingPage = pathname === '/pricing';
-  const isLegalPage = pathname === '/terms' || pathname === '/privacy';
+  const isRecruiterPage = currentPath.startsWith('/recruiter');
+  const isPricingPage = currentPath === '/pricing';
+  const isLegalPage = currentPath === '/terms' || currentPath === '/privacy';
   
   // Check user role to determine navbar visibility
   useEffect(() => {
