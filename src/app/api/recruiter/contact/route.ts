@@ -38,6 +38,10 @@ export async function POST(req: NextRequest) {
     
     const studentData = studentSnap.data();
     
+    if (!studentData) {
+      return NextResponse.json({ error: 'Student data not available' }, { status: 404 });
+    }
+    
     // Check if student allows recruiter contact
     if (studentData.allowRecruiterContact === false) {
       return NextResponse.json({ error: 'Student has disabled recruiter contact' }, { status: 403 });
