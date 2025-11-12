@@ -18,7 +18,7 @@ import {
   Eye, 
   EyeOff, 
   Mail, 
-  MailOff, 
+  MailX, 
   Users, 
   UserCheck,
   Save,
@@ -185,7 +185,7 @@ export default function StudentPrivacySettings() {
               {settings.allowRecruiterContact ? (
                 <Mail className="h-5 w-5 text-green-400" />
               ) : (
-                <MailOff className="h-5 w-5 text-red-400" />
+                <MailX className="h-5 w-5 text-red-400" />
               )}
               <div>
                 <h3 className="text-white font-medium">Recruiter Contact</h3>
