@@ -22,13 +22,22 @@ export default function ConditionalLayout({ children }: ConditionalLayoutProps) 
   // Don't show footer on the main landing page (root path)
   const shouldShowFooter = currentPath !== '/';
   
+  // Check if current page is a consulting page (has its own layout)
+  const isConsultingPage = currentPath.startsWith('/consulting');
+  
   // Check if current page is a recruiter page, pricing page, or legal pages
   const isRecruiterPage = currentPath.startsWith('/recruiter');
   const isPricingPage = currentPath === '/pricing';
   const isLegalPage = currentPath === '/terms' || currentPath === '/privacy';
   
   // Check user role to determine navbar visibility
+  // IMPORTANT: All hooks must be called before any conditional returns
   useEffect(() => {
+    // Skip effect for consulting pages
+    if (isConsultingPage) {
+      return;
+    }
+    
     const checkUserRole = async () => {
       if (user && (isRecruiterPage || isPricingPage || isLegalPage)) {
         try {
@@ -47,7 +56,16 @@ export default function ConditionalLayout({ children }: ConditionalLayoutProps) 
     };
     
     checkUserRole();
-  }, [user, isRecruiterPage, isPricingPage, isLegalPage]);
+  }, [user, isRecruiterPage, isPricingPage, isLegalPage, isConsultingPage]);
+  
+  // Don't show main navbar/footer on consulting pages (they have their own)
+  if (isConsultingPage) {
+    return (
+      <main className="flex-1">
+        {children}
+      </main>
+    );
+  }
 
   return (
     <>

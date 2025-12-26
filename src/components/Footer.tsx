@@ -24,10 +24,22 @@ export default function Footer() {
           {/* Center - Links */}
           <div className="flex items-center space-x-6">
             <Link 
+              href="/about" 
+              className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border border-blue-400/30 text-blue-300 hover:text-blue-200 hover:from-blue-600/30 hover:to-cyan-600/30 hover:border-blue-400/50 transition-all duration-200 text-sm font-medium"
+            >
+              About
+            </Link>
+            <Link 
               href="/pricing" 
               className="text-gray-400 hover:text-blue-400 transition-colors duration-200 text-sm"
             >
               Pricing
+            </Link>
+            <Link 
+              href="/consulting" 
+              className="text-gray-400 hover:text-blue-400 transition-colors duration-200 text-sm"
+            >
+              Consulting
             </Link>
             <Link 
               href="/terms" 

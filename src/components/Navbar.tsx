@@ -65,16 +65,6 @@ export default function Navbar() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Link href="/about">
-                <Button
-                  variant="ghost"
-                  className="text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-300"
-                >
-                  About
-                </Button>
-              </Link>
-            </motion.div>
             {user && (
               <>
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
@@ -93,7 +83,17 @@ export default function Navbar() {
                       variant="ghost"
                       className="text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-300"
                     >
-                      Suggestions
+                      Opportunities Engine
+                    </Button>
+                  </Link>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Link href="/career-suggestions">
+                    <Button
+                      variant="ghost"
+                      className="text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-300"
+                    >
+                      Career Suggestions
                     </Button>
                   </Link>
                 </motion.div>
@@ -231,17 +231,6 @@ export default function Navbar() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3, delay: 0.1 }}
               >
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Link href="/about">
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-300"
-                      onClick={closeMobileMenu}
-                    >
-                      About
-                    </Button>
-                  </Link>
-                </motion.div>
                 {user && (
                   <>
                     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
@@ -256,7 +245,12 @@ export default function Navbar() {
                     </motion.div>
                     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                       <Link href="/suggestions" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
-                        Suggestions
+                        Opportunities Engine
+                      </Link>
+                    </motion.div>
+                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                      <Link href="/career-suggestions" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
+                        Career Suggestions
                       </Link>
                     </motion.div>
                     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
