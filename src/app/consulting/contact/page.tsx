@@ -81,7 +81,7 @@ export default function ContactPage() {
               <CardHeader>
                 <CardTitle className="text-white">Send us a message</CardTitle>
                 <CardDescription className="text-gray-300">
-                  Fill out the form below and we'll get back to you within 24 hours.
+                  Fill out the form below and we&apos;ll get back to you within 24 hours.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -92,7 +92,7 @@ export default function ContactPage() {
                       Thank you for your message!
                     </p>
                     <p className="text-gray-300">
-                      We'll get back to you within 24 hours.
+                      We&apos;ll get back to you within 24 hours.
                     </p>
                   </div>
                 ) : (
@@ -181,7 +181,7 @@ export default function ContactPage() {
               <CardHeader>
                 <CardTitle className="text-white">Book a call</CardTitle>
                 <CardDescription className="text-gray-300">
-                  Schedule a free 10-minute fit check to see if we're a good match.
+                  Schedule a free 10-minute fit check to see if we&apos;re a good match.
                 </CardDescription>
               </CardHeader>
               <CardContent>
