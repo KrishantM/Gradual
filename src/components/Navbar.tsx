@@ -41,24 +41,46 @@ export default function Navbar() {
     >
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <Link 
-            href={user ? "/dashboard" : "/"} 
-            className="flex items-center group"
-            onClick={closeMobileMenu}
-          >
-            <Image 
-              src="/newlogo2.png" 
-              alt="Gradual" 
-              width={100}
-              height={100}
-              unoptimized
-              className="h-5 w-auto group-hover:opacity-80 transition-opacity duration-300"
-              style={{ objectFit: 'contain' }}
-            />
-          </Link>
+          {/* Logo and Consulting - Left Side */}
+          <div className="flex items-center space-x-4">
+            <Link 
+              href={user ? "/dashboard" : "/"} 
+              className="flex items-center group"
+              onClick={closeMobileMenu}
+            >
+              <Image 
+                src="/newlogo2.png" 
+                alt="Gradual" 
+                width={100}
+                height={100}
+                unoptimized
+                className="h-5 w-auto group-hover:opacity-80 transition-opacity duration-300"
+                style={{ objectFit: 'contain' }}
+              />
+            </Link>
+            <motion.div 
+              className="hidden md:flex items-center"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            >
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Link href="/consulting">
+                  <Button
+                    variant="ghost"
+                    className="text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-300 relative group"
+                  >
+                    <Target className="h-4 w-4 mr-2" />
+                    Consulting
+                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-[0_0_4px_rgba(251,191,36,0.4)]"></span>
+                  </Button>
+                </Link>
+              </motion.div>
+              <div className="h-6 w-px bg-white/20 mx-2"></div>
+            </motion.div>
+          </div>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Navigation - Right Side */}
           <motion.div 
             className="hidden md:flex items-center space-x-1"
             initial={{ opacity: 0, x: 50 }}
@@ -234,6 +256,12 @@ export default function Navbar() {
                 {user && (
                   <>
                     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                      <Link href="/consulting" onClick={closeMobileMenu} className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
+                        <Target className="h-4 w-4 inline mr-2" />
+                        Consulting
+                      </Link>
+                    </motion.div>
+                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                       <Link href="/dashboard" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
                         Dashboard
                       </Link>
@@ -285,6 +313,17 @@ export default function Navbar() {
                 )}
                 {!user && (
                   <>
+                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                      <Link href="/consulting" onClick={closeMobileMenu}>
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-300"
+                        >
+                          <Target className="h-4 w-4 mr-3" />
+                          Consulting
+                        </Button>
+                      </Link>
+                    </motion.div>
                     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                       <Link href="/login">
                         <Button
