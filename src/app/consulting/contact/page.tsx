@@ -243,8 +243,8 @@ export default function ContactPage() {
           </h2>
           <p className="text-gray-300 mb-6">
             Prefer email? Send us a message at{' '}
-            <a href="mailto:consulting@gradual.com" className="text-blue-400 font-medium hover:text-blue-300 hover:underline">
-              consulting@gradual.com
+            <a href="mailto:admin@gradual.co.nz" className="text-blue-400 font-medium hover:text-blue-300 hover:underline">
+              admin@gradual.co.nz
             </a>
           </p>
           <Link href="/consulting/pricing">
