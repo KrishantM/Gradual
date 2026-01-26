@@ -223,7 +223,7 @@ export default function SuggestionsPage() {
     if (profile.interests) {
       const interestWords = profile.interests.toLowerCase().split(/[,\s]+/);
       const techSkills = ['javascript', 'python', 'react', 'node', 'java', 'sql', 'html', 'css', 'typescript', 'angular', 'vue'];
-      interestWords.forEach(word => {
+      interestWords.forEach((word: string) => {
         if (techSkills.includes(word) && !skills.includes(word)) {
           skills.push(word);
         }
