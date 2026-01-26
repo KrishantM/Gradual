@@ -61,7 +61,7 @@ export default function ConsultingLandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
-              <span className="bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 bg-clip-text text-transparent">Who</span> it's for
+              <span className="bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 bg-clip-text text-transparent">Who</span> it&apos;s for
             </h2>
             <p className="text-lg text-gray-300 max-w-2xl mx-auto">
               Two distinct tracks tailored to your stage
@@ -135,7 +135,7 @@ export default function ConsultingLandingPage() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-8">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
-              <span className="bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 bg-clip-text text-transparent">What</span> you'll leave with
+              <span className="bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 bg-clip-text text-transparent">What</span> you&apos;ll leave with
             </h2>
           </div>
           <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-lg p-8 md:p-12 rounded-2xl">
