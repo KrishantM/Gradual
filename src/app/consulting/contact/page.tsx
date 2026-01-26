@@ -201,7 +201,7 @@ export default function ContactPage() {
                       onClick={() => {
                         // Calendly URL from environment variable
                         // Set NEXT_PUBLIC_CALENDLY_URL in .env.local
-                        const calendlyUrl = process.env.NEXT_PUBLIC_CALENDLY_URL || 'https://calendly.com/your-link';
+                        const calendlyUrl = process.env.NEXT_PUBLIC_CALENDLY_URL || 'https://calendly.com/admin-gradual/30min';
                         window.open(calendlyUrl, '_blank');
                       }}
                     >

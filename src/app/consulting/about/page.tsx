@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import Section from '@/components/consulting/Section';
-import { CheckCircle, ArrowRight, TrendingUp, Target } from 'lucide-react';
+import { CheckCircle, ArrowRight, Briefcase, Target } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'About - Gradual Consulting',
@@ -22,9 +22,9 @@ export default function AboutPage() {
       description: 'Complex career decisions become clear when broken down into structured steps.',
     },
     {
-      icon: TrendingUp,
-      title: 'Optimisation',
-      description: 'We focus on maximising the return on your time and effort at every stage of your journey.',
+      icon: Briefcase,
+      title: 'Accountability',
+      description: 'We provide the framework, but you own the execution. We\'re here to guide and support.',
     },
   ];
 

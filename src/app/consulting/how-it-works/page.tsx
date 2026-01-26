@@ -102,24 +102,12 @@ export default function HowItWorksPage() {
                   <Clock className="h-6 w-6 mr-3 text-blue-400" />
                   <h3 className="text-xl font-semibold text-white">Session Format</h3>
                 </div>
-                <ul className="space-y-3 text-gray-300">
-                  <li className="flex items-start">
-                    <CheckCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0 text-blue-400" />
-                    <span>Sessions typically run 60-90 minutes</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0 text-blue-400" />
-                    <span>Conducted via video call (flexible scheduling)</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0 text-blue-400" />
-                    <span>Frequency depends on your package (see Pricing)</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0 text-blue-400" />
-                    <span>All sessions include follow-up notes and action items</span>
-                  </li>
-                </ul>
+                <p className="text-gray-300 leading-relaxed mb-4">
+                  Sessions typically run for 60 to 90 minutes and are conducted via video call. Scheduling is flexible and depends on your selected package.
+                </p>
+                <p className="text-gray-300 leading-relaxed">
+                  Each session includes clear follow-up notes and action items to ensure momentum continues between sessions.
+                </p>
               </CardContent>
             </Card>
             <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-lg">
@@ -131,36 +119,9 @@ export default function HowItWorksPage() {
                   </div>
                   <h3 className="text-xl font-semibold text-white">Between Sessions</h3>
                 </div>
-                <ul className="space-y-3 text-gray-300">
-                  <li className="flex items-start">
-                    <div className="mr-2 mt-0.5 flex-shrink-0 relative">
-                      <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 blur-sm opacity-40"></div>
-                      <CheckCircle className="h-5 w-5 relative text-amber-400" style={{ filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.5))' }} />
-                    </div>
-                    <span>You work on action items and assignments</span>
-                  </li>
-                  <li className="flex items-start">
-                    <div className="mr-2 mt-0.5 flex-shrink-0 relative">
-                      <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 blur-sm opacity-40"></div>
-                      <CheckCircle className="h-5 w-5 relative text-amber-400" style={{ filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.5))' }} />
-                    </div>
-                    <span>Email support for quick questions</span>
-                  </li>
-                  <li className="flex items-start">
-                    <div className="mr-2 mt-0.5 flex-shrink-0 relative">
-                      <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 blur-sm opacity-40"></div>
-                      <CheckCircle className="h-5 w-5 relative text-amber-400" style={{ filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.5))' }} />
-                    </div>
-                    <span>Document review and feedback (as needed)</span>
-                  </li>
-                  <li className="flex items-start">
-                    <div className="mr-2 mt-0.5 flex-shrink-0 relative">
-                      <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 blur-sm opacity-40"></div>
-                      <CheckCircle className="h-5 w-5 relative text-amber-400" style={{ filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.5))' }} />
-                    </div>
-                    <span>Preparation for next session</span>
-                  </li>
-                </ul>
+                <p className="text-gray-300 leading-relaxed">
+                  Between sessions, you will work through agreed action items. Support may include email check-ins for quick questions, document review and feedback where needed, and preparation for the next session.
+                </p>
               </CardContent>
             </Card>
           </div>

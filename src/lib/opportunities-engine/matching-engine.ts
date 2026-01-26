@@ -105,33 +105,32 @@ function filterOpportunities(
   
   // Filter by location
   if (query.location) {
-    const location = query.location;
     filtered = filtered.filter(opp => {
       // Allow remote opportunities if specified
-      if (location.allowRemote && opp.isRemote) {
+      if (query.location.allowRemote && opp.isRemote) {
         return true;
       }
       
       // Check city match
-      if (location.city && opp.city) {
+      if (query.location.city && opp.city) {
         const oppCity = opp.city.toLowerCase();
-        const queryCity = location.city.toLowerCase();
+        const queryCity = query.location.city.toLowerCase();
         if (oppCity.includes(queryCity) || queryCity.includes(oppCity)) {
           return true;
         }
       }
       
       // Check country match
-      if (location.country && opp.country) {
+      if (query.location.country && opp.country) {
         const oppCountry = opp.country.toLowerCase();
-        const queryCountry = location.country.toLowerCase();
+        const queryCountry = query.location.country.toLowerCase();
         if (oppCountry === queryCountry) {
           return true;
         }
       }
       
       // If no specific location filters, include all
-      if (!location.city && !location.country) {
+      if (!query.location.city && !query.location.country) {
         return true;
       }
       
