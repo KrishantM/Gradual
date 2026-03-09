@@ -11,14 +11,10 @@ import ToDoList from '@/components/ToDoList';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { 
-  Home, 
-  User, 
   Brain, 
   CheckCircle, 
   TrendingUp, 
   Calendar, 
-  LogOut, 
-  Edit, 
   Sparkles,
   Loader2,
   ChevronDown,
@@ -28,10 +24,7 @@ import {
   Star,
   ExternalLink,
   BarChart3,
-  Settings,
-  Info,
   Trash2,
-  X,
   Target
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1031,75 +1024,6 @@ export default function DashboardPage() {
                   </Link>
                 </div>
               )}
-            </CardContent>
-          </Card>
-          </AnimatedCard>
-
-          {/* Action Buttons */}
-          <AnimatedCard delay={1.4}>
-            <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl hover-lift">
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                <Link href="/profile" className="w-full">
-                  <div className="bg-gradient-to-br from-blue-500 to-cyan-600 p-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 h-[120px] flex flex-col justify-center">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold text-white mb-1">Edit Profile</h3>
-                        <p className="text-blue-100 text-sm">Update your personal information</p>
-                      </div>
-                      <Edit className="h-6 w-6 text-white/80 group-hover:text-white transition-colors" />
-                    </div>
-                  </div>
-                </Link>
-                
-                <Link href="/suggestions" className="w-full">
-                  <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 h-[120px] flex flex-col justify-center">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold text-white mb-1">Suggestions</h3>
-                        <p className="text-green-100 text-sm">Discover new career opportunities</p>
-                      </div>
-                      <Brain className="h-6 w-6 text-white/80 group-hover:text-white transition-colors" />
-                    </div>
-                  </div>
-                </Link>
-                
-                <Link href="/cvscore" className="w-full">
-                  <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 h-[120px] flex flex-col justify-center">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold text-white mb-1">CV Score</h3>
-                        <p className="text-blue-100 text-sm">Get AI-powered CV analysis</p>
-                      </div>
-                      <BarChart3 className="h-6 w-6 text-white/80 group-hover:text-white transition-colors" />
-                    </div>
-                  </div>
-                </Link>
-
-                <Link href="/settings" className="w-full">
-                  <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 h-[120px] flex flex-col justify-center">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold text-white mb-1">Settings</h3>
-                        <p className="text-purple-100 text-sm">Manage account preferences</p>
-                      </div>
-                      <Settings className="h-6 w-6 text-white/80 group-hover:text-white transition-colors" />
-                    </div>
-                  </div>
-                </Link>
-                
-                <div className="w-full">
-                  <div className="bg-gradient-to-br from-red-500 to-pink-600 p-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 h-[120px] flex flex-col justify-center cursor-pointer" onClick={logout}>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold text-white mb-1">Logout</h3>
-                        <p className="text-red-100 text-sm">Sign out of your account</p>
-                      </div>
-                      <LogOut className="h-6 w-6 text-white/80 group-hover:text-white transition-colors" />
-                    </div>
-                  </div>
-                </div>
-              </div>
             </CardContent>
           </Card>
           </AnimatedCard>

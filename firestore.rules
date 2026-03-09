@@ -35,6 +35,22 @@ service cloud.firestore {
                      isRecruiter() && 
                      studentAllowsRecruiterContact(userId) &&
                      resource.data.role == 'student';
+      // Copilot Phase 1: sessions and undo tokens (server-written via Admin SDK; client never writes)
+      match /copilot_sessions/{sessionId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      match /copilot_undo/{tokenId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      match /copilot_state/{docId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      match /copilot_conversations/{convId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      match /planner_events/{eventId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
     
     // Recruiter profiles - only recruiters can access their own data

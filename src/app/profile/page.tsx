@@ -25,10 +25,9 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { User, GraduationCap, BookOpen, Star, Save, Upload, Loader2, X, Trophy, Target, Edit3 } from 'lucide-react';
+import { User, GraduationCap, Star, Save, Upload, Loader2, Target, Edit3 } from 'lucide-react';
 import { Dialog } from "@/components/ui/dialog";
 import GamifiedProfileDisplay from '@/components/GamifiedProfileDisplay';
-import AchievementSystem from '@/components/AchievementSystem';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -60,7 +59,7 @@ export default function ProfilePage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [cvScore, setCvScore] = useState<number | string | null>(null);
   const [cvScoreTimestamp, setCvScoreTimestamp] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'profile' | 'achievements' | 'edit'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'edit'>('profile');
 
   // Load profile data once when component mounts
   useEffect(() => {
@@ -454,10 +453,10 @@ export default function ProfilePage() {
   };
 
   if (authLoading) return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
-        <Loader2 className="h-8 w-8 text-blue-400 animate-spin mx-auto mb-4" />
-        <p className="text-gray-300">Authenticating...</p>
+        <Loader2 className="h-6 w-6 text-gray-400 animate-spin mx-auto mb-3" />
+        <p className="text-gray-400 text-sm">Loading...</p>
       </div>
     </div>
   );
@@ -465,69 +464,51 @@ export default function ProfilePage() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black">
-      <div className="container mx-auto px-4 py-20">
+    <div className="min-h-screen">
+      <div className="container mx-auto px-4 py-20 max-w-3xl">
         {/* Header */}
-        <div className="text-center mb-12">
-          <div className="mb-6">
-            <h1 className="text-4xl lg:text-5xl font-bold text-white mb-4">
-              Your <span className="text-blue-400">Profile</span>
-            </h1>
-            <p className="text-gray-300 text-lg max-w-2xl mx-auto">
-              Complete your profile to get personalized career suggestions and insights
-            </p>
-            <p className="text-gray-400 text-sm italic mt-2">
-              Academic information is required for career suggestions. For the latest updates to your profile (such as CV changes), please refresh the page after saving.
-            </p>
-          </div>
+        <div className="mb-10">
+          <h1 className="text-3xl font-semibold text-white tracking-tight">
+            Profile
+          </h1>
+          <p className="text-gray-400 text-sm mt-1.5">
+            Your career profile and Gradual rating
+          </p>
         </div>
 
-        {/* Success Popup */}
+        {/* Success Toast */}
         {showSuccess && (
-          <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-3 rounded-lg shadow-lg text-base font-semibold animate-fade-in-out">
-            Profile saved successfully!
+          <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 surface-card text-white px-5 py-2.5 rounded-xl shadow-2xl text-sm font-medium">
+            Profile saved
           </div>
         )}
 
         {/* Tab Navigation */}
         {!loading && (
-          <div className="max-w-4xl mx-auto mb-8">
-            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-2">
-              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-                <button
-                  onClick={() => setActiveTab('profile')}
-                  className={`flex-1 flex items-center justify-center px-3 sm:px-4 py-2 sm:py-3 rounded-md transition-all duration-300 ${
-                    activeTab === 'profile'
-                      ? 'bg-blue-600 text-white shadow-lg'
-                      : 'text-gray-300 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  <Target className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                  <span className="text-sm sm:text-base">Gradual Scorecard</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('achievements')}
-                  className={`flex-1 flex items-center justify-center px-3 sm:px-4 py-2 sm:py-3 rounded-md transition-all duration-300 ${
-                    activeTab === 'achievements'
-                      ? 'bg-blue-600 text-white shadow-lg'
-                      : 'text-gray-300 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  <Trophy className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                  <span className="text-sm sm:text-base">Achievements</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('edit')}
-                  className={`flex-1 flex items-center justify-center px-3 sm:px-4 py-2 sm:py-3 rounded-md transition-all duration-300 ${
-                    activeTab === 'edit'
-                      ? 'bg-blue-600 text-white shadow-lg'
-                      : 'text-gray-300 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  <Edit3 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                  <span className="text-sm sm:text-base">Edit Profile</span>
-                </button>
-              </div>
+          <div className="mb-8">
+            <div className="inline-flex surface-card-subtle rounded-xl p-1">
+              <button
+                onClick={() => setActiveTab('profile')}
+                className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  activeTab === 'profile'
+                    ? 'bg-white/10 text-white shadow-sm'
+                    : 'text-gray-400 hover:text-gray-300'
+                }`}
+              >
+                <Target className="h-4 w-4 mr-2" />
+                Scorecard
+              </button>
+              <button
+                onClick={() => setActiveTab('edit')}
+                className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  activeTab === 'edit'
+                    ? 'bg-white/10 text-white shadow-sm'
+                    : 'text-gray-400 hover:text-gray-300'
+                }`}
+              >
+                <Edit3 className="h-4 w-4 mr-2" />
+                Edit Profile
+              </button>
             </div>
           </div>
         )}
@@ -535,7 +516,6 @@ export default function ProfilePage() {
         {/* Tab Content */}
         {!loading && (
           <>
-            {/* Gamified Profile Tab */}
             {activeTab === 'profile' && (
               <GamifiedProfileDisplay
                 formData={formData}
@@ -545,41 +525,29 @@ export default function ProfilePage() {
               />
             )}
 
-            {/* Achievements Tab */}
-            {activeTab === 'achievements' && (
-              <div className="max-w-6xl mx-auto">
-                <AchievementSystem
-                  userId={user.uid}
-                  profileData={formData}
-                  cvScore={cvScore}
-                />
-              </div>
-            )}
-
-            {/* Edit Profile Tab */}
             {activeTab === 'edit' && (
-              <div className="max-w-2xl mx-auto">
-                <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl">
-                  <CardContent className="p-8">
+              <div className="max-w-3xl mx-auto">
+                <div className="surface-card rounded-2xl overflow-hidden">
+                  <div className="p-6 sm:p-8">
                     {error && (
-                      <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
-                        <p className="text-red-400">{error}</p>
+                      <div className="mb-6 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                        <p className="text-red-400 text-sm">{error}</p>
                       </div>
                     )}
                     
-                    <div className="space-y-6">
+                    <div className="space-y-8">
                       {/* Personal Information */}
                       <div className="space-y-4">
-                        <div className="flex items-center mb-4">
-                          <User className="h-6 w-6 text-blue-400 mr-3" />
-                          <h2 className="text-xl font-semibold text-white">Personal Information</h2>
+                        <div className="flex items-center mb-1">
+                          <User className="h-5 w-5 text-gray-400 mr-2.5" />
+                          <h2 className="text-base font-medium text-white">Personal Information</h2>
                         </div>
                         <div>
-                          <label className="block mb-2 font-medium text-blue-300">
+                          <label className="block mb-1.5 text-sm font-medium text-gray-400">
                             Full Name <span className="text-red-400">*</span>
                           </label>
                           <Input
-                            className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                            className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-11"
                             name="fullName"
                             value={formData.fullName}
                             onChange={handleChange}
@@ -587,25 +555,25 @@ export default function ProfilePage() {
                           />
                         </div>
                         <div>
-                          <label className="block mb-2 font-medium text-blue-300">
+                          <label className="block mb-1.5 text-sm font-medium text-gray-400">
                             Bio
                           </label>
                           <textarea
-                            className="w-full p-4 rounded-lg bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20 resize-none"
+                            className="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-blue-400 focus:ring-blue-400/20 resize-none text-sm"
                             rows={3}
                             name="bio"
                             value={formData.bio}
                             onChange={handleChange}
-                            placeholder="Describe your passions, interests, and background... (optional)"
+                            placeholder="A brief summary of your background and goals"
                           />
                         </div>
-                        <div className="grid md:grid-cols-3 gap-4">
+                        <div className="grid md:grid-cols-3 gap-3">
                           <div>
-                            <label className="block mb-2 font-medium text-blue-300">
+                            <label className="block mb-1.5 text-sm font-medium text-gray-400">
                               City <span className="text-red-400">*</span>
                             </label>
                             <Input
-                              className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                              className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-11"
                               name="city"
                               value={formData.city}
                               onChange={handleChange}
@@ -613,11 +581,11 @@ export default function ProfilePage() {
                             />
                           </div>
                           <div>
-                            <label className="block mb-2 font-medium text-blue-300">
+                            <label className="block mb-1.5 text-sm font-medium text-gray-400">
                               Country <span className="text-red-400">*</span>
                             </label>
                             <Input
-                              className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                              className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-11"
                               name="country"
                               value={formData.country}
                               onChange={handleChange}
@@ -625,15 +593,15 @@ export default function ProfilePage() {
                             />
                           </div>
                           <div>
-                            <label className="block mb-2 font-medium text-blue-300">
+                            <label className="block mb-1.5 text-sm font-medium text-gray-400">
                               Age
                             </label>
                             <Input
-                              className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                              className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-11"
                               name="age"
                               value={formData.age}
                               onChange={handleChange}
-                              placeholder="Your age (optional)"
+                              placeholder="Optional"
                               type="number"
                               min="0"
                             />
@@ -641,32 +609,34 @@ export default function ProfilePage() {
                         </div>
                       </div>
 
+                      <div className="border-t border-white/10" />
+
                       {/* Academic Information */}
                       <div className="space-y-4">
-                        <div className="flex items-center mb-4">
-                          <GraduationCap className="h-6 w-6 text-blue-400 mr-3" />
-                          <h2 className="text-xl font-semibold text-white">Academic Information</h2>
+                        <div className="flex items-center mb-1">
+                          <GraduationCap className="h-5 w-5 text-gray-400 mr-2.5" />
+                          <h2 className="text-base font-medium text-white">Academic Information</h2>
                         </div>
-                        <div className="grid md:grid-cols-2 gap-4">
+                        <div className="grid md:grid-cols-2 gap-3">
                           <div>
-                            <label className="block mb-2 font-medium text-blue-300">
+                            <label className="block mb-1.5 text-sm font-medium text-gray-400">
                               University <span className="text-red-400">*</span>
                             </label>
                             <Input
-                              className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                              className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-11"
                               name="university"
                               value={formData.university}
                               onChange={handleChange}
-                              placeholder="Your university or institution"
+                              placeholder="Your university"
                               required
                             />
                           </div>
                           <div>
-                            <label className="block mb-2 font-medium text-blue-300">
+                            <label className="block mb-1.5 text-sm font-medium text-gray-400">
                               Degree <span className="text-red-400">*</span>
                             </label>
                             <Input
-                              className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                              className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-11"
                               name="degree"
                               value={formData.degree}
                               onChange={handleChange}
@@ -675,15 +645,15 @@ export default function ProfilePage() {
                             />
                           </div>
                         </div>
-                        <div className="grid md:grid-cols-2 gap-4">
+                        <div className="grid md:grid-cols-2 gap-3">
                           <div>
-                            <label className="block mb-2 font-medium text-blue-300">
+                            <label className="block mb-1.5 text-sm font-medium text-gray-400">
                               GPA <span className="text-red-400">*</span>
                             </label>
-                            <div className="space-y-3">
+                            <div className="space-y-2.5">
                               <div className="grid grid-cols-2 gap-2">
                                 <Input
-                                  className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                                  className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-11"
                                   name="gpa"
                                   value={formData.gpa}
                                   onChange={handleChange}
@@ -695,7 +665,7 @@ export default function ProfilePage() {
                                   max={formData.gpaScale === '100' ? '100' : formData.gpaScale === 'other' ? undefined : formData.gpaScale}
                                 />
                                 <select
-                                  className="bg-white/10 border-white/20 text-white focus:border-blue-400 focus:ring-blue-400/20 rounded-lg px-3 py-2"
+                                  className="bg-white/5 border border-white/10 text-white focus:border-blue-400 rounded-xl px-3 py-2 text-sm"
                                   name="gpaScale"
                                   value={formData.gpaScale || '4.0'}
                                   onChange={handleChange}
@@ -709,134 +679,126 @@ export default function ProfilePage() {
                                   <option value="other" className="bg-gray-800">Other</option>
                                 </select>
                               </div>
-                              <div className="text-xs text-gray-400 mt-1">
-                                Common scales: 4.0 (USA, Canada), 5.0 (Australia), 7.0 (Australia), 9.0 (New Zealand), 10.0 (Europe, India)
-                              </div>
+                              <p className="text-xs text-gray-500">
+                                4.0 (USA, Canada), 5.0 (Australia), 7.0 (Australia), 9.0 (NZ), 10.0 (Europe, India)
+                              </p>
                               {(!isGPAValid(formData.gpa, formData.gpaScale) || !isGPARealisticallyValid(formData.gpa, formData.gpaScale)) && formData.gpa && (
-                                <div className="bg-red-500/10 border border-red-400/30 rounded-lg p-3">
-                                  <div className="flex items-center mb-1">
-                                    <div className="w-2 h-2 bg-red-400 rounded-full mr-2"></div>
-                                    <span className="text-red-400 text-sm font-medium">Invalid GPA</span>
-                                  </div>
-                                  <div className="text-red-300 text-sm">
+                                <div className="bg-red-500/10 border border-red-400/20 rounded-xl p-3">
+                                  <span className="text-red-400 text-sm">
                                     {!isGPAValid(formData.gpa, formData.gpaScale) ? (
                                       formData.gpaScale === '100' 
-                                        ? `Your GPA (${formData.gpa}%) must be between 0 and 100.`
-                                        : `Your GPA (${formData.gpa}) exceeds the maximum for a ${formData.gpaScale} scale.`
+                                        ? `GPA (${formData.gpa}%) must be between 0 and 100.`
+                                        : `GPA (${formData.gpa}) exceeds the ${formData.gpaScale} scale maximum.`
                                     ) : (
-                                      formData.gpaScale === '100'
-                                        ? `Your GPA (${formData.gpa}%) seems unrealistically low. Please enter a valid percentage.`
-                                        : `Your GPA (${formData.gpa}) seems unrealistically low for a ${formData.gpaScale} scale. Please verify your GPA.`
+                                      `GPA (${formData.gpa}) seems unrealistically low for a ${formData.gpaScale} scale.`
                                     )}
-                                  </div>
+                                  </span>
                                 </div>
                               )}
                               {isGPAValid(formData.gpa, formData.gpaScale) && isGPARealisticallyValid(formData.gpa, formData.gpaScale) && formData.gpa && formData.gpaScale && formData.gpaScale !== 'other' && calculateGPAPercentage(parseFloat(formData.gpa) || 0, formData.gpaScale) !== null && (
-                                <div className="bg-blue-500/10 border border-blue-400/30 rounded-lg p-3">
-                                  <div className="flex items-center mb-2">
-                                    <div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>
-                                    <span className="text-blue-400 text-sm font-medium">Gradual understands your GPA as:</span>
-                                  </div>
-                                  <div className="text-white font-semibold">
-                                    {calculateGPAPercentage(parseFloat(formData.gpa) || 0, formData.gpaScale)}% performance
-                                  </div>
-                                  <div className="text-gray-300 text-xs mt-1">
-                                    This helps us give you accurate career suggestions based on your academic performance level.
-                                  </div>
+                                <div className="bg-blue-500/10 border border-blue-400/20 rounded-xl p-3">
+                                  <p className="text-blue-400 text-sm">
+                                    Gradual reads this as <span className="font-semibold">{calculateGPAPercentage(parseFloat(formData.gpa) || 0, formData.gpaScale)}%</span> performance
+                                  </p>
                                 </div>
                               )}
                               {formData.gpaScale === 'other' && (
-                                <div className="bg-yellow-500/10 border border-yellow-400/30 rounded-lg p-3">
-                                  <p className="text-yellow-300 text-sm">
-                                    Please contact support or provide your GPA as a percentage (0-100) for the most accurate suggestions.
+                                <div className="bg-amber-500/10 border border-amber-400/20 rounded-xl p-3">
+                                  <p className="text-amber-400 text-sm">
+                                    Use percentage (0-100) for the most accurate suggestions.
                                   </p>
                                 </div>
                               )}
                             </div>
                           </div>
                           <div>
-                            <label className="block mb-2 font-medium text-blue-300">
+                            <label className="block mb-1.5 text-sm font-medium text-gray-400">
                               Interests <span className="text-red-400">*</span>
                             </label>
                             <Input
-                              className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                              className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-11"
                               name="interests"
                               value={formData.interests}
                               onChange={handleChange}
-                              placeholder="e.g., AI, Machine Learning, Web Development"
+                              placeholder="e.g., AI, Machine Learning, Web Dev"
                               required
                             />
                           </div>
                         </div>
                       </div>
 
-                      {/* Industries/Fields & Portfolio */}
+                      <div className="border-t border-white/10" />
+
+                      {/* Industries & Portfolio */}
                       <div className="space-y-4">
-                        <div className="flex items-center mb-4">
-                          <Star className="h-6 w-6 text-blue-400 mr-3" />
-                          <h2 className="text-xl font-semibold text-white">Industries & Portfolio</h2>
+                        <div className="flex items-center mb-1">
+                          <Star className="h-5 w-5 text-gray-400 mr-2.5" />
+                          <h2 className="text-base font-medium text-white">Industries & Portfolio</h2>
                         </div>
                         <div>
-                          <label className="block mb-2 font-medium text-blue-300">
-                            Preferred Industries/Fields
+                          <label className="block mb-1.5 text-sm font-medium text-gray-400">
+                            Preferred Industries
                           </label>
                           <Input
-                            className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                            className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-11"
                             name="preferredIndustries"
                             value={formData.preferredIndustries}
                             onChange={handleChange}
-                            placeholder="e.g., Software, AI, Finance (comma separated)"
+                            placeholder="e.g., Software, AI, Finance"
                           />
                         </div>
                         <div>
-                          <label className="block mb-2 font-medium text-blue-300">
-                            Portfolio/LinkedIn/GitHub Links
+                          <label className="block mb-1.5 text-sm font-medium text-gray-400">
+                            Portfolio / LinkedIn / GitHub
                           </label>
                           <Input
-                            className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+                            className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-11"
                             name="portfolioLinks"
                             value={formData.portfolioLinks}
                             onChange={handleChange}
-                            placeholder="Paste links, separated by commas"
+                            placeholder="Paste links, comma separated"
                           />
                         </div>
                       </div>
 
+                      <div className="border-t border-white/10" />
+
                       {/* CV Upload */}
                       <div className="space-y-4">
-                        <div className="flex items-center mb-4">
-                          <Upload className="h-6 w-6 text-blue-400 mr-3" />
-                          <h2 className="text-xl font-semibold text-white">CV Upload</h2>
+                        <div className="flex items-center mb-1">
+                          <Upload className="h-5 w-5 text-gray-400 mr-2.5" />
+                          <h2 className="text-base font-medium text-white">CV Upload</h2>
                         </div>
                         
-                        <div className="mb-4">
-                          {formData.uploadedCVName ? (
-                            <div className="flex flex-col md:flex-row md:items-center md:space-x-4 mb-2">
-                              <span className="text-blue-300 font-medium">Saved CV:</span>
-                              <span className="text-white font-semibold">{formData.uploadedCVName}</span>
-                              <div className="flex space-x-2 mt-2 md:mt-0">
-                                <Button
-                                  variant="outline"
-                                  className="bg-red-500/10 border-red-400 text-red-400 hover:bg-red-500/20 hover:text-white transition-all duration-300"
-                                  onClick={handleRemoveCV}
-                                  disabled={removeLoading}
-                                >
-                                  {removeLoading ? "Removing..." : "Remove CV"}
-                                </Button>
+                        {formData.uploadedCVName ? (
+                          <div className="flex items-center justify-between p-3.5 surface-card-subtle rounded-xl">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                                <Upload className="h-4 w-4 text-blue-400" />
                               </div>
+                              <span className="text-sm text-white truncate">{formData.uploadedCVName}</span>
                             </div>
-                          ) : (
-                            <span className="text-gray-400 italic">No CV currently saved.</span>
-                          )}
-                          {removeSuccess && (
-                            <div className="text-green-400 text-sm mt-2">{removeSuccess}</div>
-                          )}
-                          {cvScore && (
-                            <div className="mt-2 p-2 bg-green-500/10 border border-green-400/30 rounded-lg">
-                              <span className="text-green-300 text-sm">Current CV Score: <span className="font-bold">{cvScore}/100</span></span>
-                            </div>
-                          )}
-                        </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0 bg-transparent border-red-500/20 text-red-400 hover:bg-red-500/10 rounded-lg text-xs h-8"
+                              onClick={handleRemoveCV}
+                              disabled={removeLoading}
+                            >
+                              {removeLoading ? "..." : "Remove"}
+                            </Button>
+                          </div>
+                        ) : (
+                          <p className="text-gray-500 text-sm">No CV uploaded yet.</p>
+                        )}
+                        {removeSuccess && (
+                          <p className="text-emerald-500 text-sm">{removeSuccess}</p>
+                        )}
+                        {cvScore && (
+                          <div className="px-3.5 py-2.5 bg-emerald-500/10 border border-emerald-400/20 rounded-xl">
+                            <span className="text-emerald-500 text-sm">CV Score: <span className="font-semibold">{cvScore}/100</span></span>
+                          </div>
+                        )}
                         <div className="relative">
                           <input
                             type="file"
@@ -845,41 +807,38 @@ export default function ProfilePage() {
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                             disabled={removeLoading}
                           />
-                          <div className="border-2 border-dashed border-white/20 rounded-lg p-6 text-center hover:border-blue-400/50 transition-colors duration-300">
-                            <Upload className="h-8 w-8 text-blue-400 mx-auto mb-2" />
-                            <p className="text-gray-300">
-                              {cvFile ? cvFile.name : 'Click to upload your CV (PDF)'}
-                            </p>
-                            <p className="text-gray-500 text-sm mt-1">
-                              {cvFile ? 'File selected' : 'Drag and drop or click to browse'}
+                          <div className="border border-dashed border-white/20 rounded-xl p-5 text-center hover:border-blue-400/50 transition-colors duration-200">
+                            <Upload className="h-5 w-5 text-gray-400 mx-auto mb-2" />
+                            <p className="text-gray-400 text-sm">
+                              {cvFile ? cvFile.name : 'Upload CV (PDF)'}
                             </p>
                           </div>
                         </div>
                       </div>
 
                       {/* Save Button */}
-                      <div className="pt-6">
+                      <div className="pt-2">
                         <Button
-                          className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105"
+                          className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-all duration-200"
                           onClick={handleSave}
                           disabled={saving}
                         >
                           {saving ? (
-                            <div className="flex items-center">
-                              <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                            <span className="flex items-center">
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
                               Saving...
-                            </div>
+                            </span>
                           ) : (
-                            <div className="flex items-center">
-                              <Save className="h-5 w-5 mr-2" />
+                            <span className="flex items-center">
+                              <Save className="h-4 w-4 mr-2" />
                               Save Profile
-                            </div>
+                            </span>
                           )}
                         </Button>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               </div>
             )}
           </>
@@ -888,8 +847,8 @@ export default function ProfilePage() {
         {/* CV Text Dialog */}
         <Dialog open={showCVText} onOpenChange={setShowCVText}>
           <Dialog.Content>
-            <Dialog.Title>Extracted CV Text</Dialog.Title>
-            <div className="max-h-96 overflow-y-auto whitespace-pre-wrap text-gray-800 bg-white p-4 rounded-lg">
+            <Dialog.Title className="text-white font-semibold text-lg">CV Text</Dialog.Title>
+            <div className="max-h-96 overflow-y-auto whitespace-pre-wrap text-gray-300 surface-card-subtle p-4 rounded-lg text-sm leading-relaxed">
               {cvText || "No CV text saved."}
             </div>
             <Dialog.Close asChild>

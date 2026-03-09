@@ -32,7 +32,6 @@ interface PrivacySettings {
   isProfilePublic: boolean;
   allowRecruiterContact: boolean;
   showCVScore: boolean;
-  showAchievements: boolean;
   showContactInfo: boolean;
 }
 
@@ -42,7 +41,6 @@ export default function StudentPrivacySettings() {
     isProfilePublic: true,
     allowRecruiterContact: true,
     showCVScore: true,
-    showAchievements: true,
     showContactInfo: false,
   });
   
@@ -67,7 +65,6 @@ export default function StudentPrivacySettings() {
             isProfilePublic: userData.isProfilePublic !== false,
             allowRecruiterContact: userData.allowRecruiterContact !== false,
             showCVScore: userData.showCVScore !== false,
-            showAchievements: userData.showAchievements !== false,
             showContactInfo: userData.showContactInfo === true,
           });
         }
@@ -245,37 +242,6 @@ export default function StudentPrivacySettings() {
               }`}
             >
               {settings.showCVScore ? 'Visible' : 'Hidden'}
-            </Button>
-          </div>
-        </div>
-        
-        {/* Achievements Visibility */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              {settings.showAchievements ? (
-                <Users className="h-5 w-5 text-green-400" />
-              ) : (
-                <Users className="h-5 w-5 text-gray-400" />
-              )}
-              <div>
-                <h3 className="text-white font-medium">Achievements</h3>
-                <p className="text-gray-400 text-sm">
-                  Show your achievements and gamification progress
-                </p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleSettingChange('showAchievements', !settings.showAchievements)}
-              className={`border-white/20 ${
-                settings.showAchievements
-                  ? 'bg-green-500/20 text-green-300 border-green-500/50'
-                  : 'bg-gray-500/20 text-gray-300 border-gray-500/50'
-              }`}
-            >
-              {settings.showAchievements ? 'Visible' : 'Hidden'}
             </Button>
           </div>
         </div>

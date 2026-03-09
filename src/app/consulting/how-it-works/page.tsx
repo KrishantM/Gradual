@@ -39,28 +39,38 @@ export default function HowItWorksPage() {
     },
   ];
 
+  const h1Class = 'text-4xl md:text-5xl font-bold text-slate-900 dark:text-white';
+  const h2Class = 'text-3xl md:text-4xl font-bold text-slate-900 dark:text-white';
+  const titleClass = 'text-2xl font-semibold text-slate-900 dark:text-white';
+  const bodyClass = 'text-slate-700 dark:text-slate-200';
+  const accentClass = 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent';
+  const stripClass = 'bg-slate-100 dark:bg-slate-800/60 border-y border-slate-200 dark:border-slate-700/50';
+  const cardClass = 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 shadow-lg';
+  const iconBlueClass = 'text-blue-600 dark:text-blue-400';
+  const iconAmberClass = 'text-amber-600 dark:text-amber-400';
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black">
+    <div className="min-h-screen bg-[var(--background)]">
       {/* Hero */}
       <Section className="pt-12 pb-16 md:pt-16 md:pb-20">
         <div className="text-center max-w-3xl mx-auto">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6 text-white">
-            <span className="bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 bg-clip-text text-transparent">How</span> Gradual Consulting Works
+          <h1 className={`${h1Class} mb-6`}>
+            <span className={accentClass}>How</span> Gradual Consulting Works
           </h1>
-          <p className="text-xl text-gray-300 mb-4">
+          <p className={`text-xl ${bodyClass} mb-4`}>
             Gradual Consulting uses a structured, outcomes-focused framework to help you make clear career decisions and execute them effectively.
           </p>
-          <p className="text-lg text-gray-400">
+          <p className={`text-lg text-slate-500 dark:text-slate-400`}>
             The framework adapts to your stage, whether you are choosing pathways, preparing for your first role, or navigating early-career job applications.
           </p>
         </div>
       </Section>
 
-      {/* Process Stages - Light blue strip */}
-      <section className="w-full py-12 md:py-16 bg-blue-500/10 backdrop-blur-md border-y border-blue-400/20">
+      {/* Process Stages */}
+      <section className={`w-full py-12 md:py-16 ${stripClass}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-5xl mx-auto">
-            <h2 className="text-2xl font-semibold mb-8 text-center text-white">
+            <h2 className="text-2xl font-semibold mb-8 text-center text-slate-900 dark:text-white">
               The Gradual Career Consulting Framework
             </h2>
             <div className="space-y-12">
@@ -71,14 +81,14 @@ export default function HowItWorksPage() {
                       {stage.number}
                     </div>
                     {index < stages.length - 1 && (
-                      <div className="w-0.5 h-12 mx-auto mt-4 bg-white/20"></div>
+                      <div className="w-0.5 h-12 mx-auto mt-4 bg-slate-300 dark:bg-white/20" />
                     )}
                   </div>
                   <div className="flex-1 pb-12">
-                    <h2 className="text-2xl font-bold mb-3 text-white">
+                    <h2 className={`${titleClass} mb-3`}>
                       {stage.title}
                     </h2>
-                    <p className="leading-relaxed text-gray-300">
+                    <p className={`leading-relaxed ${bodyClass}`}>
                       {stage.description}
                     </p>
                   </div>
@@ -89,37 +99,34 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      {/* Session Cadence - Navy background */}
+      {/* Session Cadence */}
       <Section className="py-12 md:py-16">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center text-white">
+          <h2 className={`${h2Class} mb-8 text-center`}>
             Sessions and Support
           </h2>
           <div className="grid md:grid-cols-2 gap-8">
-            <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-lg">
+            <Card className={cardClass}>
               <CardContent className="p-6">
                 <div className="flex items-center mb-4">
-                  <Clock className="h-6 w-6 mr-3 text-blue-400" />
-                  <h3 className="text-xl font-semibold text-white">Session Format</h3>
+                  <Clock className={`h-6 w-6 mr-3 ${iconBlueClass}`} />
+                  <h3 className="text-xl font-semibold text-slate-900 dark:text-white">Session Format</h3>
                 </div>
-                <p className="text-gray-300 leading-relaxed mb-4">
+                <p className={`${bodyClass} leading-relaxed mb-4`}>
                   Sessions typically run for 60 to 90 minutes and are conducted via video call. Scheduling is flexible and depends on your selected package.
                 </p>
-                <p className="text-gray-300 leading-relaxed">
+                <p className={`${bodyClass} leading-relaxed`}>
                   Each session includes clear follow-up notes and action items to ensure momentum continues between sessions.
                 </p>
               </CardContent>
             </Card>
-            <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-lg">
+            <Card className={cardClass}>
               <CardContent className="p-6">
                 <div className="flex items-center mb-4">
-                  <div className="mr-3 relative inline-block">
-                    <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 blur-sm opacity-40"></div>
-                    <FileText className="h-6 w-6 relative text-amber-400" style={{ filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.5))' }} />
-                  </div>
-                  <h3 className="text-xl font-semibold text-white">Between Sessions</h3>
+                  <FileText className={`h-6 w-6 mr-3 ${iconAmberClass}`} />
+                  <h3 className="text-xl font-semibold text-slate-900 dark:text-white">Between Sessions</h3>
                 </div>
-                <p className="text-gray-300 leading-relaxed">
+                <p className={`${bodyClass} leading-relaxed`}>
                   Between sessions, you will work through agreed action items. Support may include email check-ins for quick questions, document review and feedback where needed, and preparation for the next session.
                 </p>
               </CardContent>
@@ -128,51 +135,45 @@ export default function HowItWorksPage() {
         </div>
       </Section>
 
-      {/* Master Document - Light blue strip */}
-      <section className="w-full py-12 md:py-16 bg-blue-500/10 backdrop-blur-md border-y border-blue-400/20">
+      {/* Master Document */}
+      <section className={`w-full py-12 md:py-16 ${stripClass}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-5xl mx-auto">
-            <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-lg rounded-2xl">
+            <Card className={`${cardClass} rounded-2xl`}>
               <CardContent className="p-8">
                 <div className="flex items-start mb-6">
                   <div className="flex-shrink-0 w-12 h-12 rounded-full text-white flex items-center justify-center mr-4 bg-blue-600">
                     <FileText className="h-6 w-6" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold mb-3 text-white">
+                    <h2 className={`${titleClass} mb-3`}>
                       The Master Document
                     </h2>
-                    <p className="leading-relaxed mb-4 text-gray-300">
+                    <p className={`${bodyClass} leading-relaxed mb-4`}>
                       At the conclusion of your consulting engagement, you will receive a concise Master Document, typically one to two pages in length.
                     </p>
-                    <p className="leading-relaxed mb-4 text-gray-300">
+                    <p className={`${bodyClass} leading-relaxed mb-4`}>
                       This document brings together:
                     </p>
-                    <ul className="space-y-2 text-gray-300 mb-4">
+                    <ul className={`space-y-2 ${bodyClass} mb-4`}>
                       <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0 text-blue-400" />
+                        <CheckCircle className={`h-5 w-5 mr-2 mt-0.5 flex-shrink-0 ${iconBlueClass}`} />
                         <span>Your agreed direction and strategy</span>
                       </li>
                       <li className="flex items-start">
-                        <div className="mr-2 mt-0.5 flex-shrink-0 relative">
-                          <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 blur-sm opacity-40"></div>
-                          <CheckCircle className="h-5 w-5 relative text-amber-400" style={{ filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.5))' }} />
-                        </div>
+                        <CheckCircle className={`h-5 w-5 mr-2 mt-0.5 flex-shrink-0 ${iconAmberClass}`} />
                         <span>Key positioning points and messaging</span>
                       </li>
                       <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0 text-blue-400" />
+                        <CheckCircle className={`h-5 w-5 mr-2 mt-0.5 flex-shrink-0 ${iconBlueClass}`} />
                         <span>Identified gaps and priorities</span>
                       </li>
                       <li className="flex items-start">
-                        <div className="mr-2 mt-0.5 flex-shrink-0 relative">
-                          <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 blur-sm opacity-40"></div>
-                          <CheckCircle className="h-5 w-5 relative text-amber-400" style={{ filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.5))' }} />
-                        </div>
+                        <CheckCircle className={`h-5 w-5 mr-2 mt-0.5 flex-shrink-0 ${iconAmberClass}`} />
                         <span>Clear next steps and recommendations</span>
                       </li>
                     </ul>
-                    <p className="leading-relaxed text-gray-300">
+                    <p className={`${bodyClass} leading-relaxed`}>
                       The Master Document is designed to be a practical reference you can return to as you continue your career journey independently.
                     </p>
                   </div>
@@ -183,17 +184,17 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      {/* CTA - Navy background */}
+      {/* CTA */}
       <Section>
         <div className="text-center max-w-2xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
+          <h2 className={`${h2Class} mb-4`}>
             Ready to get started?
           </h2>
-          <p className="text-lg mb-8 text-gray-300">
+          <p className={`text-lg mb-8 ${bodyClass}`}>
             Book a free 10-minute fit check to see if Gradual Consulting is right for you.
           </p>
           <Link href="/consulting/contact">
-            <Button size="lg" className="bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:from-amber-600 hover:to-amber-700 px-8 py-6 text-lg shadow-lg hover:shadow-xl transition-all duration-200 shadow-[0_0_12px_rgba(251,191,36,0.3)]">
+            <Button size="lg" className="bg-blue-600 text-white hover:bg-blue-700 px-8 py-6 text-lg shadow-lg hover:shadow-xl transition-all duration-200">
               Book a free 10-min fit check
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
@@ -203,3 +204,4 @@ export default function HowItWorksPage() {
     </div>
   );
 }
+

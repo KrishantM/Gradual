@@ -5,76 +5,70 @@ import Image from 'next/image';
 
 export default function Footer() {
   return (
-    <footer className="bg-slate-900/50 backdrop-blur-md border-t border-white/10 mt-auto">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-          {/* Left side - Brand */}
+    <footer className="mt-auto border-t border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
           <div className="flex items-center">
-            <Image
-              src="/newlogo2.png"
-              alt="Gradual Logo"
-              width={150}
-              height={45}
-              className="h-8 w-auto"
-              priority
-              quality={100}
-            />
+            <span className="logo-pill">
+              <Image
+                src="/newlogo2.png"
+                alt="Gradual Logo"
+                width={150}
+                height={45}
+                unoptimized
+                className="logo-img logo-full h-7 w-auto"
+                style={{ objectFit: 'contain' }}
+              />
+              <Image
+                src="/newlogo2.png"
+                alt=""
+                width={150}
+                height={45}
+                unoptimized
+                className="logo-img logo-g h-7 w-auto"
+                aria-hidden
+                style={{ objectFit: 'contain' }}
+              />
+              <Image
+                src="/newlogo2.png"
+                alt=""
+                width={150}
+                height={45}
+                unoptimized
+                className="logo-img logo-radual h-7 w-auto"
+                aria-hidden
+                style={{ objectFit: 'contain' }}
+              />
+            </span>
           </div>
 
-          {/* Center - Links */}
-          <div className="flex items-center space-x-6">
-            <Link 
-              href="/about" 
-              className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border border-blue-400/30 text-blue-300 hover:text-blue-200 hover:from-blue-600/30 hover:to-cyan-600/30 hover:border-blue-400/50 transition-all duration-200 text-sm font-medium"
-            >
+          <div className="flex flex-wrap items-center justify-center gap-5 text-sm">
+            <Link href="/about" className="text-slate-600 dark:text-slate-400 transition-colors hover:text-slate-900 dark:hover:text-white">
               About
             </Link>
-            <Link 
-              href="/pricing" 
-              className="text-gray-400 hover:text-blue-400 transition-colors duration-200 text-sm"
-            >
+            <Link href="/pricing" className="text-slate-600 dark:text-slate-400 transition-colors hover:text-slate-900 dark:hover:text-white">
               Pricing
             </Link>
-            <Link 
-              href="/consulting" 
-              className="text-gray-400 hover:text-blue-400 transition-colors duration-200 text-sm"
-            >
+            <Link href="/consulting" className="text-slate-600 dark:text-slate-400 transition-colors hover:text-slate-900 dark:hover:text-white">
               Consulting
             </Link>
-            <Link 
-              href="/terms" 
-              className="text-gray-400 hover:text-blue-400 transition-colors duration-200 text-sm"
-            >
-              Terms of Service
+            <Link href="/terms" className="text-slate-600 dark:text-slate-400 transition-colors hover:text-slate-900 dark:hover:text-white">
+              Terms
             </Link>
-            <Link 
-              href="/privacy" 
-              className="text-gray-400 hover:text-blue-400 transition-colors duration-200 text-sm"
-            >
-              Privacy Policy
+            <Link href="/privacy" className="text-slate-600 dark:text-slate-400 transition-colors hover:text-slate-900 dark:hover:text-white">
+              Privacy
             </Link>
           </div>
 
-          {/* Right side - Copyright */}
-          <div className="text-gray-500 text-sm">
-            © 2025 Gradual. All rights reserved.
-          </div>
+          <div className="text-sm text-slate-500 dark:text-slate-400">{'\u00A9'} 2026 Gradual</div>
         </div>
 
-        {/* Bottom section - Additional info */}
-        <div className="mt-6 pt-6 border-t border-white/10">
-          <div className="flex flex-col md:flex-row justify-between items-center space-y-2 md:space-y-0">
-            <p className="text-gray-500 text-xs text-center md:text-left">
-              Your AI-powered career development platform
-            </p>
-            <div className="flex items-center space-x-4">
-              <a 
-                href="mailto:admin@gradual.co.nz" 
-                className="text-gray-500 hover:text-blue-400 transition-colors duration-200 text-xs"
-              >
-                Contact Us
-              </a>
-            </div>
+        <div className="mt-6 border-t border-slate-200 dark:border-slate-700/50 pt-5 text-center text-xs text-slate-500 dark:text-slate-400 md:text-left">
+          <div className="flex flex-col items-center justify-between gap-2 md:flex-row">
+            <p>AI-powered career platform for students and early professionals.</p>
+            <a href="mailto:admin@gradual.co.nz" className="transition-colors hover:text-slate-700 dark:hover:text-slate-200">
+              admin@gradual.co.nz
+            </a>
           </div>
         </div>
       </div>

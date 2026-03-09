@@ -26,31 +26,25 @@ export default function FAQAccordion({ items, className }: FAQAccordionProps) {
       {items.map((item, index) => (
         <div
           key={index}
-          className="border border-white/10 rounded-lg overflow-hidden bg-white/5 backdrop-blur-md"
+          className="border border-slate-200 dark:border-white/10 rounded-lg overflow-hidden bg-white dark:bg-white/5"
         >
           <button
             onClick={() => toggle(index)}
-            className="w-full px-6 py-4 text-left flex justify-between items-center hover:bg-white/10 transition-colors text-white"
+            className="w-full px-6 py-4 text-left flex justify-between items-center hover:bg-slate-50 dark:hover:bg-white/10 transition-colors text-slate-900 dark:text-white"
           >
             <span className="font-medium">{item.question}</span>
-            <div className={cn('relative inline-block', openIndex === index && '')}>
-              {openIndex === index && (
-                <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 blur-sm opacity-40"></div>
+            <ChevronDown
+              className={cn(
+                'h-5 w-5 transition-transform flex-shrink-0',
+                openIndex === index 
+                  ? 'transform rotate-180 text-amber-600 dark:text-amber-400' 
+                  : 'text-slate-400 dark:text-slate-500'
               )}
-              <ChevronDown
-                className={cn(
-                  'h-5 w-5 transition-transform relative',
-                  openIndex === index 
-                    ? 'transform rotate-180 text-amber-400' 
-                    : 'text-gray-400'
-                )}
-                style={openIndex === index ? { filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.5))' } : {}}
-              />
-            </div>
+            />
           </button>
           {openIndex === index && (
-            <div className="px-6 py-4 bg-white/5 border-t border-white/10">
-              <p className="text-gray-300 leading-relaxed">{item.answer}</p>
+            <div className="px-6 py-4 bg-slate-50 dark:bg-white/5 border-t border-slate-200 dark:border-white/10">
+              <p className="text-slate-600 dark:text-slate-300 leading-relaxed">{item.answer}</p>
             </div>
           )}
         </div>

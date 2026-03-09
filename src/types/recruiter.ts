@@ -70,21 +70,6 @@ export interface StudentProfileView {
   uploadedCVName?: string;
   cvText?: string; // Only for premium recruiters
   
-  // Achievement Data
-  achievements: {
-    unlocked: number;
-    total: number;
-    categories: {
-      profile: number;
-      cv: number;
-      academic: number;
-      social: number;
-    };
-  };
-  
-  // Gamification Data
-  level: number;
-  xp: number;
   profileCompletion: number;
   
   // Privacy Settings
@@ -156,10 +141,6 @@ export interface RecruiterSearchFilters {
   cvScoreMin?: number;
   cvScoreMax?: number;
   
-  // Achievement Filters
-  minAchievements?: number;
-  achievementCategories?: ('profile' | 'cv' | 'academic' | 'social')[];
-  
   // Profile Completion
   minProfileCompletion?: number;
   
@@ -182,7 +163,6 @@ export interface RecruiterPermissions {
   canViewBasicProfiles: boolean;
   canViewCVScores: boolean;
   canViewFullCVs: boolean;
-  canViewAchievements: boolean;
   canViewContactInfo: boolean;
   
   // Action Permissions
@@ -219,7 +199,7 @@ export const SUBSCRIPTION_TIERS = {
     maxMonthlyContacts: 25,
     maxShortlists: 10,
     maxStudentsPerShortlist: 50,
-    features: ['basic_profile_view', 'cv_score_view', 'achievement_view', 'shortlist_creation']
+    features: ['basic_profile_view', 'cv_score_view', 'shortlist_creation']
   },
   premium: {
     name: 'Premium',
@@ -227,7 +207,7 @@ export const SUBSCRIPTION_TIERS = {
     maxMonthlyContacts: 100,
     maxShortlists: 25,
     maxStudentsPerShortlist: 100,
-    features: ['full_profile_view', 'cv_score_view', 'achievement_view', 'shortlist_creation', 'student_contact', 'analytics']
+    features: ['full_profile_view', 'cv_score_view', 'shortlist_creation', 'student_contact', 'analytics']
   },
   enterprise: {
     name: 'Enterprise',
@@ -235,7 +215,7 @@ export const SUBSCRIPTION_TIERS = {
     maxMonthlyContacts: -1, // unlimited
     maxShortlists: -1, // unlimited
     maxStudentsPerShortlist: -1, // unlimited
-    features: ['full_profile_view', 'cv_score_view', 'achievement_view', 'shortlist_creation', 'student_contact', 'analytics', 'data_export', 'api_access']
+    features: ['full_profile_view', 'cv_score_view', 'shortlist_creation', 'student_contact', 'analytics', 'data_export', 'api_access']
   }
 } as const;
 

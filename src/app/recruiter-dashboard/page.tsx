@@ -5,7 +5,7 @@
  * 
  * This page provides recruiters with tools to:
  * 1. Browse and filter student profiles
- * 2. View CV scores and achievements
+ * 2. View CV scores and profiles
  * 3. Create and manage shortlists
  * 4. Contact students (with proper permissions)
  * 5. View analytics and insights
@@ -40,7 +40,6 @@ import {
   GraduationCap,
   MapPin,
   Calendar,
-  Award,
   BarChart3,
   LogOut,
   User
@@ -68,7 +67,6 @@ export default function RecruiterDashboard() {
     cvScoreMax: 100,
     cities: [] as string[],
     countries: [] as string[],
-    minAchievements: 0,
     hasPortfolio: false,
   });
   
@@ -494,13 +492,6 @@ export default function RecruiterDashboard() {
                         <div className="flex items-center text-sm text-gray-300">
                           <Star className="h-4 w-4 mr-2 text-yellow-400" />
                           CV Score: {student.cvScore}/100
-                        </div>
-                      )}
-                      
-                      {permissions?.canViewAchievements && student.achievements && (
-                        <div className="flex items-center text-sm text-gray-300">
-                          <Award className="h-4 w-4 mr-2 text-purple-400" />
-                          {student.achievements.unlocked} achievements
                         </div>
                       )}
                       

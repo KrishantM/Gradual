@@ -28,28 +28,36 @@ export default function AboutPage() {
     },
   ];
 
+  const h1Class = 'text-4xl md:text-5xl font-bold text-slate-900 dark:text-white';
+  const h2Class = 'text-3xl font-bold text-slate-900 dark:text-white';
+  const bodyClass = 'text-slate-700 dark:text-slate-200';
+  const accentClass = 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent';
+  const stripClass = 'bg-slate-100 dark:bg-slate-800/60 border-y border-slate-200 dark:border-slate-700/50';
+  const iconClass = 'text-blue-600 dark:text-blue-400';
+  const iconAmberClass = 'text-amber-600 dark:text-amber-400';
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black">
+    <div className="min-h-screen bg-[var(--background)]">
       {/* Hero */}
       <Section className="pt-12 pb-16 md:pt-16 md:pb-20">
         <div className="text-center max-w-3xl mx-auto">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6 text-white">
-            About Gradual <span className="bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 bg-clip-text text-transparent">Consulting</span>
+          <h1 className={`${h1Class} mb-6`}>
+            About Gradual <span className={accentClass}>Consulting</span>
           </h1>
-          <p className="text-xl text-gray-300">
+          <p className={`text-xl ${bodyClass}`}>
             Professional career guidance built on real-world experience
           </p>
         </div>
       </Section>
 
-      {/* Bio Section - Light blue strip */}
-      <section className="w-full py-12 md:py-16 bg-blue-500/10 backdrop-blur-md border-y border-blue-400/20">
+      {/* Bio Section */}
+      <section className={`w-full py-12 md:py-16 ${stripClass}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-5xl mx-auto">
-            <h2 className="text-3xl font-bold mb-6 text-white">
+            <h2 className={`${h2Class} mb-6`}>
               Background
             </h2>
-            <div className="text-gray-300 leading-relaxed space-y-4">
+            <div className={`${bodyClass} leading-relaxed space-y-4`}>
               <p>
                 Gradual Consulting is built on a practical understanding of how to navigate education and early careers strategically, without relying on privileged pathways or unnecessary detours.
               </p>
@@ -70,10 +78,10 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* What I Believe - Navy background */}
+      {/* What I Believe */}
       <Section className="py-12 md:py-16">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center text-white">
+          <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center text-slate-900 dark:text-white">
             What I Believe
           </h2>
           <div className="grid md:grid-cols-3 gap-8">
@@ -81,20 +89,13 @@ export default function AboutPage() {
               const Icon = belief.icon;
               return (
                 <div key={index} className="text-center">
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/10 mb-4">
-                    {index === 1 ? (
-                      <div className="relative inline-block">
-                        <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 blur-sm opacity-40"></div>
-                        <Icon className="h-8 w-8 relative text-amber-400" style={{ filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.5))' }} />
-                      </div>
-                    ) : (
-                      <Icon className="h-8 w-8 text-blue-400" />
-                    )}
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 dark:bg-white/10 mb-4">
+                    <Icon className={`h-8 w-8 ${index === 1 ? iconAmberClass : iconClass}`} />
                   </div>
-                  <h3 className="font-semibold mb-2 text-lg text-white">
+                  <h3 className="font-semibold mb-2 text-lg text-slate-900 dark:text-white">
                     {belief.title}
                   </h3>
-                  <p className="text-sm leading-relaxed text-gray-300">
+                  <p className={`text-sm leading-relaxed ${bodyClass}`}>
                     {belief.description}
                   </p>
                 </div>
@@ -104,14 +105,14 @@ export default function AboutPage() {
         </div>
       </Section>
 
-      {/* Approach - Light blue strip */}
-      <section className="w-full py-12 md:py-16 bg-blue-500/10 backdrop-blur-md border-y border-blue-400/20">
+      {/* Approach */}
+      <section className={`w-full py-12 md:py-16 ${stripClass}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-5xl mx-auto">
-            <h2 className="text-3xl font-bold mb-6 text-white">
+            <h2 className={`${h2Class} mb-6`}>
               My Approach
             </h2>
-            <div className="space-y-4 text-gray-300 leading-relaxed">
+            <div className={`space-y-4 ${bodyClass} leading-relaxed`}>
               <p>
                 My approach to career consulting is grounded directly in experience and structured thinking. I do not offer generic advice or one-size-fits-all guidance.
               </p>
@@ -135,17 +136,17 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* CTA - Navy background */}
+      {/* CTA */}
       <Section>
         <div className="text-center max-w-2xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-slate-900 dark:text-white">
             Ready to get started?
           </h2>
-          <p className="text-lg mb-8 text-gray-300">
+          <p className={`text-lg mb-8 ${bodyClass}`}>
             Book a free 10-minute fit check to see if Gradual Consulting is right for you.
           </p>
           <Link href="/consulting/contact">
-            <Button size="lg" className="bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:from-amber-600 hover:to-amber-700 px-8 py-6 text-lg shadow-lg hover:shadow-xl transition-all duration-200 shadow-[0_0_12px_rgba(251,191,36,0.3)]">
+            <Button size="lg" className="bg-blue-600 text-white hover:bg-blue-700 px-8 py-6 text-lg shadow-lg hover:shadow-xl transition-all duration-200">
               Book a free 10-min fit check
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
@@ -155,3 +156,4 @@ export default function AboutPage() {
     </div>
   );
 }
+

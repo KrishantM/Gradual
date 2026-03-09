@@ -13,7 +13,7 @@ export default function ConsultingLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-blue-900 to-black">
+    <div className="min-h-screen flex flex-col bg-[var(--background)]">
       <ConsultingNavbar />
       <main className="flex-1 pt-16">
         {children}

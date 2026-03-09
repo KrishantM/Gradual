@@ -79,15 +79,22 @@ export default function PricingPage() {
     },
   ];
 
+  const h1Class = 'text-4xl md:text-5xl font-bold text-slate-900 dark:text-white';
+  const h2Class = 'text-3xl md:text-4xl font-bold text-slate-900 dark:text-white';
+  const titleClass = 'text-2xl font-semibold text-slate-900 dark:text-white';
+  const bodyClass = 'text-slate-700 dark:text-slate-200';
+  const accentClass = 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent';
+  const cardBaseClass = 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 shadow-lg';
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black">
+    <div className="min-h-screen bg-[var(--background)]">
       {/* Hero */}
       <Section className="pt-12 pb-16 md:pt-16 md:pb-20">
         <div className="text-center max-w-3xl mx-auto">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6 text-white">
-            <span className="bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 bg-clip-text text-transparent">Pricing</span>
+          <h1 className={`${h1Class} mb-6`}>
+            <span className={accentClass}>Pricing</span>
           </h1>
-          <p className="text-xl text-gray-300">
+          <p className={`text-xl ${bodyClass}`}>
             Flexible packages designed to meet you where you are
           </p>
         </div>
@@ -99,38 +106,36 @@ export default function PricingPage() {
           {packages.map((pkg, index) => (
             <Card
               key={index}
-              className={`bg-white/5 backdrop-blur-md border-white/10 shadow-lg ${
-                pkg.popular ? 'border-2 border-blue-400/50 relative' : ''
-              }`}
+              className={`${cardBaseClass} ${pkg.popular ? 'border-2 border-blue-500 dark:border-blue-400/50 relative' : ''}`}
             >
               {pkg.popular && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-white px-4 py-1 rounded-full text-sm font-medium shadow-[0_0_6px_rgba(251,191,36,0.4)]">
+                  <span className="bg-blue-600 text-white px-4 py-1 rounded-full text-sm font-medium">
                     Most Popular
                   </span>
                 </div>
               )}
               <CardHeader>
-                <CardTitle className="text-2xl text-white">{pkg.name}</CardTitle>
-                <CardDescription className="text-base mt-2 text-gray-300">
+                <CardTitle className={titleClass}>{pkg.name}</CardTitle>
+                <CardDescription className={`text-base mt-2 ${bodyClass}`}>
                   {pkg.description}
                 </CardDescription>
                 <div className="mt-4">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-bold text-white">{pkg.price}</span>
-                    <span className="text-lg text-gray-300">{pkg.priceUnit}</span>
+                    <span className="text-4xl font-bold text-slate-900 dark:text-white">{pkg.price}</span>
+                    <span className={`text-lg ${bodyClass}`}>{pkg.priceUnit}</span>
                     {pkg.priceNote && (
-                      <span className="text-sm text-gray-400 ml-1">{pkg.priceNote}</span>
+                      <span className="text-sm text-slate-500 dark:text-slate-400 ml-1">{pkg.priceNote}</span>
                     )}
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <ul className="space-y-3">
+                <ul className={`space-y-3 ${bodyClass}`}>
                   {pkg.features.map((feature, featureIndex) => (
                     <li key={featureIndex} className="flex items-start">
-                      <CheckCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0 text-blue-400" />
-                      <span className="text-gray-300">{feature}</span>
+                      <CheckCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0 text-blue-600 dark:text-blue-400" />
+                      <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
@@ -141,7 +146,7 @@ export default function PricingPage() {
                     className={`w-full ${
                       pkg.popular
                         ? 'bg-blue-600 text-white hover:bg-blue-700'
-                        : 'bg-white/10 text-white border border-white/20 hover:bg-white/20'
+                        : 'bg-slate-100 dark:bg-white/10 text-slate-900 dark:text-white border border-slate-200 dark:border-white/20 hover:bg-slate-200 dark:hover:bg-white/20'
                     }`}
                   >
                     {pkg.cta}
@@ -157,8 +162,8 @@ export default function PricingPage() {
       {/* FAQ */}
       <Section>
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center text-white">
-            Frequently Asked <span className="bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 bg-clip-text text-transparent">Questions</span>
+          <h2 className={`${h2Class} mb-8 text-center`}>
+            Frequently Asked <span className={accentClass}>Questions</span>
           </h2>
           <FAQAccordion items={faqs} />
         </div>
@@ -167,14 +172,14 @@ export default function PricingPage() {
       {/* CTA */}
       <Section>
         <div className="text-center max-w-2xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
+          <h2 className={`${h2Class} mb-4`}>
             Ready to get started?
           </h2>
-          <p className="text-lg mb-8 text-gray-300">
+          <p className={`text-lg mb-8 ${bodyClass}`}>
             Book a free 10-minute fit check to see if Gradual Consulting is right for you.
           </p>
           <Link href="/consulting/contact">
-            <Button size="lg" className="bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:from-amber-600 hover:to-amber-700 px-8 py-6 text-lg shadow-lg hover:shadow-xl transition-all duration-200 shadow-[0_0_12px_rgba(251,191,36,0.3)]">
+            <Button size="lg" className="bg-blue-600 text-white hover:bg-blue-700 px-8 py-6 text-lg shadow-lg hover:shadow-xl transition-all duration-200">
               Book a free 10-min fit check
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
@@ -184,3 +189,4 @@ export default function PricingPage() {
     </div>
   );
 }
+
