@@ -42,9 +42,7 @@ export default function Navbar() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const stored = window.localStorage.getItem('gradual-theme');
-    const shouldUseDark = stored
-      ? stored === 'dark'
-      : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const shouldUseDark = stored === 'dark';
     applyTheme(shouldUseDark);
   }, []);
 
@@ -116,6 +114,16 @@ export default function Navbar() {
                 />
               </span>
             </Link>
+            {!user && (
+              <button
+                type="button"
+                onClick={() => applyTheme(!isDarkMode)}
+                className="hidden md:flex items-center justify-center rounded-full p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                aria-label="Toggle dark mode"
+              >
+                {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </button>
+            )}
             {user && (
               <div className="hidden items-center md:flex">
                 <Link href="/copilot">
@@ -378,6 +386,30 @@ export default function Navbar() {
                         Register
                       </Button>
                     </Link>
+                    <div className="mx-1 mt-2 rounded-md border border-slate-200 px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => applyTheme(!isDarkMode)}
+                        className="flex w-full items-center justify-between text-sm text-slate-700"
+                        aria-label="Toggle dark mode"
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          {isDarkMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                          Dark mode
+                        </span>
+                        <span
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            isDarkMode ? 'bg-blue-600' : 'bg-slate-300'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                              isDarkMode ? 'translate-x-5' : 'translate-x-0.5'
+                            }`}
+                          />
+                        </span>
+                      </button>
+                    </div>
                   </>
                 )}
                 {user && (

@@ -22,9 +22,7 @@ export default function ConsultingNavbar() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const stored = window.localStorage.getItem('gradual-theme');
-    const shouldUseDark = stored
-      ? stored === 'dark'
-      : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const shouldUseDark = stored === 'dark';
     applyTheme(shouldUseDark);
   }, []);
 
