@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
       excludeExpired: excludeExpired !== undefined ? excludeExpired : true,
       minDate,
       maxDate,
-      limit: limit ? Math.min(limit, 100) : 20, // Cap at 100 for performance
+      limit: limit ? Math.min(limit, 500) : 200,
       minScore
     };
 

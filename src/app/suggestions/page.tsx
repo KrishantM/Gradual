@@ -29,7 +29,8 @@ import {
   ChevronUp,
   FolderPlus,
   Trash2,
-  Edit2
+  Edit2,
+  Trophy
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -54,7 +55,7 @@ interface LegacyOpportunity {
 // New Opportunities Engine types
 import { Opportunity as EngineOpportunity, OpportunityType } from '@/types/opportunities';
 
-type TabType = 'all' | 'job' | 'internship' | 'club' | 'volunteering' | 'event' | 'scholarship' | 'saved' | string;
+type TabType = 'all' | 'job' | 'internship' | 'club' | 'volunteering' | 'event' | 'competition' | 'scholarship' | 'saved' | string;
 
 interface CustomList {
   id: string;
@@ -158,7 +159,26 @@ export default function SuggestionsPage() {
   }, [user, allOpportunities]);
 
 
-  // Fetch opportunities from the Opportunities Engine
+  const triggerIngestion = useCallback(async () => {
+    if (!user) return;
+    const THROTTLE_KEY = 'gradual_last_ingest';
+    const THROTTLE_MS = 6 * 60 * 60 * 1000; // 6 hours
+    const lastRun = localStorage.getItem(THROTTLE_KEY);
+    if (lastRun && Date.now() - parseInt(lastRun, 10) < THROTTLE_MS) return;
+
+    try {
+      localStorage.setItem(THROTTLE_KEY, String(Date.now()));
+      const token = await user.getIdToken();
+      fetch('/api/opportunities-engine/ingest', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ maxResults: 200 }),
+      }).catch(() => {});
+    } catch (err) {
+      console.error('Ingestion trigger failed (non-blocking):', err);
+    }
+  }, [user]);
+
   const fetchOpportunities = useCallback(async () => {
     if (!user || !profile) return;
     
@@ -197,7 +217,7 @@ export default function SuggestionsPage() {
             country: profile.country,
             allowRemote: true
           },
-          limit: 100 // Fetch more to allow filtering
+          limit: 500
         }),
       });
 
@@ -261,12 +281,12 @@ export default function SuggestionsPage() {
     return tags;
   };
 
-  // Fetch opportunities when profile loads
   useEffect(() => {
     if (profile) {
+      triggerIngestion();
       fetchOpportunities();
     }
-  }, [profile, fetchOpportunities]);
+  }, [profile, fetchOpportunities, triggerIngestion]);
 
   const toggleStarOpportunity = async (opportunityId: string) => {
     if (!user) return;
@@ -466,6 +486,8 @@ export default function SuggestionsPage() {
         return Calendar;
       case 'scholarship':
         return Award;
+      case 'competition':
+        return Trophy;
       default:
         return Zap;
     }
@@ -486,6 +508,8 @@ export default function SuggestionsPage() {
         return 'Event';
       case 'scholarship':
         return 'Scholarship';
+      case 'competition':
+        return 'Competition';
       default:
         return type;
     }
@@ -506,6 +530,8 @@ export default function SuggestionsPage() {
         return 'bg-orange-500/20 text-orange-300 border-orange-400/30';
       case 'scholarship':
         return 'bg-yellow-500/20 text-yellow-300 border-yellow-400/30';
+      case 'competition':
+        return 'bg-red-500/20 text-red-300 border-red-400/30';
       default:
         return 'bg-gray-500/20 text-gray-300 border-gray-400/30';
     }
@@ -629,6 +655,7 @@ export default function SuggestionsPage() {
                             { id: 'club' as TabType, label: 'Clubs', icon: Users },
                             { id: 'volunteering' as TabType, label: 'Volunteering', icon: Heart },
                             { id: 'event' as TabType, label: 'Events', icon: Calendar },
+                            { id: 'competition' as TabType, label: 'Competitions', icon: Trophy },
                             { id: 'scholarship' as TabType, label: 'Scholarships', icon: Award },
                             { id: 'saved' as TabType, label: 'Saved', icon: Star }
                           ].map((tab) => {
@@ -1111,6 +1138,16 @@ export default function SuggestionsPage() {
                                 )}
                               </div>
 
+                              {opportunity.matchReasons && opportunity.matchReasons.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                  {opportunity.matchReasons.slice(0, 3).map((reason, idx) => (
+                                    <span key={idx} className="text-xs bg-blue-500/10 text-blue-300 px-2 py-1 rounded-full border border-blue-400/20">
+                                      {reason}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+
                               <p className="text-gray-300 text-base mb-4 line-clamp-3 leading-relaxed">
                                 {opportunity.description}
                               </p>
@@ -1138,7 +1175,7 @@ export default function SuggestionsPage() {
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-all duration-300 hover:scale-105"
                                   >
-                                    {opportunity.type === 'scholarship' ? 'Learn More' : opportunity.type === 'event' ? 'Register' : opportunity.type === 'club' ? 'Join' : 'Apply Now'}
+                                    {opportunity.type === 'scholarship' ? 'Learn More' : opportunity.type === 'event' ? 'Register' : opportunity.type === 'competition' ? 'Enter' : opportunity.type === 'club' ? 'Join' : opportunity.type === 'volunteering' ? 'Sign Up' : 'Apply Now'}
                                     <ExternalLink className="h-4 w-4 ml-2" />
                                   </a>
                                 </div>

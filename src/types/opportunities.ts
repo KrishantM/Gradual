@@ -1,130 +1,147 @@
-// Opportunities Engine Types and Interfaces
-// This file defines the data models for the Opportunities Engine
-// NOTE: This is a mock-only implementation. Real data will be integrated from Firestore and external APIs later.
+export type OpportunityType =
+  | 'job'
+  | 'internship'
+  | 'club'
+  | 'volunteering'
+  | 'event'
+  | 'scholarship'
+  | 'competition';
 
-/**
- * Types of opportunities available in the system
- */
-export type OpportunityType = 
-  | 'job'           // Full-time or part-time employment
-  | 'internship'     // Internship positions
-  | 'club'          // University clubs and societies
-  | 'volunteering'  // Volunteer opportunities
-  | 'event'         // Events, workshops, hackathons
-  | 'scholarship';  // Scholarships and grants
+export type LocationType = 'onsite' | 'remote' | 'hybrid';
+export type OpportunityStatus = 'active' | 'expired' | 'closed' | 'draft';
+export type ApplicationType = 'external' | 'email' | 'inApp' | 'none';
 
-/**
- * Core opportunity data structure
- */
+export interface OpportunityDates {
+  posted?: string;
+  deadline?: string;
+  startDate?: string;
+  endDate?: string;
+  expiresAt?: string;
+}
+
+export interface OpportunityCompensation {
+  type?: 'paid' | 'unpaid' | 'stipend' | 'scholarship';
+  currency?: string;
+  amount?: number;
+  salaryMin?: number;
+  salaryMax?: number;
+  description?: string;
+}
+
+export interface OpportunityEligibility {
+  yearOfStudy?: number[];
+  degrees?: string[];
+  studyLevel?: string[];
+  citizenship?: string[];
+  gpaMin?: number;
+  citizenshipRequired?: boolean;
+  ageRange?: { min?: number; max?: number };
+  note?: string;
+  other?: string[];
+}
+
+export interface OpportunityValidation {
+  isVerified: boolean;
+  verifiedAt?: string;
+  trustScore: number;
+  flags?: string[];
+  lastChecked?: string;
+}
+
 export interface Opportunity {
   id: string;
-  title: string;
-  description: string;
   type: OpportunityType;
-  
-  // Organization/Company information
+  source: string;
+  sourceId?: string;
+  sourceUrl?: string;
+  canonicalUrl?: string;
+
+  title: string;
   organization: string;
   organizationUrl?: string;
-  
-  // Location information
+  summary?: string;
+  description: string;
+
   location: string;
+  locationType?: LocationType;
   isRemote?: boolean;
   city?: string;
   country?: string;
-  
-  // Timing information
-  createdAt: string; // ISO date string
-  expiresAt?: string; // ISO date string (for time-sensitive opportunities)
-  deadline?: string; // ISO date string (for applications)
-  startDate?: string; // ISO date string (for events, internships with start dates)
-  endDate?: string; // ISO date string (for events, internships with end dates)
-  
-  // Categorization and matching
-  tags: string[]; // Skills, interests, categories (e.g., ['javascript', 'react', 'web-development'])
-  category?: string; // Primary category (e.g., 'Technology', 'Marketing', 'Engineering')
-  
-  // Additional details
-  url: string; // Link to apply or learn more
-  requirements?: string[]; // List of requirements
-  benefits?: string[]; // List of benefits
-  
-  // Financial information (for jobs, internships, scholarships)
+  region?: string;
+
+  tags: string[];
+  categoryTags?: string[];
+  skills?: string[];
+  industries?: string[];
+  category?: string;
+
+  eligibility?: OpportunityEligibility;
+  requirements?: string[];
+
+  dates?: OpportunityDates;
+  createdAt: string;
+  updatedAt?: string;
+  expiresAt?: string;
+  deadline?: string;
+  startDate?: string;
+  endDate?: string;
+
+  compensation?: OpportunityCompensation;
   salaryMin?: number;
   salaryMax?: number;
-  currency?: string; // e.g., 'NZD', 'USD'
-  
-  // Source tracking
-  source: string; // e.g., 'mock', 'adzuna', 'firestore', 'manual'
-  
-  // Computed matching score (set by matching engine)
+  currency?: string;
+  benefits?: string[];
+
+  applicationType?: ApplicationType;
+  url: string;
+
+  status?: OpportunityStatus;
+
+  matchScore?: number;
+  matchReasons?: string[];
   score?: number;
-  
-  // Additional metadata
+
+  validation?: OpportunityValidation;
+
+  rawSourceData?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 }
 
-/**
- * Query input for the opportunities matching engine
- */
 export interface OpportunityQuery {
-  // User profile snapshot for matching
   userProfile: UserProfileSnapshot;
-  
-  // Filtering options
-  types?: OpportunityType[]; // Filter by opportunity types
+  types?: OpportunityType[];
   location?: {
     city?: string;
     country?: string;
-    allowRemote?: boolean; // Include remote opportunities
+    allowRemote?: boolean;
   };
-  
-  // Tag/skill matching
-  requiredTags?: string[]; // Must have at least one of these tags
-  preferredTags?: string[]; // Boost score if these tags match
-  
-  // Date filtering
-  excludeExpired?: boolean; // Default: true
-  minDate?: string; // ISO date string - opportunities created after this date
-  maxDate?: string; // ISO date string - opportunities created before this date
-  
-  // Result limits
-  limit?: number; // Maximum number of results (default: 20)
-  minScore?: number; // Minimum match score to include (default: 0)
+  requiredTags?: string[];
+  preferredTags?: string[];
+  excludeExpired?: boolean;
+  minDate?: string;
+  maxDate?: string;
+  limit?: number;
+  minScore?: number;
 }
 
-/**
- * Simplified user profile snapshot used for matching
- * This is a lightweight version of the full user profile
- */
 export interface UserProfileSnapshot {
-  // Basic information
   uid: string;
   university?: string;
   degree?: string;
   gpa?: number;
-  
-  // Interests and goals
-  interests?: string; // Comma-separated or space-separated interests
-  preferredIndustries?: string; // Comma-separated preferred industries
+  interests?: string;
+  preferredIndustries?: string;
   bio?: string;
-  goal?: string; // Career goal or objective
-  
-  // Location
+  goal?: string;
   city?: string;
   country?: string;
-  
-  // Skills and tags (extracted from CV, profile, etc.)
-  skills?: string[]; // List of skills
-  tags?: string[]; // General tags for matching
-  
-  // Additional context
+  skills?: string[];
+  tags?: string[];
   age?: number;
-  yearOfStudy?: number; // e.g., 1, 2, 3, 4 for undergraduate
+  yearOfStudy?: number;
+  workRights?: string;
 }
 
-/**
- * Result from the matching engine
- */
 export interface OpportunityMatchResult {
   opportunities: Opportunity[];
   totalMatches: number;
@@ -134,4 +151,3 @@ export interface OpportunityMatchResult {
     filtersApplied?: string[];
   };
 }
-

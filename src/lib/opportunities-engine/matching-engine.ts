@@ -3,8 +3,8 @@
 // Now integrated with live data sources (Firestore, Adzuna, etc.)
 
 import { Opportunity, OpportunityQuery, OpportunityMatchResult, UserProfileSnapshot } from '@/types/opportunities';
-import { getMockOpportunities } from './mock-data';
 import { aggregateOpportunities, AggregationOptions } from './data-fetchers/opportunity-aggregator';
+import { computeFreshnessScore } from './freshness';
 
 /**
  * Scoring weights for different matching factors
@@ -32,10 +32,10 @@ export async function matchOpportunities(query: OpportunityQuery): Promise<Oppor
     location: query.location,
     minDate: query.minDate,
     maxDate: query.maxDate,
-    limit: query.limit ? query.limit * 2 : 200, // Fetch more to allow for scoring/filtering
+    limit: query.limit ? Math.max(query.limit * 3, 500) : 500,
     excludeExpired: query.excludeExpired !== false,
-    useMockData: true, // Fallback to mock data if no real data available
-    sources: ['firestore', 'adzuna'] // Use both Firestore and Adzuna
+    useMockData: false,
+    sources: ['firestore']
   };
   
   // Get opportunities from all sources
@@ -52,18 +52,17 @@ export async function matchOpportunities(query: OpportunityQuery): Promise<Oppor
   try {
     opportunities = await aggregateOpportunities(userProfileForAggregation, aggregationOptions);
   } catch (error) {
-    console.error('Error aggregating opportunities, falling back to mock data:', error);
-    opportunities = getMockOpportunities();
+    console.error('Error aggregating opportunities:', error);
+    opportunities = [];
   }
   
   // Apply additional filters that weren't handled by the aggregator
   opportunities = filterOpportunities(opportunities, query);
   
-  // Score each opportunity
-  const scoredOpportunities = opportunities.map(opp => ({
-    ...opp,
-    score: calculateOpportunityScore(opp, query.userProfile, query)
-  }));
+  const scoredOpportunities = opportunities.map(opp => {
+    const { score, reasons } = calculateOpportunityScoreWithReasons(opp, query.userProfile, query);
+    return { ...opp, score, matchScore: score, matchReasons: reasons };
+  });
   
   // Sort by score (highest first)
   scoredOpportunities.sort((a, b) => (b.score || 0) - (a.score || 0));
@@ -177,28 +176,33 @@ function filterOpportunities(
   return filtered;
 }
 
-/**
- * Calculate a match score for an opportunity based on user profile
- */
-function calculateOpportunityScore(
+function calculateOpportunityScoreWithReasons(
   opportunity: Opportunity,
   profile: UserProfileSnapshot,
   query: OpportunityQuery
-): number {
+): { score: number; reasons: string[] } {
   const skillScore = calculateSkillOverlapScore(opportunity, profile);
   const tagScore = calculateTagOverlapScore(opportunity, profile, query);
   const locationScore = calculateLocationScore(opportunity, profile, query);
   const goalScore = calculateGoalAlignmentScore(opportunity, profile);
   const recencyScore = calculateRecencyScore(opportunity);
-  
-  const totalScore = 
+
+  const totalScore = Math.round(
     skillScore * SCORE_WEIGHTS.skillOverlap +
     tagScore * SCORE_WEIGHTS.tagOverlap +
     locationScore * SCORE_WEIGHTS.locationMatch +
     goalScore * SCORE_WEIGHTS.goalAlignment +
-    recencyScore * SCORE_WEIGHTS.recency;
-  
-  return Math.round(totalScore);
+    recencyScore * SCORE_WEIGHTS.recency
+  );
+
+  const reasons: string[] = [];
+  if (skillScore >= 70) reasons.push('Strong skill match');
+  if (tagScore >= 70) reasons.push('Matches your interests');
+  if (locationScore >= 80) reasons.push('Good location fit');
+  if (goalScore >= 70) reasons.push('Aligns with your career goals');
+  if (recencyScore >= 90) reasons.push('Recently posted');
+
+  return { score: totalScore, reasons };
 }
 
 /**
@@ -391,24 +395,8 @@ function calculateGoalAlignmentScore(
   return (matches / goalKeywords.length) * 100;
 }
 
-/**
- * Calculate recency score
- * More recent opportunities get higher scores
- */
 function calculateRecencyScore(opportunity: Opportunity): number {
-  const created = new Date(opportunity.createdAt);
-  const now = new Date();
-  const daysOld = (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
-  
-  if (daysOld <= 1) return 100;
-  if (daysOld <= 3) return 95;
-  if (daysOld <= 7) return 90;
-  if (daysOld <= 14) return 80;
-  if (daysOld <= 30) return 70;
-  if (daysOld <= 60) return 60;
-  if (daysOld <= 90) return 50;
-  
-  return Math.max(20, 100 - daysOld * 0.5); // Gradual decrease
+  return computeFreshnessScore(opportunity);
 }
 
 /**

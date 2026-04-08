@@ -35,28 +35,10 @@ export async function fetchOpportunitiesFromFirestore(
     let query: FirebaseFirestore.Query = db.collection('opportunities');
 
     // Filter by type if specified
-    if (types && types.length > 0) {
-      // Firestore 'in' queries are limited to 10 items
-      if (types.length <= 10) {
-        query = query.where('type', 'in', types);
-      } else {
-        // If more than 10 types, we'll filter in memory
-        // This is a limitation we can work around
-      }
+    if (types && types.length > 0 && types.length <= 10) {
+      query = query.where('type', 'in', types);
     }
 
-    // Filter by date range
-    if (minDate) {
-      query = query.where('created', '>=', minDate);
-    }
-    if (maxDate) {
-      query = query.where('created', '<=', maxDate);
-    }
-
-    // Order by creation date (newest first)
-    query = query.orderBy('created', 'desc');
-
-    // Apply limit
     query = query.limit(limit);
 
     const snapshot = await query.get();
@@ -65,8 +47,7 @@ export async function fetchOpportunitiesFromFirestore(
     snapshot.forEach((doc) => {
       const data = doc.data();
       
-      // Skip if type filter is applied and doesn't match (for >10 types case)
-      if (types && types.length > 10 && !types.includes(data.type as OpportunityType)) {
+      if (types && types.length > 0 && !types.includes(data.type as OpportunityType)) {
         return;
       }
 
@@ -76,37 +57,57 @@ export async function fetchOpportunitiesFromFirestore(
         title: data.title || 'Untitled Opportunity',
         description: data.description || '',
         type: (data.type as OpportunityType) || 'job',
+        source: data.source || 'firestore',
+        sourceId: data.sourceId,
+        sourceUrl: data.sourceUrl,
+        canonicalUrl: data.canonicalUrl,
         organization: data.company || data.organization || 'Unknown Organization',
         organizationUrl: data.organizationUrl,
-        location: data.location || '',
+        summary: data.summary,
+        location: typeof data.location === 'string' ? data.location : '',
+        locationType: data.locationType,
         city: data.city || extractCityFromLocation(data.location),
         country: data.country || extractCountryFromLocation(data.location),
-        isRemote: data.isRemote || data.location?.toLowerCase().includes('remote') || false,
+        region: data.region,
+        isRemote: data.isRemote || (typeof data.location === 'string' && data.location.toLowerCase().includes('remote')) || false,
         createdAt: data.created || data.createdAt || doc.createTime?.toDate().toISOString() || new Date().toISOString(),
+        updatedAt: data.updatedAt,
         expiresAt: data.expiresAt,
         deadline: data.deadline,
         startDate: data.startDate,
         endDate: data.endDate,
+        dates: data.dates,
         tags: data.tags || extractTagsFromDescription(data.description || ''),
+        categoryTags: data.categoryTags,
+        skills: data.skills,
+        industries: data.industries,
         category: data.category || 'General',
+        eligibility: data.eligibility,
         url: data.url || '#',
+        applicationType: data.applicationType,
         requirements: data.requirements || [],
         benefits: data.benefits || [],
         salaryMin: data.salary_min || data.salaryMin,
         salaryMax: data.salary_max || data.salaryMax,
         currency: data.currency || 'NZD',
-        source: data.source || 'firestore',
+        compensation: data.compensation,
+        status: data.status || 'active',
+        validation: data.validation,
         metadata: {
           fetchedAt: data.fetched_at || data.fetchedAt,
-          docId: doc.id
-        }
+          docId: doc.id,
+          ingestedAt: data.ingestedAt,
+        },
       };
 
-      // Filter expired opportunities if requested
+      if (data.status === 'expired' || data.status === 'closed') {
+        return;
+      }
+
       if (excludeExpired && opportunity.deadline) {
         const deadline = new Date(opportunity.deadline);
         if (deadline < new Date()) {
-          return; // Skip expired opportunities
+          return;
         }
       }
 
@@ -148,7 +149,21 @@ export async function fetchOpportunitiesFromFirestore(
       }
     });
 
-    return opportunities;
+    // In-memory date filtering (field names vary between sources)
+    let filtered = opportunities;
+    if (minDate) {
+      const min = new Date(minDate);
+      filtered = filtered.filter(o => new Date(o.createdAt) >= min);
+    }
+    if (maxDate) {
+      const max = new Date(maxDate);
+      filtered = filtered.filter(o => new Date(o.createdAt) <= max);
+    }
+
+    // Sort by creation date, newest first
+    filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    return filtered;
   } catch (error) {
     console.error('Error fetching opportunities from Firestore:', error);
     return [];
@@ -158,39 +173,19 @@ export async function fetchOpportunitiesFromFirestore(
 /**
  * Extract city from location string
  */
-function extractCityFromLocation(location: string): string | undefined {
-  if (!location) return undefined;
-  
-  // Common patterns: "City, Country" or "City Country"
+function extractCityFromLocation(location: unknown): string | undefined {
+  if (!location || typeof location !== 'string') return undefined;
   const parts = location.split(',').map(s => s.trim());
-  if (parts.length > 0) {
-    return parts[0];
-  }
-  
-  return undefined;
+  return parts.length > 0 ? parts[0] : undefined;
 }
 
-/**
- * Extract country from location string
- */
-function extractCountryFromLocation(location: string): string | undefined {
-  if (!location) return undefined;
-  
-  // Common patterns: "City, Country" or "City Country"
+function extractCountryFromLocation(location: unknown): string | undefined {
+  if (!location || typeof location !== 'string') return undefined;
   const parts = location.split(',').map(s => s.trim());
-  if (parts.length > 1) {
-    return parts[parts.length - 1];
-  }
-  
-  // Try to detect common country names
-  const locationLower = location.toLowerCase();
-  if (locationLower.includes('new zealand') || locationLower.includes('nz')) {
-    return 'New Zealand';
-  }
-  if (locationLower.includes('australia') || locationLower.includes('au')) {
-    return 'Australia';
-  }
-  
+  if (parts.length > 1) return parts[parts.length - 1];
+  const lower = location.toLowerCase();
+  if (lower.includes('new zealand') || lower.includes('nz')) return 'New Zealand';
+  if (lower.includes('australia') || lower.includes('au')) return 'Australia';
   return undefined;
 }
 

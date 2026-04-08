@@ -7,11 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "fetch-jobs": "node scripts/fetch-jobs.js"
+    "fetch-jobs": "node scripts/fetch-jobs.js",
+    "ingest": "npx tsx scripts/ingest-opportunities.ts"
   },
   "dependencies": {
     "@mailerlite/mailerlite-nodejs": "^1.4.1",
     "@radix-ui/react-slot": "^1.2.3",
+    "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "critters": "^0.0.23",
