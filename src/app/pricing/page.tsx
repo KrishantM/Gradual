@@ -173,7 +173,7 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black">
+    <div className="min-h-screen">
       {/* Back Button for Recruiters */}
       {isRecruiter && (
         <div className="max-w-6xl mx-auto px-4 pt-8">

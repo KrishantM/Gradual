@@ -80,7 +80,7 @@ export default function ToDoList({ userId }: ToDoListProps) {
           onChange={(e) => setNewTodo(e.target.value)}
           onKeyPress={handleKeyPress}
           placeholder="Add a new career task..."
-          className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20"
+          className="flex-1 bg-[var(--surface-elevated)] border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-blue)] focus:ring-[var(--accent-blue)]/20"
         />
         <Button
           onClick={addTodo}
@@ -95,21 +95,21 @@ export default function ToDoList({ userId }: ToDoListProps) {
       <div className="space-y-2 max-h-64 overflow-y-auto">
         {todos.length === 0 ? (
           <div className="text-center py-8">
-            <CheckCircle className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-            <p className="text-gray-400">No tasks yet. Add your first career goal!</p>
+            <CheckCircle className="h-12 w-12 text-[var(--text-muted)] mx-auto mb-4" />
+            <p className="text-[var(--text-muted)]">No tasks yet. Add your first career goal!</p>
           </div>
         ) : (
           todos.map((todo) => (
             <div
               key={todo.id}
-              className="flex justify-between items-center bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-3 rounded-lg hover:bg-white/15 transition-all duration-300 group"
+              className="flex justify-between items-center bg-[var(--surface-elevated)] border border-[var(--border)] px-4 py-3 rounded-lg hover:bg-[var(--surface-card)] transition-all duration-300 group"
             >
-              <span className="text-gray-200 flex-1">{todo.text}</span>
+              <span className="text-[var(--foreground)] flex-1">{todo.text}</span>
               <Button
                 onClick={() => deleteTodo(todo.id)}
                 variant="ghost"
                 size="sm"
-                className="text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-300 opacity-0 group-hover:opacity-100"
+                className="text-red-500 hover:text-red-400 hover:bg-red-500/10 transition-all duration-300 opacity-0 group-hover:opacity-100"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

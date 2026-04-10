@@ -30,7 +30,7 @@ export default function Navbar() {
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
-  const navButtonClass = 'h-9 rounded-md text-slate-700 hover:bg-slate-100 hover:text-slate-900';
+  const navButtonClass = 'h-9 rounded-md text-[var(--foreground)] hover:bg-[var(--surface-subtle)]';
 
   const applyTheme = (dark: boolean) => {
     setIsDarkMode(dark);
@@ -71,16 +71,44 @@ export default function Navbar() {
     setIsMoreOpen(false);
   };
 
+  const dropdownClass = "absolute right-0 z-50 mt-2 w-52 rounded-xl border bg-[var(--surface)] py-1.5 shadow-[var(--shadow-lg)]";
+  const dropdownItemClass = "block px-4 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--surface-subtle)] transition-colors rounded-md mx-1";
+
+  const ThemeToggle = () => (
+    <button
+      type="button"
+      onClick={() => applyTheme(!isDarkMode)}
+      className="flex w-full items-center justify-between text-sm text-[var(--foreground)]"
+      aria-label="Toggle dark mode"
+    >
+      <span className="inline-flex items-center gap-2">
+        {isDarkMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+        Dark mode
+      </span>
+      <span
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+          isDarkMode ? 'bg-[var(--accent-blue)]' : 'bg-[var(--border-strong)]'
+        }`}
+      >
+        <span
+          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+            isDarkMode ? 'translate-x-5' : 'translate-x-0.5'
+          }`}
+        />
+      </span>
+    </button>
+  );
+
   return (
     <motion.nav
-      className="fixed left-0 right-0 top-0 z-50 border-b border-slate-200/70 bg-white/90 backdrop-blur"
+      className="fixed left-0 right-0 top-0 z-50 border-b bg-[var(--surface)]/90 backdrop-blur-md"
       initial={{ y: -24, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.35, ease: 'easeOut' }}
     >
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
-          <div className="flex items-center space-x-4">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
+        <div className="flex h-14 items-center justify-between">
+          <div className="flex items-center gap-3">
             <Link href={user ? '/dashboard' : '/'} className="flex items-center" onClick={closeMobileMenu}>
               <span className="logo-pill">
                 <Image
@@ -118,7 +146,7 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => applyTheme(!isDarkMode)}
-                className="hidden md:flex items-center justify-center rounded-full p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                className="hidden md:flex items-center justify-center rounded-full p-1.5 text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] transition-colors"
                 aria-label="Toggle dark mode"
               >
                 {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -128,21 +156,16 @@ export default function Navbar() {
               <div className="hidden items-center md:flex">
                 <Link href="/copilot">
                   <Button variant="ghost" className={navButtonClass}>
-                    <Brain className="mr-2 h-4 w-4" />
+                    <Brain className="mr-2 h-4 w-4 text-[var(--accent-blue)]" />
                     Copilot
                   </Button>
                 </Link>
-                <div className="mx-2 h-6 w-px bg-slate-200" />
+                <div className="mx-1 h-5 w-px bg-[var(--border-soft)]" />
               </div>
             )}
           </div>
 
-          <motion.div
-            className="hidden items-center space-x-1 md:flex"
-            initial={{ opacity: 0, x: 18 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.35, delay: 0.05 }}
-          >
+          <div className="hidden items-center gap-0.5 md:flex">
             {user && (
               <>
                 <Link href="/suggestions">
@@ -170,29 +193,17 @@ export default function Navbar() {
                     }}
                   >
                     More
-                    <ChevronDown className={`ml-1 h-4 w-4 transition-transform ${isMoreOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`ml-1 h-3.5 w-3.5 transition-transform ${isMoreOpen ? 'rotate-180' : ''}`} />
                   </Button>
                   {isMoreOpen && (
-                    <div className="absolute right-0 z-50 mt-2 w-52 rounded-md border border-slate-200 bg-white py-1 shadow-lg">
-                      <Link
-                        href="/planner"
-                        onClick={() => setIsMoreOpen(false)}
-                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                      >
+                    <div className={dropdownClass}>
+                      <Link href="/planner" onClick={() => setIsMoreOpen(false)} className={dropdownItemClass}>
                         Planner
                       </Link>
-                      <Link
-                        href="/tracker"
-                        onClick={() => setIsMoreOpen(false)}
-                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                      >
+                      <Link href="/tracker" onClick={() => setIsMoreOpen(false)} className={dropdownItemClass}>
                         Tracker
                       </Link>
-                      <Link
-                        href="/consulting"
-                        onClick={() => setIsMoreOpen(false)}
-                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                      >
+                      <Link href="/consulting" onClick={() => setIsMoreOpen(false)} className={dropdownItemClass}>
                         Consulting
                       </Link>
                     </div>
@@ -209,45 +220,24 @@ export default function Navbar() {
                   >
                     <User className="mr-2 h-4 w-4" />
                     Account
-                    <ChevronDown className={`ml-1 h-4 w-4 transition-transform ${isAccountOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`ml-1 h-3.5 w-3.5 transition-transform ${isAccountOpen ? 'rotate-180' : ''}`} />
                   </Button>
                   {isAccountOpen && (
-                    <div className="absolute right-0 z-50 mt-2 w-56 rounded-md border border-slate-200 bg-white py-1 shadow-lg">
-                    <Link href="/profile" className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
-                      Profile
-                    </Link>
-                    <Link href="/settings" className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
-                      Settings
-                    </Link>
-                    <div className="mx-2 my-1 rounded-md border border-slate-200 px-3 py-2">
-                      <button
-                        type="button"
-                        onClick={() => applyTheme(!isDarkMode)}
-                        className="flex w-full items-center justify-between text-sm text-slate-700"
-                        aria-label="Toggle dark mode"
-                      >
-                        <span className="inline-flex items-center gap-2">
-                          {isDarkMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-                          Dark mode
-                        </span>
-                        <span
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            isDarkMode ? 'bg-blue-600' : 'bg-slate-300'
-                          }`}
-                        >
-                          <span
-                            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                              isDarkMode ? 'translate-x-5' : 'translate-x-0.5'
-                            }`}
-                          />
-                        </span>
+                    <div className="absolute right-0 z-50 mt-2 w-56 rounded-lg border bg-[var(--surface)] py-1 shadow-[var(--shadow-lg)]">
+                      <Link href="/profile" className={dropdownItemClass}>
+                        Profile
+                      </Link>
+                      <Link href="/settings" className={dropdownItemClass}>
+                        Settings
+                      </Link>
+                      <div className="mx-2 my-1 rounded-md border px-3 py-2">
+                        <ThemeToggle />
+                      </div>
+                      <div className="my-1 border-t" />
+                      <button onClick={logout} className="w-full px-4 py-2 text-left text-sm text-[var(--danger)] hover:bg-[var(--danger-soft)] transition-colors">
+                        Logout
                       </button>
                     </div>
-                    <div className="my-1 border-t border-slate-200" />
-                    <button onClick={logout} className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50">
-                      Logout
-                    </button>
-                  </div>
                   )}
                 </div>
               </>
@@ -261,18 +251,18 @@ export default function Navbar() {
                   </Button>
                 </Link>
                 <Link href="/register">
-                  <Button className="h-9 rounded-md bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+                  <Button className="h-9 rounded-md px-4 text-sm font-semibold">
                     <UserPlus className="mr-2 h-4 w-4" />
                     Register
                   </Button>
                 </Link>
               </>
             )}
-          </motion.div>
+          </div>
 
           <motion.button
             onClick={toggleMobileMenu}
-            className="rounded-md border border-slate-200 bg-white p-2 text-slate-700 transition-colors hover:bg-slate-50 md:hidden"
+            className="rounded-md border bg-[var(--surface)] p-2 text-[var(--foreground)] transition-colors hover:bg-[var(--surface-subtle)] md:hidden"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -305,14 +295,14 @@ export default function Navbar() {
         <AnimatePresence>
           {isMobileMenuOpen && (
             <motion.div
-              className="border-t border-slate-200 py-4 md:hidden"
+              className="border-t py-3 md:hidden"
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.2 }}
             >
               <motion.div
-                className="flex flex-col space-y-1"
+                className="flex flex-col space-y-0.5"
                 initial={{ opacity: 0, y: -12 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
@@ -320,37 +310,37 @@ export default function Navbar() {
               >
                 {user && (
                   <>
-                    <Link href="/dashboard" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                    <Link href="/dashboard" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-subtle)]">
                       Dashboard
                     </Link>
-                    <Link href="/copilot" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900">
-                      <Brain className="mr-2 inline h-4 w-4" />
+                    <Link href="/copilot" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-subtle)]">
+                      <Brain className="mr-2 inline h-4 w-4 text-[var(--accent-blue)]" />
                       Copilot
                     </Link>
-                    <Link href="/suggestions" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                    <Link href="/suggestions" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-subtle)]">
                       Opportunities
                     </Link>
-                    <Link href="/cvscore" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                    <Link href="/cvscore" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-subtle)]">
                       CV Score
                     </Link>
-                    <Link href="/career-suggestions" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                    <Link href="/career-suggestions" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-subtle)]">
                       Suggestions
                     </Link>
-                    <Link href="/planner" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                    <Link href="/planner" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-subtle)]">
                       <Calendar className="mr-2 inline h-4 w-4" />
                       Planner
                     </Link>
-                    <Link href="/tracker" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                    <Link href="/tracker" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-subtle)]">
                       Tracker
                     </Link>
-                    <Link href="/consulting" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                    <Link href="/consulting" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-subtle)]">
                       <Target className="mr-2 inline h-4 w-4" />
                       Consulting
                     </Link>
-                    <Link href="/profile" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                    <Link href="/profile" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-subtle)]">
                       Profile
                     </Link>
-                    <Link href="/settings" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                    <Link href="/settings" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-subtle)]">
                       Settings
                     </Link>
                     <Button
@@ -359,7 +349,7 @@ export default function Navbar() {
                         closeMobileMenu();
                       }}
                       variant="ghost"
-                      className="h-9 justify-start rounded-md text-red-600 hover:bg-red-50 hover:text-red-700"
+                      className="h-9 justify-start rounded-md text-[var(--danger)] hover:bg-[var(--danger-soft)]"
                     >
                       <LogOut className="mr-2 h-4 w-4" />
                       Logout
@@ -369,75 +359,28 @@ export default function Navbar() {
                 {!user && (
                   <>
                     <Link href="/consulting" onClick={closeMobileMenu}>
-                      <Button variant="ghost" className="h-9 w-full justify-start rounded-md text-slate-700 hover:bg-slate-50 hover:text-slate-900">
+                      <Button variant="ghost" className="h-9 w-full justify-start rounded-md">
                         <Target className="mr-2 h-4 w-4" />
                         Consulting
                       </Button>
                     </Link>
                     <Link href="/login" onClick={closeMobileMenu}>
-                      <Button variant="ghost" className="h-9 w-full justify-start rounded-md text-slate-700 hover:bg-slate-50 hover:text-slate-900">
+                      <Button variant="ghost" className="h-9 w-full justify-start rounded-md">
                         <LogIn className="mr-2 h-4 w-4" />
                         Login
                       </Button>
                     </Link>
                     <Link href="/register" onClick={closeMobileMenu}>
-                      <Button className="h-9 w-full rounded-md bg-slate-900 text-white hover:bg-slate-800">
+                      <Button className="h-9 w-full rounded-md">
                         <UserPlus className="mr-2 h-4 w-4" />
                         Register
                       </Button>
                     </Link>
-                    <div className="mx-1 mt-2 rounded-md border border-slate-200 px-3 py-2">
-                      <button
-                        type="button"
-                        onClick={() => applyTheme(!isDarkMode)}
-                        className="flex w-full items-center justify-between text-sm text-slate-700"
-                        aria-label="Toggle dark mode"
-                      >
-                        <span className="inline-flex items-center gap-2">
-                          {isDarkMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-                          Dark mode
-                        </span>
-                        <span
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            isDarkMode ? 'bg-blue-600' : 'bg-slate-300'
-                          }`}
-                        >
-                          <span
-                            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                              isDarkMode ? 'translate-x-5' : 'translate-x-0.5'
-                            }`}
-                          />
-                        </span>
-                      </button>
-                    </div>
                   </>
                 )}
-                {user && (
-                  <div className="mx-1 mt-2 rounded-md border border-slate-200 px-3 py-2">
-                    <button
-                      type="button"
-                      onClick={() => applyTheme(!isDarkMode)}
-                      className="flex w-full items-center justify-between text-sm text-slate-700"
-                      aria-label="Toggle dark mode"
-                    >
-                      <span className="inline-flex items-center gap-2">
-                        {isDarkMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-                        Dark mode
-                      </span>
-                      <span
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          isDarkMode ? 'bg-blue-600' : 'bg-slate-300'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                            isDarkMode ? 'translate-x-5' : 'translate-x-0.5'
-                          }`}
-                        />
-                      </span>
-                    </button>
-                  </div>
-                )}
+                <div className="mx-1 mt-2 rounded-md border px-3 py-2">
+                  <ThemeToggle />
+                </div>
               </motion.div>
             </motion.div>
           )}

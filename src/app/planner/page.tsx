@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Loader2 } from 'lucide-react';
+import { Brain, Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Loader2 } from 'lucide-react';
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -142,22 +142,40 @@ export default function PlannerPage() {
     return acc;
   }, {});
 
+  const todayKey = formatDateKey(new Date());
+
+  const goToToday = () => {
+    if (view === 'week') {
+      setWeekStart(getMonday(new Date()));
+    } else {
+      setMonthDate(new Date());
+    }
+  };
+
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black">
+    <div className="min-h-screen">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="flex items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
-            <Calendar className="h-8 w-8 text-blue-400" />
-            <h1 className="text-2xl font-bold text-white">Planner</h1>
+            <Calendar className="h-8 w-8 text-[var(--accent-blue)]" />
+            <h1 className="text-2xl font-bold text-[var(--foreground)]">Planner</h1>
           </div>
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToToday}
+              className="border-[var(--border)] text-[var(--text-muted)]"
+            >
+              Today
+            </Button>
             <Button
               variant={view === 'week' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setView('week')}
-              className={view === 'week' ? 'bg-blue-600' : 'border-white/20 text-gray-300'}
+              className={view === 'week' ? 'bg-[var(--accent-blue)]' : 'border-[var(--border)] text-[var(--text-muted)]'}
             >
               Week
             </Button>
@@ -165,7 +183,7 @@ export default function PlannerPage() {
               variant={view === 'month' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setView('month')}
-              className={view === 'month' ? 'bg-blue-600' : 'border-white/20 text-gray-300'}
+              className={view === 'month' ? 'bg-[var(--accent-blue)]' : 'border-[var(--border)] text-[var(--text-muted)]'}
             >
               Month
             </Button>
@@ -183,11 +201,11 @@ export default function PlannerPage() {
                   d.setDate(d.getDate() - 7);
                   setWeekStart(d);
                 }}
-                className="border-white/20 text-gray-300"
+                className="border-[var(--border)] text-[var(--text-muted)]"
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="text-gray-200 font-medium">
+              <span className="text-[var(--foreground)] font-medium">
                 {weekDays[0].toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' })} –{' '}
                 {weekDays[6].toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' })}
               </span>
@@ -199,38 +217,46 @@ export default function PlannerPage() {
                   d.setDate(d.getDate() + 7);
                   setWeekStart(d);
                 }}
-                className="border-white/20 text-gray-300"
+                className="border-[var(--border)] text-[var(--text-muted)]"
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
             {loading ? (
               <div className="flex justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+                <Loader2 className="h-8 w-8 animate-spin text-[var(--accent-blue)]" />
               </div>
             ) : (
               <div className="grid grid-cols-7 gap-2">
                 {weekDays.map((d) => {
                   const key = formatDateKey(d);
+                  const isToday = key === todayKey;
                   const dayEvents = eventsByDate[key] ?? [];
                   return (
-                    <Card key={key} className="bg-white/5 backdrop-blur-md border-white/10">
+                    <Card key={key} className={`bg-[var(--surface-card)] border-[var(--border)] ${isToday ? 'ring-2 ring-[var(--accent-blue)]' : ''}`}>
                       <CardHeader className="py-2 px-3">
-                        <CardTitle className="text-sm text-gray-300">{DAY_NAMES[d.getDay() === 0 ? 6 : d.getDay() - 1]}</CardTitle>
-                        <p className="text-xs text-gray-500">{d.getDate()}</p>
+                        <CardTitle className={`text-sm ${isToday ? 'text-[var(--accent-blue)] font-bold' : 'text-[var(--text-muted)]'}`}>{DAY_NAMES[d.getDay() === 0 ? 6 : d.getDay() - 1]}</CardTitle>
+                        <p className={`text-xs ${isToday ? 'text-[var(--accent-blue)]' : 'text-[var(--text-muted)] opacity-60'}`}>{d.getDate()}</p>
                       </CardHeader>
                       <CardContent className="px-3 pb-3 space-y-2">
                         {dayEvents.map((e) => (
                           <div
                             key={e.id}
-                            className="flex items-start justify-between gap-1 p-2 rounded bg-white/5 text-gray-200 text-sm"
+                            className="flex items-start justify-between gap-1 p-2 rounded bg-[var(--surface-elevated)] text-[var(--foreground)] text-sm"
                           >
-                            <span className="flex-1 min-w-0 truncate">{e.title}</span>
+                            <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                              {e.source === 'copilot' && (
+                                <span className="inline-flex items-center gap-0.5 shrink-0 text-[var(--accent-blue)]" title="AI-generated">
+                                  <Brain className="h-3 w-3" />
+                                </span>
+                              )}
+                              <span className="truncate">{e.title}</span>
+                            </div>
                             <button
                               type="button"
                               onClick={() => deleteEvent(e.id)}
                               disabled={!!deleting}
-                              className="text-red-400 hover:text-red-300 shrink-0"
+                              className="text-red-500 hover:text-red-400 shrink-0"
                             >
                               {deleting === e.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
                             </button>
@@ -242,11 +268,11 @@ export default function PlannerPage() {
                             value={newTitle[key] ?? ''}
                             onChange={(e) => setNewTitle((prev) => ({ ...prev, [key]: e.target.value }))}
                             onKeyDown={(e) => e.key === 'Enter' && addEvent(key)}
-                            className="flex-1 h-8 text-xs bg-white/10 border-white/20 text-white placeholder:text-gray-500"
+                            className="flex-1 h-8 text-xs bg-[var(--surface-elevated)] border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)]"
                           />
                           <Button
                             size="sm"
-                            className="h-8 w-8 p-0 bg-blue-600"
+                            className="h-8 w-8 p-0 bg-[var(--accent-blue)]"
                             onClick={() => addEvent(key)}
                             disabled={!!adding || !(newTitle[key] ?? '').trim()}
                           >
@@ -269,32 +295,32 @@ export default function PlannerPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setMonthDate(new Date(monthYear, month - 1))}
-                className="border-white/20 text-gray-300"
+                className="border-[var(--border)] text-[var(--text-muted)]"
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="text-gray-200 font-medium">
+              <span className="text-[var(--foreground)] font-medium">
                 {monthDate.toLocaleDateString('en-NZ', { month: 'long', year: 'numeric' })}
               </span>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setMonthDate(new Date(monthYear, month + 1))}
-                className="border-white/20 text-gray-300"
+                className="border-[var(--border)] text-[var(--text-muted)]"
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
             {loading ? (
               <div className="flex justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+                <Loader2 className="h-8 w-8 animate-spin text-[var(--accent-blue)]" />
               </div>
             ) : (
-              <Card className="bg-white/5 backdrop-blur-md border-white/10 overflow-hidden">
+              <Card className="bg-[var(--surface-card)] border-[var(--border)] overflow-hidden">
                 <CardContent className="p-0">
-                  <div className="grid grid-cols-7 border-b border-white/10">
+                  <div className="grid grid-cols-7 border-b border-[var(--border)]">
                     {DAY_NAMES.map((name) => (
-                      <div key={name} className="py-2 text-center text-sm font-medium text-gray-400 border-r border-white/10 last:border-r-0">
+                      <div key={name} className="py-2 text-center text-sm font-medium text-[var(--text-muted)] border-r border-[var(--border)] last:border-r-0">
                         {name}
                       </div>
                     ))}
@@ -302,32 +328,34 @@ export default function PlannerPage() {
                   <div className="grid grid-cols-7 auto-rows-fr" style={{ minHeight: 400 }}>
                     {monthGrid.map((d, i) => {
                       if (!d) {
-                        return <div key={`pad-${i}`} className="border-r border-b border-white/10 bg-white/5 min-h-[80px]" />;
+                        return <div key={`pad-${i}`} className="border-r border-b border-[var(--border)] bg-[var(--surface)] min-h-[80px]" />;
                       }
                       const key = formatDateKey(d);
+                      const isToday = key === todayKey;
                       const dayEvents = eventsByDate[key] ?? [];
                       const isCurrentMonth = d.getMonth() === month;
                       return (
                         <div
                           key={key}
-                          className="border-r border-b border-white/10 min-h-[80px] p-2 flex flex-col bg-white/5"
+                          className={`border-r border-b border-[var(--border)] min-h-[80px] p-2 flex flex-col bg-[var(--surface-card)] ${isToday ? 'ring-2 ring-inset ring-[var(--accent-blue)]' : ''}`}
                         >
-                          <p className={`text-xs font-medium ${isCurrentMonth ? 'text-gray-300' : 'text-gray-600'}`}>{d.getDate()}</p>
+                          <p className={`text-xs font-medium ${isToday ? 'text-[var(--accent-blue)] font-bold' : isCurrentMonth ? 'text-[var(--foreground)]' : 'text-[var(--text-muted)] opacity-40'}`}>{d.getDate()}</p>
                           <div className="flex-1 space-y-1 overflow-auto">
                             {dayEvents.slice(0, 3).map((e) => (
-                              <div key={e.id} className="flex items-center gap-1 text-xs text-gray-200">
+                              <div key={e.id} className="flex items-center gap-1 text-xs text-[var(--foreground)]">
+                                {e.source === 'copilot' && <Brain className="h-2.5 w-2.5 text-[var(--accent-blue)] shrink-0" />}
                                 <span className="flex-1 min-w-0 truncate">{e.title}</span>
                                 <button
                                   type="button"
                                   onClick={() => deleteEvent(e.id)}
                                   disabled={!!deleting}
-                                  className="text-red-400 hover:text-red-300 shrink-0"
+                                  className="text-red-500 hover:text-red-400 shrink-0"
                                 >
                                   {deleting === e.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
                                 </button>
                               </div>
                             ))}
-                            {dayEvents.length > 3 && <p className="text-xs text-gray-500">+{dayEvents.length - 3} more</p>}
+                            {dayEvents.length > 3 && <p className="text-xs text-[var(--text-muted)]">+{dayEvents.length - 3} more</p>}
                           </div>
                           <div className="flex gap-1 mt-1">
                             <Input
@@ -335,11 +363,11 @@ export default function PlannerPage() {
                               value={newTitle[key] ?? ''}
                               onChange={(e) => setNewTitle((prev) => ({ ...prev, [key]: e.target.value }))}
                               onKeyDown={(e) => e.key === 'Enter' && addEvent(key)}
-                              className="flex-1 h-6 text-xs bg-white/10 border-white/20 text-white placeholder:text-gray-500"
+                              className="flex-1 h-6 text-xs bg-[var(--surface-elevated)] border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)]"
                             />
                             <Button
                               size="sm"
-                              className="h-6 w-6 p-0 bg-blue-600 shrink-0"
+                              className="h-6 w-6 p-0 bg-[var(--accent-blue)] shrink-0"
                               onClick={() => addEvent(key)}
                               disabled={!!adding || !(newTitle[key] ?? '').trim()}
                             >

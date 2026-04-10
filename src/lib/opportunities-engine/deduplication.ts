@@ -1,6 +1,7 @@
 import { Opportunity } from '@/types/opportunities';
 
 function normalizeText(text: string): string {
+  if (!text || typeof text !== 'string') return '';
   return text
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, '')

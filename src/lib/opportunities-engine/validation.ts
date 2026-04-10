@@ -79,12 +79,37 @@ const TRUSTED_DOMAINS = new Set([
   'autc.org.nz', 'aucklandrpg.nz', 'uniband.nz',
   'volunteeringsolutions.com',
   'dressforsuccess.org',
+  // Additional NZ & AU job platforms
+  'studentjobsearch.co.nz', 'mycareerspace.com',
+  'careerhub.co.nz', 'workhere.co.nz',
+  'gethired.co.nz', 'careers.vic.gov.au',
+  'ethicaljobs.com.au', 'probono.org.au',
+  'seek.com.au', 'gradconnection.com',
+  'gradjobs.co.nz', 'summerjobs.co.nz',
+  // Major NZ/AU employers
+  'careers.govt.nz', 'jobs.govt.nz',
+  'careers.treasury.govt.nz', 'nzta.govt.nz',
+  'health.govt.nz', 'education.govt.nz',
+  'police.govt.nz', 'nzdf.mil.nz',
+  'workandincome.govt.nz',
 ]);
 
 const SUSPICIOUS_PATTERNS = [
   /\b(casino|gambling|bet|lottery|crypto\s*mine|adult)\b/i,
   /\b(get\s+rich\s+quick|make\s+money\s+fast|work\s+from\s+home\s+\$)\b/i,
   /\b(mlm|pyramid|ponzi)\b/i,
+  /\b(guaranteed\s+income|passive\s+income\s+opportunity)\b/i,
+  /\b(click\s+here\s+to\s+earn|no\s+experience\s+needed\s+\$)\b/i,
+];
+
+// Patterns that indicate low-quality or placeholder listings
+const LOW_QUALITY_PATTERNS = [
+  /^test\s/i,
+  /^sample\s/i,
+  /lorem ipsum/i,
+  /\bTBD\b.*\bTBD\b/i, // Multiple TBD fields = placeholder
+  /description\s+not\s+available/i,
+  /no\s+description\s+provided/i,
 ];
 
 function extractDomain(url: string): string | null {
@@ -138,7 +163,32 @@ function hasMinimumContent(opp: Opportunity): boolean {
   if (!opp.description || opp.description.trim().length < 20) return false;
   if (!opp.organization || opp.organization.trim().length < 2) return false;
   if (!opp.url || opp.url === '#') return false;
+  try { new URL(opp.url); } catch { return false; }
   return true;
+}
+
+function isLowQuality(opp: Opportunity): string[] {
+  const flags: string[] = [];
+  const text = `${opp.title} ${opp.description}`;
+  for (const pattern of LOW_QUALITY_PATTERNS) {
+    if (pattern.test(text)) {
+      flags.push(`low_quality: ${pattern.source}`);
+    }
+  }
+  // Title is just the organization name (lazy listing)
+  if (opp.title.trim().toLowerCase() === opp.organization.trim().toLowerCase()) {
+    flags.push('low_quality: title_equals_org');
+  }
+  // Extremely short description for jobs/internships (likely incomplete)
+  if ((opp.type === 'job' || opp.type === 'internship') && opp.description.trim().length < 50) {
+    flags.push('low_quality: very_short_description');
+  }
+  // Title contains excessive special characters (likely scraping artifact)
+  const specialCharRatio = (opp.title.match(/[^a-zA-Z0-9\s\-–—&,.:()\/]/g) || []).length / opp.title.length;
+  if (specialCharRatio > 0.3) {
+    flags.push('low_quality: garbled_title');
+  }
+  return flags;
 }
 
 export function validateOpportunity(opp: Opportunity): {
@@ -188,6 +238,12 @@ export function validateOpportunity(opp: Opportunity): {
   if (suspiciousFlags.length > 0) {
     flags.push(...suspiciousFlags);
     trustScore -= 30 * suspiciousFlags.length;
+  }
+
+  const qualityFlags = isLowQuality(opp);
+  if (qualityFlags.length > 0) {
+    flags.push(...qualityFlags);
+    trustScore -= 10 * qualityFlags.length;
   }
 
   if (opp.source === 'adzuna' || opp.source === 'devpost') {

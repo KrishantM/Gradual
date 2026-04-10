@@ -4,19 +4,19 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "bg-blue-600 text-white hover:bg-blue-700",
+        default: "bg-[var(--accent-blue)] text-white hover:bg-[var(--accent-blue-strong)]",
         destructive:
-          "bg-rose-600 text-white hover:bg-rose-700",
+          "bg-[var(--danger)] text-white hover:opacity-90",
         outline:
-          "border border-slate-300 bg-white text-slate-800 hover:bg-slate-50",
+          "border bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-subtle)]",
         secondary:
-          "bg-slate-100 text-slate-800 hover:bg-slate-200",
-        ghost: "text-slate-700 hover:bg-slate-100 hover:text-slate-900",
-        link: "text-blue-700 underline-offset-4 hover:underline",
+          "bg-[var(--surface-subtle)] text-[var(--foreground)] hover:bg-[var(--border-soft)]",
+        ghost: "text-[var(--foreground)] hover:bg-[var(--surface-subtle)]",
+        link: "text-[var(--accent-blue)] underline-offset-4 hover:underline",
       },
       size: {
         default: "h-10 px-4 py-2",
@@ -52,4 +52,4 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 )
 Button.displayName = "Button"
 
-export { Button, buttonVariants } 
+export { Button, buttonVariants }

@@ -28,6 +28,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { User, GraduationCap, Star, Save, Upload, Loader2, Target, Edit3 } from 'lucide-react';
 import { Dialog } from "@/components/ui/dialog";
 import GamifiedProfileDisplay from '@/components/GamifiedProfileDisplay';
+import { calculateProfileCompletion } from '@/lib/profile-completion';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -455,44 +456,57 @@ export default function ProfilePage() {
   if (authLoading) return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
-        <Loader2 className="h-6 w-6 text-gray-400 animate-spin mx-auto mb-3" />
-        <p className="text-gray-400 text-sm">Loading...</p>
+        <Loader2 className="h-6 w-6 text-[var(--accent-blue)] animate-spin mx-auto mb-3" />
+        <p className="text-sm text-[var(--text-muted)]">Loading...</p>
       </div>
     </div>
   );
-  
+
   if (!user) return null;
+
+  // Calculate profile completion
+  const completionPercent = calculateProfileCompletion(formData as unknown as Record<string, unknown>);
 
   return (
     <div className="min-h-screen">
-      <div className="container mx-auto px-4 py-20 max-w-3xl">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6 pt-20 pb-12">
         {/* Header */}
-        <div className="mb-10">
-          <h1 className="text-3xl font-semibold text-white tracking-tight">
-            Profile
-          </h1>
-          <p className="text-gray-400 text-sm mt-1.5">
-            Your career profile and Gradual rating
-          </p>
+        <div className="mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-1">Profile</h1>
+          <p className="text-[var(--text-muted)] text-sm">Your career profile and Gradual rating</p>
+          {!loading && (
+            <div className="mt-3 flex items-center gap-3">
+              <div className="flex-1 h-1.5 rounded-full bg-[var(--surface-subtle)] overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${completionPercent}%`,
+                    backgroundColor: completionPercent >= 80 ? 'var(--success)' : completionPercent >= 50 ? 'var(--accent-blue)' : 'var(--warning)',
+                  }}
+                />
+              </div>
+              <span className="text-xs font-medium text-[var(--text-muted)] shrink-0">{completionPercent}% complete</span>
+            </div>
+          )}
         </div>
 
         {/* Success Toast */}
         {showSuccess && (
-          <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 surface-card text-white px-5 py-2.5 rounded-xl shadow-2xl text-sm font-medium">
+          <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 surface-card-elevated px-5 py-2.5 rounded-xl text-sm font-medium text-[var(--success)]">
             Profile saved
           </div>
         )}
 
         {/* Tab Navigation */}
         {!loading && (
-          <div className="mb-8">
-            <div className="inline-flex surface-card-subtle rounded-xl p-1">
+          <div className="mb-6">
+            <div className="inline-flex surface-card-subtle rounded-lg p-1 gap-0.5">
               <button
                 onClick={() => setActiveTab('profile')}
-                className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                   activeTab === 'profile'
-                    ? 'bg-white/10 text-white shadow-sm'
-                    : 'text-gray-400 hover:text-gray-300'
+                    ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-[var(--shadow-sm)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
                 }`}
               >
                 <Target className="h-4 w-4 mr-2" />
@@ -500,10 +514,10 @@ export default function ProfilePage() {
               </button>
               <button
                 onClick={() => setActiveTab('edit')}
-                className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                   activeTab === 'edit'
-                    ? 'bg-white/10 text-white shadow-sm'
-                    : 'text-gray-400 hover:text-gray-300'
+                    ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-[var(--shadow-sm)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
                 }`}
               >
                 <Edit3 className="h-4 w-4 mr-2" />
@@ -530,8 +544,8 @@ export default function ProfilePage() {
                 <div className="surface-card rounded-2xl overflow-hidden">
                   <div className="p-6 sm:p-8">
                     {error && (
-                      <div className="mb-6 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl">
-                        <p className="text-red-400 text-sm">{error}</p>
+                      <div className="mb-6 px-4 py-3 bg-[var(--danger-soft)] border border-[var(--danger)]/20 rounded-xl">
+                        <p className="text-[var(--danger)] text-sm">{error}</p>
                       </div>
                     )}
                     
@@ -539,15 +553,15 @@ export default function ProfilePage() {
                       {/* Personal Information */}
                       <div className="space-y-4">
                         <div className="flex items-center mb-1">
-                          <User className="h-5 w-5 text-gray-400 mr-2.5" />
-                          <h2 className="text-base font-medium text-white">Personal Information</h2>
+                          <User className="h-5 w-5 text-[var(--text-muted)] mr-2.5" />
+                          <h2 className="text-base font-medium text-[var(--foreground)]">Personal Information</h2>
                         </div>
                         <div>
-                          <label className="block mb-1.5 text-sm font-medium text-gray-400">
+                          <label className="block mb-1.5 text-sm font-medium text-[var(--text-muted)]">
                             Full Name <span className="text-red-400">*</span>
                           </label>
                           <Input
-                            className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-11"
+                            className="bg-[var(--surface-elevated)] border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-blue)] focus:ring-[var(--accent-blue)]/20 rounded-xl h-11"
                             name="fullName"
                             value={formData.fullName}
                             onChange={handleChange}
@@ -555,11 +569,11 @@ export default function ProfilePage() {
                           />
                         </div>
                         <div>
-                          <label className="block mb-1.5 text-sm font-medium text-gray-400">
+                          <label className="block mb-1.5 text-sm font-medium text-[var(--text-muted)]">
                             Bio
                           </label>
                           <textarea
-                            className="w-full p-3.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-blue-400 focus:ring-blue-400/20 resize-none text-sm"
+                            className="w-full p-3.5 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-blue)] focus:ring-[var(--accent-blue)]/20 resize-none text-sm"
                             rows={3}
                             name="bio"
                             value={formData.bio}
@@ -569,11 +583,11 @@ export default function ProfilePage() {
                         </div>
                         <div className="grid md:grid-cols-3 gap-3">
                           <div>
-                            <label className="block mb-1.5 text-sm font-medium text-gray-400">
+                            <label className="block mb-1.5 text-sm font-medium text-[var(--text-muted)]">
                               City <span className="text-red-400">*</span>
                             </label>
                             <Input
-                              className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-11"
+                              className="bg-[var(--surface-elevated)] border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-blue)] focus:ring-[var(--accent-blue)]/20 rounded-xl h-11"
                               name="city"
                               value={formData.city}
                               onChange={handleChange}
@@ -581,11 +595,11 @@ export default function ProfilePage() {
                             />
                           </div>
                           <div>
-                            <label className="block mb-1.5 text-sm font-medium text-gray-400">
+                            <label className="block mb-1.5 text-sm font-medium text-[var(--text-muted)]">
                               Country <span className="text-red-400">*</span>
                             </label>
                             <Input
-                              className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-11"
+                              className="bg-[var(--surface-elevated)] border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-blue)] focus:ring-[var(--accent-blue)]/20 rounded-xl h-11"
                               name="country"
                               value={formData.country}
                               onChange={handleChange}
@@ -593,11 +607,11 @@ export default function ProfilePage() {
                             />
                           </div>
                           <div>
-                            <label className="block mb-1.5 text-sm font-medium text-gray-400">
+                            <label className="block mb-1.5 text-sm font-medium text-[var(--text-muted)]">
                               Age
                             </label>
                             <Input
-                              className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-11"
+                              className="bg-[var(--surface-elevated)] border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-blue)] focus:ring-[var(--accent-blue)]/20 rounded-xl h-11"
                               name="age"
                               value={formData.age}
                               onChange={handleChange}
@@ -609,21 +623,21 @@ export default function ProfilePage() {
                         </div>
                       </div>
 
-                      <div className="border-t border-white/10" />
+                      <div className="border-t border-[var(--border)]" />
 
                       {/* Academic Information */}
                       <div className="space-y-4">
                         <div className="flex items-center mb-1">
-                          <GraduationCap className="h-5 w-5 text-gray-400 mr-2.5" />
-                          <h2 className="text-base font-medium text-white">Academic Information</h2>
+                          <GraduationCap className="h-5 w-5 text-[var(--text-muted)] mr-2.5" />
+                          <h2 className="text-base font-medium text-[var(--foreground)]">Academic Information</h2>
                         </div>
                         <div className="grid md:grid-cols-2 gap-3">
                           <div>
-                            <label className="block mb-1.5 text-sm font-medium text-gray-400">
+                            <label className="block mb-1.5 text-sm font-medium text-[var(--text-muted)]">
                               University <span className="text-red-400">*</span>
                             </label>
                             <Input
-                              className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-11"
+                              className="bg-[var(--surface-elevated)] border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-blue)] focus:ring-[var(--accent-blue)]/20 rounded-xl h-11"
                               name="university"
                               value={formData.university}
                               onChange={handleChange}
@@ -632,11 +646,11 @@ export default function ProfilePage() {
                             />
                           </div>
                           <div>
-                            <label className="block mb-1.5 text-sm font-medium text-gray-400">
+                            <label className="block mb-1.5 text-sm font-medium text-[var(--text-muted)]">
                               Degree <span className="text-red-400">*</span>
                             </label>
                             <Input
-                              className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-11"
+                              className="bg-[var(--surface-elevated)] border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-blue)] focus:ring-[var(--accent-blue)]/20 rounded-xl h-11"
                               name="degree"
                               value={formData.degree}
                               onChange={handleChange}
@@ -647,13 +661,13 @@ export default function ProfilePage() {
                         </div>
                         <div className="grid md:grid-cols-2 gap-3">
                           <div>
-                            <label className="block mb-1.5 text-sm font-medium text-gray-400">
+                            <label className="block mb-1.5 text-sm font-medium text-[var(--text-muted)]">
                               GPA <span className="text-red-400">*</span>
                             </label>
                             <div className="space-y-2.5">
                               <div className="grid grid-cols-2 gap-2">
                                 <Input
-                                  className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-11"
+                                  className="bg-[var(--surface-elevated)] border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-blue)] focus:ring-[var(--accent-blue)]/20 rounded-xl h-11"
                                   name="gpa"
                                   value={formData.gpa}
                                   onChange={handleChange}
@@ -665,26 +679,26 @@ export default function ProfilePage() {
                                   max={formData.gpaScale === '100' ? '100' : formData.gpaScale === 'other' ? undefined : formData.gpaScale}
                                 />
                                 <select
-                                  className="bg-white/5 border border-white/10 text-white focus:border-blue-400 rounded-xl px-3 py-2 text-sm"
+                                  className="bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] focus:border-[var(--accent-blue)] rounded-xl px-3 py-2 text-sm"
                                   name="gpaScale"
                                   value={formData.gpaScale || '4.0'}
                                   onChange={handleChange}
                                 >
-                                  <option value="4.0" className="bg-gray-800">4.0 Scale</option>
-                                  <option value="5.0" className="bg-gray-800">5.0 Scale</option>
-                                  <option value="7.0" className="bg-gray-800">7.0 Scale</option>
-                                  <option value="9.0" className="bg-gray-800">9.0 Scale</option>
-                                  <option value="10.0" className="bg-gray-800">10.0 Scale</option>
-                                  <option value="100" className="bg-gray-800">Percentage</option>
-                                  <option value="other" className="bg-gray-800">Other</option>
+                                  <option value="4.0" className="bg-[var(--surface)]">4.0 Scale</option>
+                                  <option value="5.0" className="bg-[var(--surface)]">5.0 Scale</option>
+                                  <option value="7.0" className="bg-[var(--surface)]">7.0 Scale</option>
+                                  <option value="9.0" className="bg-[var(--surface)]">9.0 Scale</option>
+                                  <option value="10.0" className="bg-[var(--surface)]">10.0 Scale</option>
+                                  <option value="100" className="bg-[var(--surface)]">Percentage</option>
+                                  <option value="other" className="bg-[var(--surface)]">Other</option>
                                 </select>
                               </div>
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-[var(--text-muted)]">
                                 4.0 (USA, Canada), 5.0 (Australia), 7.0 (Australia), 9.0 (NZ), 10.0 (Europe, India)
                               </p>
                               {(!isGPAValid(formData.gpa, formData.gpaScale) || !isGPARealisticallyValid(formData.gpa, formData.gpaScale)) && formData.gpa && (
-                                <div className="bg-red-500/10 border border-red-400/20 rounded-xl p-3">
-                                  <span className="text-red-400 text-sm">
+                                <div className="bg-[var(--danger-soft)] border border-[var(--danger)]/20 rounded-xl p-3">
+                                  <span className="text-[var(--danger)] text-sm">
                                     {!isGPAValid(formData.gpa, formData.gpaScale) ? (
                                       formData.gpaScale === '100' 
                                         ? `GPA (${formData.gpa}%) must be between 0 and 100.`
@@ -696,15 +710,15 @@ export default function ProfilePage() {
                                 </div>
                               )}
                               {isGPAValid(formData.gpa, formData.gpaScale) && isGPARealisticallyValid(formData.gpa, formData.gpaScale) && formData.gpa && formData.gpaScale && formData.gpaScale !== 'other' && calculateGPAPercentage(parseFloat(formData.gpa) || 0, formData.gpaScale) !== null && (
-                                <div className="bg-blue-500/10 border border-blue-400/20 rounded-xl p-3">
-                                  <p className="text-blue-400 text-sm">
+                                <div className="bg-[var(--accent-blue-soft)] border border-[var(--accent-blue)]/20 rounded-xl p-3">
+                                  <p className="text-[var(--accent-blue)] text-sm">
                                     Gradual reads this as <span className="font-semibold">{calculateGPAPercentage(parseFloat(formData.gpa) || 0, formData.gpaScale)}%</span> performance
                                   </p>
                                 </div>
                               )}
                               {formData.gpaScale === 'other' && (
-                                <div className="bg-amber-500/10 border border-amber-400/20 rounded-xl p-3">
-                                  <p className="text-amber-400 text-sm">
+                                <div className="bg-[var(--warning-soft)] border border-[var(--warning)]/20 rounded-xl p-3">
+                                  <p className="text-[var(--warning)] text-sm">
                                     Use percentage (0-100) for the most accurate suggestions.
                                   </p>
                                 </div>
@@ -712,11 +726,11 @@ export default function ProfilePage() {
                             </div>
                           </div>
                           <div>
-                            <label className="block mb-1.5 text-sm font-medium text-gray-400">
+                            <label className="block mb-1.5 text-sm font-medium text-[var(--text-muted)]">
                               Interests <span className="text-red-400">*</span>
                             </label>
                             <Input
-                              className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-11"
+                              className="bg-[var(--surface-elevated)] border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-blue)] focus:ring-[var(--accent-blue)]/20 rounded-xl h-11"
                               name="interests"
                               value={formData.interests}
                               onChange={handleChange}
@@ -727,20 +741,20 @@ export default function ProfilePage() {
                         </div>
                       </div>
 
-                      <div className="border-t border-white/10" />
+                      <div className="border-t border-[var(--border)]" />
 
                       {/* Industries & Portfolio */}
                       <div className="space-y-4">
                         <div className="flex items-center mb-1">
-                          <Star className="h-5 w-5 text-gray-400 mr-2.5" />
-                          <h2 className="text-base font-medium text-white">Industries & Portfolio</h2>
+                          <Star className="h-5 w-5 text-[var(--text-muted)] mr-2.5" />
+                          <h2 className="text-base font-medium text-[var(--foreground)]">Industries & Portfolio</h2>
                         </div>
                         <div>
-                          <label className="block mb-1.5 text-sm font-medium text-gray-400">
+                          <label className="block mb-1.5 text-sm font-medium text-[var(--text-muted)]">
                             Preferred Industries
                           </label>
                           <Input
-                            className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-11"
+                            className="bg-[var(--surface-elevated)] border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-blue)] focus:ring-[var(--accent-blue)]/20 rounded-xl h-11"
                             name="preferredIndustries"
                             value={formData.preferredIndustries}
                             onChange={handleChange}
@@ -748,11 +762,11 @@ export default function ProfilePage() {
                           />
                         </div>
                         <div>
-                          <label className="block mb-1.5 text-sm font-medium text-gray-400">
+                          <label className="block mb-1.5 text-sm font-medium text-[var(--text-muted)]">
                             Portfolio / LinkedIn / GitHub
                           </label>
                           <Input
-                            className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-blue-400 focus:ring-blue-400/20 rounded-xl h-11"
+                            className="bg-[var(--surface-elevated)] border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-blue)] focus:ring-[var(--accent-blue)]/20 rounded-xl h-11"
                             name="portfolioLinks"
                             value={formData.portfolioLinks}
                             onChange={handleChange}
@@ -761,27 +775,27 @@ export default function ProfilePage() {
                         </div>
                       </div>
 
-                      <div className="border-t border-white/10" />
+                      <div className="border-t border-[var(--border)]" />
 
                       {/* CV Upload */}
                       <div className="space-y-4">
                         <div className="flex items-center mb-1">
-                          <Upload className="h-5 w-5 text-gray-400 mr-2.5" />
-                          <h2 className="text-base font-medium text-white">CV Upload</h2>
+                          <Upload className="h-5 w-5 text-[var(--text-muted)] mr-2.5" />
+                          <h2 className="text-base font-medium text-[var(--foreground)]">CV Upload</h2>
                         </div>
                         
                         {formData.uploadedCVName ? (
                           <div className="flex items-center justify-between p-3.5 surface-card-subtle rounded-xl">
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-                                <Upload className="h-4 w-4 text-blue-400" />
+                              <div className="w-8 h-8 rounded-lg bg-[var(--accent-blue-soft)] flex items-center justify-center shrink-0">
+                                <Upload className="h-4 w-4 text-[var(--accent-blue)]" />
                               </div>
-                              <span className="text-sm text-white truncate">{formData.uploadedCVName}</span>
+                              <span className="text-sm text-[var(--foreground)] truncate">{formData.uploadedCVName}</span>
                             </div>
                             <Button
                               variant="outline"
                               size="sm"
-                              className="shrink-0 bg-transparent border-red-500/20 text-red-400 hover:bg-red-500/10 rounded-lg text-xs h-8"
+                              className="shrink-0 bg-transparent border-[var(--danger)]/20 text-[var(--danger)] hover:bg-[var(--danger-soft)] rounded-lg text-xs h-8"
                               onClick={handleRemoveCV}
                               disabled={removeLoading}
                             >
@@ -789,14 +803,14 @@ export default function ProfilePage() {
                             </Button>
                           </div>
                         ) : (
-                          <p className="text-gray-500 text-sm">No CV uploaded yet.</p>
+                          <p className="text-[var(--text-muted)] text-sm">No CV uploaded yet.</p>
                         )}
                         {removeSuccess && (
-                          <p className="text-emerald-500 text-sm">{removeSuccess}</p>
+                          <p className="text-[var(--success)] text-sm">{removeSuccess}</p>
                         )}
                         {cvScore && (
-                          <div className="px-3.5 py-2.5 bg-emerald-500/10 border border-emerald-400/20 rounded-xl">
-                            <span className="text-emerald-500 text-sm">CV Score: <span className="font-semibold">{cvScore}/100</span></span>
+                          <div className="px-3.5 py-2.5 bg-[var(--success-soft)] border border-[var(--success)]/20 rounded-xl">
+                            <span className="text-[var(--success)] text-sm">CV Score: <span className="font-semibold">{cvScore}/100</span></span>
                           </div>
                         )}
                         <div className="relative">
@@ -807,9 +821,9 @@ export default function ProfilePage() {
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                             disabled={removeLoading}
                           />
-                          <div className="border border-dashed border-white/20 rounded-xl p-5 text-center hover:border-blue-400/50 transition-colors duration-200">
-                            <Upload className="h-5 w-5 text-gray-400 mx-auto mb-2" />
-                            <p className="text-gray-400 text-sm">
+                          <div className="border border-dashed border-[var(--border)] rounded-xl p-5 text-center hover:border-[var(--accent-blue)]/50 transition-colors duration-200">
+                            <Upload className="h-5 w-5 text-[var(--text-muted)] mx-auto mb-2" />
+                            <p className="text-[var(--text-muted)] text-sm">
                               {cvFile ? cvFile.name : 'Upload CV (PDF)'}
                             </p>
                           </div>
@@ -819,7 +833,7 @@ export default function ProfilePage() {
                       {/* Save Button */}
                       <div className="pt-2">
                         <Button
-                          className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-all duration-200"
+                          className="w-full h-11 bg-[var(--accent-blue)] hover:bg-[var(--accent-blue-strong)] text-white font-medium rounded-xl transition-all duration-200"
                           onClick={handleSave}
                           disabled={saving}
                         >
@@ -847,8 +861,8 @@ export default function ProfilePage() {
         {/* CV Text Dialog */}
         <Dialog open={showCVText} onOpenChange={setShowCVText}>
           <Dialog.Content>
-            <Dialog.Title className="text-white font-semibold text-lg">CV Text</Dialog.Title>
-            <div className="max-h-96 overflow-y-auto whitespace-pre-wrap text-gray-300 surface-card-subtle p-4 rounded-lg text-sm leading-relaxed">
+            <Dialog.Title className="text-[var(--foreground)] font-semibold text-lg">CV Text</Dialog.Title>
+            <div className="max-h-96 overflow-y-auto whitespace-pre-wrap text-[var(--text-secondary)] surface-card-subtle p-4 rounded-lg text-sm leading-relaxed">
               {cvText || "No CV text saved."}
             </div>
             <Dialog.Close asChild>

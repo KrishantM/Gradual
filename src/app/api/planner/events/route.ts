@@ -11,6 +11,7 @@ const PostBodySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   title: z.string().min(1).max(500).transform((s) => s.trim()),
   notes: z.string().max(2000).optional(),
+  source: z.enum(['user', 'copilot', 'system']).optional().default('user'),
 });
 
 export async function GET(req: NextRequest) {
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
       date,
       title,
       notes: notes ?? '',
-      source: 'user',
+      source: parseResult.data.source,
       createdAt: new Date(),
     });
 

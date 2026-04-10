@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, collection, addDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { trackEvent } from '@/lib/analytics';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -297,14 +298,13 @@ export default function SuggestionsPage() {
       const isStarred = starredOpportunities.includes(opportunityId);
       
       if (isStarred) {
-        // Remove from starred
         await updateDoc(userRef, {
           savedOpportunities: arrayRemove(opportunityId)
         });
         setStarredOpportunities(prev => prev.filter(id => id !== opportunityId));
         setStarredOpportunitiesData(prev => prev.filter(opp => opp.id !== opportunityId));
+        trackEvent('opportunity_unsave', user.uid, { opportunityId });
       } else {
-        // Add to starred - store both ID and full opportunity data
         const opportunity = allOpportunities.find(opp => opp.id === opportunityId);
         if (opportunity) {
           await updateDoc(userRef, {
@@ -313,6 +313,7 @@ export default function SuggestionsPage() {
           });
           setStarredOpportunities(prev => [...prev, opportunityId]);
           setStarredOpportunitiesData(prev => [...prev, opportunity]);
+          trackEvent('opportunity_save', user.uid, { opportunityId, type: opportunity.type, source: opportunity.source });
         }
       }
     } catch (error) {
@@ -519,35 +520,35 @@ export default function SuggestionsPage() {
   const getTypeColor = (type: OpportunityType): string => {
     switch (type) {
       case 'job':
-        return 'bg-blue-500/20 text-blue-300 border-blue-400/30';
+        return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
       case 'internship':
-        return 'bg-purple-500/20 text-purple-300 border-purple-400/30';
+        return 'bg-purple-500/10 text-purple-600 border-purple-500/20';
       case 'club':
-        return 'bg-green-500/20 text-green-300 border-green-400/30';
+        return 'bg-green-500/10 text-green-600 border-green-500/20';
       case 'volunteering':
-        return 'bg-pink-500/20 text-pink-300 border-pink-400/30';
+        return 'bg-pink-500/10 text-pink-600 border-pink-500/20';
       case 'event':
-        return 'bg-orange-500/20 text-orange-300 border-orange-400/30';
+        return 'bg-orange-500/10 text-orange-600 border-orange-500/20';
       case 'scholarship':
-        return 'bg-yellow-500/20 text-yellow-300 border-yellow-400/30';
+        return 'bg-yellow-500/10 text-yellow-700 border-yellow-500/20';
       case 'competition':
-        return 'bg-red-500/20 text-red-300 border-red-400/30';
+        return 'bg-red-500/10 text-red-600 border-red-500/20';
       default:
-        return 'bg-gray-500/20 text-gray-300 border-gray-400/30';
+        return 'bg-gray-500/10 text-gray-600 border-gray-500/20';
     }
   };
 
 
   const getScoreColor = (score: number) => {
-    if (score >= 85) return 'text-green-400';
-    if (score >= 70) return 'text-yellow-400';
-    return 'text-orange-400';
+    if (score >= 85) return 'text-emerald-600';
+    if (score >= 70) return 'text-amber-600';
+    return 'text-orange-600';
   };
 
   const getScoreBgColor = (score: number) => {
-    if (score >= 85) return 'bg-green-500/20 border-green-400/30';
-    if (score >= 70) return 'bg-yellow-500/20 border-yellow-400/30';
-    return 'bg-orange-500/20 border-orange-400/30';
+    if (score >= 85) return 'bg-emerald-500/10 border-emerald-500/20';
+    if (score >= 70) return 'bg-amber-500/10 border-amber-500/20';
+    return 'bg-orange-500/10 border-orange-500/20';
   };
 
   const formatDate = (dateString: string) => {
@@ -563,50 +564,28 @@ export default function SuggestionsPage() {
   };
 
   return (
-    <motion.div 
-      className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black"
+    <motion.div
+      className="min-h-screen"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.8 }}
+      transition={{ duration: 0.4 }}
     >
-      <div className="container mx-auto px-4 py-20">
-        <div className="max-w-6xl mx-auto">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-20 pb-12">
+        <div>
           {/* Header */}
-          <motion.div 
-            className="text-center mb-12"
-            initial={{ opacity: 0, y: 30 }}
+          <motion.div
+            className="mb-8"
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.4 }}
           >
-            <div className="mb-6">
-              <motion.h1 
-                className="text-4xl lg:text-5xl font-bold text-white mb-4"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-              >
-                <motion.span 
-                  className="text-blue-400"
-                  animate={{ 
-                    textShadow: [
-                      "0 0 0px rgba(59, 130, 246, 0)",
-                      "0 0 20px rgba(59, 130, 246, 0.5)",
-                      "0 0 0px rgba(59, 130, 246, 0)"
-                    ]
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  Opportunities Engine
-                </motion.span>
-              </motion.h1>
-              <motion.p 
-                className="text-gray-300 text-lg max-w-2xl mx-auto"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-              >
-                Discover matched opportunities (jobs, internships, clubs, events, scholarships) and get AI-powered career recommendations
-              </motion.p>
+            <div className="mb-4">
+              <h1 className="text-2xl sm:text-3xl font-bold mb-1">
+                <span className="text-[var(--accent-blue)]">Opportunities Engine</span>
+              </h1>
+              <p className="text-[var(--text-muted)]">
+                Discover matched opportunities and get AI-powered career recommendations
+              </p>
             </div>
           </motion.div>
 
@@ -616,19 +595,18 @@ export default function SuggestionsPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-                <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center">
-                        <Zap className="h-6 w-6 text-blue-400 mr-3" />
-                        <h2 className="text-2xl font-semibold text-white">Opportunity Engine</h2>
+                <Card>
+                  <CardContent className="p-5 sm:p-6">
+                    <div className="flex items-center justify-between mb-5">
+                      <div className="flex items-center gap-2">
+                        <Zap className="h-5 w-5 text-[var(--accent-blue)]" />
+                        <h2 className="text-lg font-semibold">Opportunity Engine</h2>
                       </div>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={fetchOpportunities}
                         disabled={opportunitiesLoading}
-                        className="bg-blue-600/20 border-blue-400/30 text-blue-300 hover:bg-blue-600/30 hover:border-blue-400/50"
                       >
                         {opportunitiesLoading ? (
                           <>
@@ -646,7 +624,7 @@ export default function SuggestionsPage() {
 
                     {/* Tab Navigation */}
                     <div className="mb-6">
-                      <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-2">
+                      <div className="surface-card-subtle rounded-lg p-2">
                         <div className="flex flex-wrap gap-2">
                           {[
                             { id: 'all' as TabType, label: 'All', icon: Zap },
@@ -667,8 +645,8 @@ export default function SuggestionsPage() {
                                 onClick={() => setActiveTab(tab.id)}
                                 className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                                   isActive
-                                    ? 'bg-blue-600 text-white shadow-lg'
-                                    : 'text-gray-300 hover:text-white hover:bg-white/10'
+                                    ? 'bg-[var(--accent-blue)] text-white shadow-sm'
+                                    : 'text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-elevated)]'
                                 }`}
                               >
                                 <Icon className={`h-4 w-4 ${isActive ? 'text-white' : ''}`} />
@@ -680,11 +658,11 @@ export default function SuggestionsPage() {
                           {/* Custom Lists Section */}
                           {customLists.length > 0 && (
                             <>
-                              <div className="w-full border-t border-white/20 my-2 pt-2">
+                              <div className="w-full border-t border-[var(--border)] my-2 pt-2">
                                 <div className="flex items-center justify-between px-2 mb-2">
                                   <button
                                     onClick={() => setIsMyListsExpanded(!isMyListsExpanded)}
-                                    className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-300 transition-colors"
+                                    className="flex items-center gap-2 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
                                   >
                                     {isMyListsExpanded ? (
                                       <ChevronDown className="h-3 w-3" />
@@ -695,9 +673,9 @@ export default function SuggestionsPage() {
                                   </button>
                                   <button
                                     onClick={() => setShowCreateListModal(true)}
-                                    className={`flex items-center gap-2 font-medium text-purple-300 hover:text-purple-200 hover:bg-purple-500/20 transition-all duration-200 border border-purple-400/40 border-dashed rounded ${
-                                      isMyListsExpanded 
-                                        ? 'px-3 py-1.5 text-sm' 
+                                    className={`flex items-center gap-2 font-medium text-[var(--accent-blue)] hover:bg-[var(--accent-blue-soft)] transition-all duration-200 border border-[var(--accent-blue)]/30 border-dashed rounded ${
+                                      isMyListsExpanded
+                                        ? 'px-3 py-1.5 text-sm'
                                         : 'px-2 py-1 text-xs'
                                     }`}
                                   >
@@ -723,15 +701,15 @@ export default function SuggestionsPage() {
                                             key={list.id}
                                             className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                                               isActive
-                                                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg border-2 border-purple-400'
-                                                : 'bg-purple-500/20 text-purple-300 hover:text-purple-200 hover:bg-purple-500/30 border border-purple-400/30'
+                                                ? 'bg-[var(--accent-blue)] text-white shadow-sm'
+                                                : 'bg-[var(--surface-elevated)] text-[var(--text-muted)] hover:text-[var(--foreground)] border border-[var(--border)]'
                                             }`}
                                           >
                                             <button
                                               onClick={() => setActiveTab(list.id)}
                                               className="flex items-center gap-2 flex-1"
                                             >
-                                              <FolderPlus className={`h-4 w-4 ${isActive ? 'text-white' : 'text-purple-300'}`} />
+                                              <FolderPlus className={`h-4 w-4 ${isActive ? 'text-white' : 'text-[var(--text-muted)]'}`} />
                                               <span className="font-semibold">{list.name}</span>
                                               <span className="text-xs opacity-70 bg-white/20 px-2 py-0.5 rounded-full">
                                                 {list.opportunityIds.length}
@@ -763,7 +741,7 @@ export default function SuggestionsPage() {
                           {customLists.length === 0 && (
                             <button
                               onClick={() => setShowCreateListModal(true)}
-                              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-purple-300 hover:text-purple-200 hover:bg-purple-500/20 transition-all duration-200 border border-purple-400/40 border-dashed"
+                              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-[var(--accent-blue)] hover:bg-[var(--accent-blue-soft)] transition-all duration-200 border border-[var(--accent-blue)]/30 border-dashed"
                             >
                               <Plus className="h-4 w-4" />
                               New List
@@ -777,20 +755,20 @@ export default function SuggestionsPage() {
                     {activeTab !== 'saved' && !customLists.some(list => list.id === activeTab) && (
                       <div className="mb-6 space-y-4">
                         <div className="relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-[var(--text-muted)]" />
                           <input
                             type="text"
                             placeholder="Search opportunities..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
+                            className="w-full pl-10 pr-4 py-3 rounded-lg bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-blue)] focus:ring-2 focus:ring-[var(--accent-blue)]/20"
                           />
                         </div>
                         
                         {/* Advanced Filters Toggle */}
                         <button
                           onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                          className="flex items-center gap-2 text-sm text-gray-300 hover:text-white transition-colors"
+                          className="flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
                         >
                           <Filter className="h-4 w-4" />
                           Advanced Filters
@@ -807,21 +785,21 @@ export default function SuggestionsPage() {
                               transition={{ duration: 0.3 }}
                               className="overflow-hidden"
                             >
-                              <Card className="bg-white/5 backdrop-blur-md border-white/10">
+                              <Card>
                                 <CardContent className="p-4">
                                   <div className="grid md:grid-cols-2 gap-4">
                                     {/* Location Filter */}
                                     <div>
-                                      <label className="block text-sm font-medium text-gray-300 mb-2">Location</label>
+                                      <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">Location</label>
                                       <input
                                         type="text"
                                         placeholder="City or country"
                                         value={advancedFilters.location || ''}
                                         onChange={(e) => setAdvancedFilters(prev => ({ ...prev, location: e.target.value || undefined }))}
-                                        className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-gray-400 focus:outline-none focus:border-blue-400"
+                                        className="w-full px-3 py-2 rounded-lg bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-blue)]"
                                       />
                                     </div>
-                                    
+
                                     {/* Remote Only */}
                                     <div className="flex items-center pt-8">
                                       <input
@@ -829,58 +807,58 @@ export default function SuggestionsPage() {
                                         id="remoteOnly"
                                         checked={advancedFilters.remoteOnly || false}
                                         onChange={(e) => setAdvancedFilters(prev => ({ ...prev, remoteOnly: e.target.checked || undefined }))}
-                                        className="w-4 h-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                                        className="w-4 h-4 rounded border-[var(--border)] bg-[var(--surface-elevated)] text-[var(--accent-blue)] focus:ring-[var(--accent-blue)]"
                                       />
-                                      <label htmlFor="remoteOnly" className="ml-2 text-sm text-gray-300">Remote only</label>
+                                      <label htmlFor="remoteOnly" className="ml-2 text-sm text-[var(--text-secondary)]">Remote only</label>
                                     </div>
-                                    
+
                                     {/* Salary Range */}
                                     <div>
-                                      <label className="block text-sm font-medium text-gray-300 mb-2">Min Salary (NZD)</label>
+                                      <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">Min Salary (NZD)</label>
                                       <input
                                         type="number"
                                         placeholder="e.g., 50000"
                                         value={advancedFilters.salaryMin || ''}
                                         onChange={(e) => setAdvancedFilters(prev => ({ ...prev, salaryMin: e.target.value ? parseInt(e.target.value) : undefined }))}
-                                        className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-gray-400 focus:outline-none focus:border-blue-400"
+                                        className="w-full px-3 py-2 rounded-lg bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-blue)]"
                                       />
                                     </div>
-                                    
+
                                     <div>
-                                      <label className="block text-sm font-medium text-gray-300 mb-2">Max Salary (NZD)</label>
+                                      <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">Max Salary (NZD)</label>
                                       <input
                                         type="number"
                                         placeholder="e.g., 100000"
                                         value={advancedFilters.salaryMax || ''}
                                         onChange={(e) => setAdvancedFilters(prev => ({ ...prev, salaryMax: e.target.value ? parseInt(e.target.value) : undefined }))}
-                                        className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-gray-400 focus:outline-none focus:border-blue-400"
+                                        className="w-full px-3 py-2 rounded-lg bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-blue)]"
                                       />
                                     </div>
-                                    
+
                                     {/* Date Range */}
                                     <div>
-                                      <label className="block text-sm font-medium text-gray-300 mb-2">From Date</label>
+                                      <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">From Date</label>
                                       <input
                                         type="date"
                                         value={advancedFilters.dateFrom || ''}
                                         onChange={(e) => setAdvancedFilters(prev => ({ ...prev, dateFrom: e.target.value || undefined }))}
-                                        className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:border-blue-400"
+                                        className="w-full px-3 py-2 rounded-lg bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-blue)]"
                                       />
                                     </div>
-                                    
+
                                     <div>
-                                      <label className="block text-sm font-medium text-gray-300 mb-2">To Date</label>
+                                      <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">To Date</label>
                                       <input
                                         type="date"
                                         value={advancedFilters.dateTo || ''}
                                         onChange={(e) => setAdvancedFilters(prev => ({ ...prev, dateTo: e.target.value || undefined }))}
-                                        className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:border-blue-400"
+                                        className="w-full px-3 py-2 rounded-lg bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-blue)]"
                                       />
                                     </div>
-                                    
+
                                     {/* Min Score */}
                                     <div>
-                                      <label className="block text-sm font-medium text-gray-300 mb-2">Min Match Score</label>
+                                      <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">Min Match Score</label>
                                       <input
                                         type="number"
                                         min="0"
@@ -888,18 +866,17 @@ export default function SuggestionsPage() {
                                         placeholder="e.g., 70"
                                         value={advancedFilters.minScore || ''}
                                         onChange={(e) => setAdvancedFilters(prev => ({ ...prev, minScore: e.target.value ? parseInt(e.target.value) : undefined }))}
-                                        className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-gray-400 focus:outline-none focus:border-blue-400"
+                                        className="w-full px-3 py-2 rounded-lg bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-blue)]"
                                       />
                                     </div>
                                   </div>
-                                  
+
                                   {/* Clear Filters Button */}
                                   <div className="mt-4 flex justify-end">
                                     <Button
                                       variant="outline"
                                       size="sm"
                                       onClick={() => setAdvancedFilters({})}
-                                      className="text-gray-300 hover:text-white"
                                     >
                                       <X className="h-4 w-4 mr-2" />
                                       Clear Filters
@@ -990,13 +967,13 @@ export default function SuggestionsPage() {
                       
                       return opportunitiesLoading ? (
                         <div className="text-center py-12">
-                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
-                          <h3 className="text-xl font-semibold text-white mb-2">Finding Opportunities</h3>
-                          <p className="text-gray-300">Matching opportunities to your profile...</p>
+                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--accent-blue)] mx-auto mb-4"></div>
+                          <h3 className="text-xl font-semibold text-[var(--foreground)] mb-2">Finding Opportunities</h3>
+                          <p className="text-[var(--text-muted)]">Matching opportunities to your profile...</p>
                         </div>
                       ) : filteredOpportunities.length > 0 ? (
                         <div>
-                          <div className="mb-4 text-gray-400 text-sm">
+                          <div className="mb-4 text-[var(--text-muted)] text-sm">
                             Showing {filteredOpportunities.length} {activeTab === 'saved' ? 'saved' : activeTab === 'all' ? '' : getTypeLabel(activeTab as OpportunityType).toLowerCase()} {filteredOpportunities.length === 1 ? 'opportunity' : 'opportunities'}
                             {searchQuery && ` matching "${searchQuery}"`}
                           </div>
@@ -1007,20 +984,20 @@ export default function SuggestionsPage() {
                           return (
                             <div
                               key={opportunity.id}
-                              className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-6 hover:bg-white/15 transition-all duration-300 hover:scale-[1.02]"
+                              className="surface-card rounded-xl p-6 hover:shadow-[var(--shadow-md)] transition-all duration-200"
                             >
                               <div className="flex items-start justify-between mb-4">
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2 mb-2">
-                                    <TypeIcon className="h-5 w-5 text-blue-400" />
+                                    <TypeIcon className="h-5 w-5 text-[var(--accent-blue)]" />
                                     <span className={`px-2 py-1 rounded text-xs font-medium border ${getTypeColor(opportunity.type)}`}>
                                       {getTypeLabel(opportunity.type)}
                                     </span>
                                   </div>
-                                  <h3 className="text-white font-semibold text-lg mb-2 line-clamp-2">
+                                  <h3 className="text-[var(--foreground)] font-semibold text-lg mb-2 line-clamp-2">
                                     {opportunity.title}
                                   </h3>
-                                  <p className="text-gray-300 text-base mb-3">{opportunity.organization}</p>
+                                  <p className="text-[var(--text-secondary)] text-base mb-3">{opportunity.organization}</p>
                                 </div>
                                 <div className="flex items-center space-x-3 ml-4">
                                   {opportunity.score !== undefined && (
@@ -1032,17 +1009,17 @@ export default function SuggestionsPage() {
                                     {/* Add to List Dropdown */}
                                     <div className="relative group">
                                       <button
-                                        className="p-2 rounded-full text-gray-400 hover:text-purple-400 hover:bg-purple-400/20 transition-all duration-200"
+                                        className="p-2 rounded-full text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--accent-blue-soft)] transition-all duration-200"
                                         title="Add to list"
                                       >
                                         <FolderPlus className="h-5 w-5" />
                                       </button>
-                                      <div className="absolute right-0 mt-2 w-48 bg-slate-800 rounded-lg shadow-lg border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                                      <div className="absolute right-0 mt-2 w-48 bg-[var(--surface)] rounded-lg shadow-[var(--shadow-lg)] border border-[var(--border)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                                         <div className="py-2">
                                           {customLists.length === 0 ? (
                                             <button
                                               onClick={() => setShowCreateListModal(true)}
-                                              className="w-full text-left px-4 py-2 text-sm text-purple-300 hover:bg-purple-500/20 transition-colors"
+                                              className="w-full text-left px-4 py-2 text-sm text-[var(--accent-blue)] hover:bg-[var(--accent-blue-soft)] transition-colors"
                                             >
                                               <Plus className="h-4 w-4 inline mr-2" />
                                               Create a list first
@@ -1064,8 +1041,8 @@ export default function SuggestionsPage() {
                                                     disabled={addingToListId === list.id}
                                                     className={`w-full text-left px-4 py-2 text-sm transition-colors ${
                                                       isInList
-                                                        ? 'text-purple-300 bg-purple-500/20'
-                                                        : 'text-gray-300 hover:bg-white/10'
+                                                        ? 'text-[var(--accent-blue)] bg-[var(--accent-blue-soft)]'
+                                                        : 'text-[var(--text-secondary)] hover:bg-[var(--surface-elevated)]'
                                                     }`}
                                                   >
                                                     {addingToListId === list.id ? (
@@ -1081,10 +1058,10 @@ export default function SuggestionsPage() {
                                                   </button>
                                                 );
                                               })}
-                                              <div className="border-t border-white/10 my-1"></div>
+                                              <div className="border-t border-[var(--border)] my-1"></div>
                                               <button
                                                 onClick={() => setShowCreateListModal(true)}
-                                                className="w-full text-left px-4 py-2 text-sm text-blue-300 hover:bg-blue-500/20 transition-colors"
+                                                className="w-full text-left px-4 py-2 text-sm text-[var(--accent-blue)] hover:bg-[var(--accent-blue-soft)] transition-colors"
                                               >
                                                 <Plus className="h-4 w-4 inline mr-2" />
                                                 Create new list
@@ -1100,9 +1077,9 @@ export default function SuggestionsPage() {
                                       onClick={() => toggleStarOpportunity(opportunity.id)}
                                       disabled={starringLoading === opportunity.id}
                                       className={`p-2 rounded-full transition-all duration-200 ${
-                                        isStarred 
-                                          ? 'text-yellow-400 bg-yellow-400/20 hover:bg-yellow-400/30' 
-                                          : 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/20'
+                                        isStarred
+                                          ? 'text-amber-500 bg-amber-500/10 hover:bg-amber-500/20'
+                                          : 'text-[var(--text-muted)] hover:text-amber-500 hover:bg-amber-500/10'
                                       }`}
                                     >
                                       {starringLoading === opportunity.id ? (
@@ -1115,7 +1092,7 @@ export default function SuggestionsPage() {
                                 </div>
                               </div>
                               
-                              <div className="flex items-center text-gray-400 text-sm mb-4 space-x-6 flex-wrap">
+                              <div className="flex items-center text-[var(--text-muted)] text-sm mb-4 space-x-6 flex-wrap">
                                 <div className="flex items-center">
                                   <MapPin className="h-4 w-4 mr-2" />
                                   {opportunity.isRemote ? 'Remote' : opportunity.location}
@@ -1125,13 +1102,13 @@ export default function SuggestionsPage() {
                                   {formatDate(opportunity.createdAt)}
                                 </div>
                                 {opportunity.deadline && (
-                                  <div className="flex items-center text-orange-300">
+                                  <div className="flex items-center text-[var(--warning)]">
                                     <Target className="h-4 w-4 mr-2" />
                                     Deadline: {new Date(opportunity.deadline).toLocaleDateString()}
                                   </div>
                                 )}
                                 {opportunity.salaryMin && opportunity.salaryMax && (
-                                  <div className="flex items-center text-green-300">
+                                  <div className="flex items-center text-[var(--success)]">
                                     <TrendingUp className="h-4 w-4 mr-2" />
                                     {opportunity.currency || 'NZD'} {opportunity.salaryMin.toLocaleString()} - {opportunity.salaryMax.toLocaleString()}
                                   </div>
@@ -1141,21 +1118,21 @@ export default function SuggestionsPage() {
                               {opportunity.matchReasons && opportunity.matchReasons.length > 0 && (
                                 <div className="flex flex-wrap gap-2 mb-3">
                                   {opportunity.matchReasons.slice(0, 3).map((reason, idx) => (
-                                    <span key={idx} className="text-xs bg-blue-500/10 text-blue-300 px-2 py-1 rounded-full border border-blue-400/20">
+                                    <span key={idx} className="text-xs bg-[var(--accent-blue-soft)] text-[var(--accent-blue)] px-2 py-1 rounded-full border border-[var(--accent-blue)]/20">
                                       {reason}
                                     </span>
                                   ))}
                                 </div>
                               )}
 
-                              <p className="text-gray-300 text-base mb-4 line-clamp-3 leading-relaxed">
+                              <p className="text-[var(--text-secondary)] text-base mb-4 line-clamp-3 leading-relaxed">
                                 {opportunity.description}
                               </p>
 
                               {opportunity.tags && opportunity.tags.length > 0 && (
                                 <div className="flex flex-wrap gap-2 mb-4">
                                   {opportunity.tags.slice(0, 5).map((tag, idx) => (
-                                    <span key={idx} className="text-xs bg-white/5 text-gray-400 px-2 py-1 rounded">
+                                    <span key={idx} className="text-xs bg-[var(--surface-elevated)] text-[var(--text-muted)] px-2 py-1 rounded">
                                       {tag}
                                     </span>
                                   ))}
@@ -1164,7 +1141,7 @@ export default function SuggestionsPage() {
 
                               <div className="flex items-center justify-between">
                                 {opportunity.category && (
-                                  <span className="text-sm text-gray-400 capitalize bg-white/5 px-3 py-1 rounded-full">
+                                  <span className="text-sm text-[var(--text-muted)] capitalize bg-[var(--surface-elevated)] px-3 py-1 rounded-full">
                                     {opportunity.category}
                                   </span>
                                 )}
@@ -1173,7 +1150,8 @@ export default function SuggestionsPage() {
                                     href={opportunity.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-all duration-300 hover:scale-105"
+                                    onClick={() => user && trackEvent('opportunity_apply', user.uid, { opportunityId: opportunity.id, type: opportunity.type, source: opportunity.source })}
+                                    className="inline-flex items-center bg-[var(--accent-blue)] hover:bg-[var(--accent-blue-strong)] text-white font-medium px-4 py-2 rounded-lg transition-all duration-200"
                                   >
                                     {opportunity.type === 'scholarship' ? 'Learn More' : opportunity.type === 'event' ? 'Register' : opportunity.type === 'competition' ? 'Enter' : opportunity.type === 'club' ? 'Join' : opportunity.type === 'volunteering' ? 'Sign Up' : 'Apply Now'}
                                     <ExternalLink className="h-4 w-4 ml-2" />
@@ -1189,36 +1167,34 @@ export default function SuggestionsPage() {
                         <div className="text-center py-16">
                           {activeTab === 'saved' ? (
                             <>
-                              <Star className="h-20 w-20 text-gray-500 mx-auto mb-6" />
-                              <h3 className="text-2xl font-semibold text-white mb-3">No Saved Opportunities</h3>
-                              <p className="text-gray-400 mb-6 max-w-md mx-auto">You haven&apos;t saved any opportunities yet. Star opportunities you&apos;re interested in to save them here.</p>
+                              <Star className="h-16 w-16 text-[var(--text-muted)] mx-auto mb-6" />
+                              <h3 className="text-xl font-semibold text-[var(--foreground)] mb-3">No Saved Opportunities</h3>
+                              <p className="text-[var(--text-muted)] mb-6 max-w-md mx-auto">You haven&apos;t saved any opportunities yet. Star opportunities you&apos;re interested in to save them here.</p>
                               <Button
                                 variant="outline"
                                 onClick={() => setActiveTab('all')}
-                                className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30"
                               >
                                 Browse Opportunities
                               </Button>
                             </>
                           ) : customLists.some(list => list.id === activeTab) ? (
                             <>
-                              <FolderPlus className="h-20 w-20 text-gray-500 mx-auto mb-6" />
-                              <h3 className="text-2xl font-semibold text-white mb-3">List is Empty</h3>
-                              <p className="text-gray-400 mb-6 max-w-md mx-auto">This list doesn&apos;t have any opportunities yet. Use the folder icon on opportunities to add them to this list.</p>
+                              <FolderPlus className="h-16 w-16 text-[var(--text-muted)] mx-auto mb-6" />
+                              <h3 className="text-xl font-semibold text-[var(--foreground)] mb-3">List is Empty</h3>
+                              <p className="text-[var(--text-muted)] mb-6 max-w-md mx-auto">This list doesn&apos;t have any opportunities yet. Use the folder icon on opportunities to add them to this list.</p>
                               <Button
                                 variant="outline"
                                 onClick={() => setActiveTab('all')}
-                                className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30"
                               >
                                 Browse Opportunities
                               </Button>
                             </>
                           ) : (
                             <>
-                              <Zap className="h-20 w-20 text-gray-500 mx-auto mb-6" />
-                              <h3 className="text-2xl font-semibold text-white mb-3">No Opportunities Found</h3>
-                              <p className="text-gray-400 mb-6 max-w-md mx-auto">
-                                {searchQuery 
+                              <Zap className="h-16 w-16 text-[var(--text-muted)] mx-auto mb-6" />
+                              <h3 className="text-xl font-semibold text-[var(--foreground)] mb-3">No Opportunities Found</h3>
+                              <p className="text-[var(--text-muted)] mb-6 max-w-md mx-auto">
+                                {searchQuery
                                   ? `No ${activeTab === 'all' ? '' : getTypeLabel(activeTab as OpportunityType).toLowerCase()} opportunities match "${searchQuery}". Try a different search term.`
                                   : `We couldn't find any ${activeTab === 'all' ? '' : getTypeLabel(activeTab as OpportunityType).toLowerCase()} opportunities that match your profile. Try updating your profile or check back later.`
                                 }
@@ -1228,13 +1204,12 @@ export default function SuggestionsPage() {
                                   <Button
                                     variant="outline"
                                     onClick={() => setSearchQuery('')}
-                                    className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/30"
                                   >
                                     Clear Search
                                   </Button>
                                 )}
                                 <Link href="/profile">
-                                  <Button className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold px-6 py-3 rounded-lg transition-all duration-300">
+                                  <Button>
                                     Update Profile
                                   </Button>
                                 </Link>
@@ -1265,9 +1240,9 @@ export default function SuggestionsPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-slate-800 rounded-lg border border-white/10 p-6 max-w-md w-full"
+              className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-6 max-w-md w-full shadow-[var(--shadow-lg)]"
             >
-              <h3 className="text-xl font-semibold text-white mb-4">Create New List</h3>
+              <h3 className="text-xl font-semibold text-[var(--foreground)] mb-4">Create New List</h3>
               <input
                 type="text"
                 placeholder="List name (e.g., 'Summer 2025 Applications')"
@@ -1278,7 +1253,7 @@ export default function SuggestionsPage() {
                     createCustomList();
                   }
                 }}
-                className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-gray-400 focus:outline-none focus:border-blue-400 mb-4"
+                className="w-full px-4 py-3 rounded-lg bg-[var(--surface-elevated)] border border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-blue)] mb-4"
                 autoFocus
               />
               <div className="flex gap-3 justify-end">
@@ -1288,14 +1263,12 @@ export default function SuggestionsPage() {
                     setShowCreateListModal(false);
                     setNewListName('');
                   }}
-                  className="text-gray-300 hover:text-white"
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={createCustomList}
                   disabled={!newListName.trim()}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   Create List
                 </Button>

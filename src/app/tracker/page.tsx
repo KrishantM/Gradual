@@ -386,8 +386,8 @@ export default function TrackerPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black">
-        <div className="container mx-auto px-4 py-20">
+      <div className="min-h-screen">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-20 pb-12">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
             <p className="text-gray-300">Loading your applications...</p>
@@ -399,8 +399,8 @@ export default function TrackerPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black">
-        <div className="container mx-auto px-4 py-20">
+      <div className="min-h-screen">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-20 pb-12">
           <div className="text-center">
             <div className="text-red-400 text-xl mb-4">⚠️ Error</div>
             <p className="text-gray-300 mb-4">{error}</p>
@@ -418,12 +418,12 @@ export default function TrackerPage() {
 
   return (
     <motion.div 
-      className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black"
+      className="min-h-screen"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.8 }}
     >
-      <div className="container mx-auto px-4 py-20">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-20 pb-12">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <motion.div 

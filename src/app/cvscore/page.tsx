@@ -656,7 +656,7 @@ export default function CVScorePage() {
 
   return (
     <motion.div 
-      className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black"
+      className="min-h-screen"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.8 }}
@@ -665,7 +665,7 @@ export default function CVScorePage() {
         <title>Gradual CV Tools</title>
       </Head>
       
-      <div className="container mx-auto px-4 py-20">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-20 pb-12">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <motion.div 

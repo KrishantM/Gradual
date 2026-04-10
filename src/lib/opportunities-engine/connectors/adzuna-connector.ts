@@ -48,12 +48,26 @@ function extractTags(title: string, description: string): string[] {
   const tags = new Set<string>();
   const text = `${title} ${description}`.toLowerCase();
   const keywords = [
+    // Tech / engineering
     'javascript', 'python', 'java', 'react', 'node.js', 'typescript',
     'html', 'css', 'sql', 'mongodb', 'aws', 'azure', 'docker',
     'kubernetes', 'git', 'vue', 'angular', 'php', 'ruby', 'go',
+    'c#', '.net', 'swift', 'kotlin', 'rust', 'terraform',
+    'graphql', 'rest api', 'microservices', 'devops', 'ci/cd',
+    // Data / AI
+    'data scientist', 'machine learning', 'data analyst', 'data engineering',
+    'artificial intelligence', 'deep learning', 'nlp', 'tableau', 'power bi',
+    // Business / professional
     'developer', 'engineer', 'analyst', 'designer', 'marketing',
-    'sales', 'finance', 'accounting', 'data scientist', 'machine learning',
-    'graduate', 'junior', 'entry level', 'internship', 'senior',
+    'sales', 'finance', 'accounting', 'consulting', 'project management',
+    'product manager', 'business analyst', 'ux', 'ui', 'graphic design',
+    'communications', 'public relations', 'human resources',
+    // Career stage
+    'graduate', 'junior', 'entry level', 'internship', 'trainee',
+    'cadet', 'graduate programme', 'new graduate',
+    // Industries
+    'healthcare', 'education', 'sustainability', 'renewable energy',
+    'construction', 'legal', 'government', 'not for profit', 'startup',
   ];
   for (const kw of keywords) {
     if (text.includes(kw)) tags.add(kw);
@@ -116,54 +130,94 @@ async function fetchFromAdzuna(
   }
 
   const country = config.country || 'nz';
-  const perQuery = Math.min(Math.ceil((config.maxResults || 50) / 3), 50);
-  const location = profile?.city || 'Auckland';
   const queries = buildQueries(profile);
   const allJobs: Opportunity[] = [];
   const seenIds = new Set<string>();
 
+  // Search from user's city plus broader NZ (no location filter) for more coverage
+  const userCity = profile?.city || 'Auckland';
+  const locations = [userCity, '']; // '' = no location filter = all NZ
+
+  // Distribute budget across queries and locations
+  const totalBudget = config.maxResults || 200;
+  const perRequest = Math.min(Math.ceil(totalBudget / (queries.length * locations.length)), 50);
+
   for (const query of queries) {
-    try {
-      const params = new URLSearchParams({
-        app_id: appId,
-        app_key: appKey,
-        results_per_page: String(perQuery),
-        what: query,
-        where: location,
-        sort_by: 'date',
-      });
-      const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?${params}`;
-      const res = await fetch(url, {
-        headers: { Accept: 'application/json', 'User-Agent': 'Gradual-App/2.0' },
-      });
-      if (!res.ok) continue;
-      const data: AdzunaResponse = await res.json();
-      if (data.results?.length > 0) {
-        for (const job of data.results) {
-          const id = `adzuna_${job.id}`;
-          if (!seenIds.has(id)) {
-            seenIds.add(id);
-            allJobs.push(transformJob(job));
+    for (const location of locations) {
+      try {
+        const params = new URLSearchParams({
+          app_id: appId,
+          app_key: appKey,
+          results_per_page: String(perRequest),
+          what: query,
+          sort_by: 'date',
+        });
+        if (location) params.set('where', location);
+
+        const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?${params}`;
+        const res = await fetch(url, {
+          headers: { Accept: 'application/json', 'User-Agent': 'Gradual-App/2.0' },
+        });
+        if (!res.ok) continue;
+        const data: AdzunaResponse = await res.json();
+        if (data.results?.length > 0) {
+          for (const job of data.results) {
+            const id = `adzuna_${job.id}`;
+            if (!seenIds.has(id)) {
+              seenIds.add(id);
+              allJobs.push(transformJob(job));
+            }
           }
         }
+      } catch (err) {
+        console.error(`[AdzunaConnector] Query "${query}" location "${location}" failed:`, err);
       }
-    } catch (err) {
-      console.error(`[AdzunaConnector] Query "${query}" failed:`, err);
+
+      // Early exit if we have enough
+      if (allJobs.length >= totalBudget) break;
     }
+    if (allJobs.length >= totalBudget) break;
   }
   return allJobs;
 }
 
 function buildQueries(profile: any): string[] {
   const queries: string[] = [];
+
+  // Profile-based queries (most relevant)
   if (profile?.degree) {
-    const words = profile.degree.toLowerCase().split(' ').filter(
-      (w: string) => w.length > 3 && !['bachelor', 'masters', 'degree', 'the', 'and', 'for'].includes(w)
+    const stopWords = new Set(['bachelor', 'bachelors', 'masters', 'master', 'degree', 'of', 'the', 'and', 'for', 'in', 'science', 'arts', 'with']);
+    const words = profile.degree.toLowerCase().split(/\s+/).filter(
+      (w: string) => w.length > 3 && !stopWords.has(w)
     );
-    if (words.length > 0) queries.push(words.slice(0, 2).join(' ') + ' graduate');
+    if (words.length > 0) {
+      queries.push(words.slice(0, 2).join(' ') + ' graduate');
+      queries.push(words.slice(0, 2).join(' ')); // Also search without "graduate" for broader results
+    }
   }
+
+  // Interest-based queries
+  if (profile?.interests && Array.isArray(profile.interests)) {
+    for (const interest of profile.interests.slice(0, 3)) {
+      if (interest && interest.length > 2) queries.push(interest);
+    }
+  }
+
+  // Industry-based queries
+  if (profile?.preferredIndustries && Array.isArray(profile.preferredIndustries)) {
+    for (const industry of profile.preferredIndustries.slice(0, 3)) {
+      if (industry && industry.length > 2) queries.push(industry);
+    }
+  }
+
+  // Broad career stage queries (always included)
   queries.push('graduate', 'entry level', 'junior', 'internship');
-  return queries;
+
+  // Additional broad queries for coverage
+  queries.push('graduate programme', 'trainee', 'cadet');
+
+  // Deduplicate
+  return [...new Set(queries)];
 }
 
 export const adzunaConnector: OpportunityConnector = {
