@@ -1,18 +1,17 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  Brain, Send, Calendar, ListTodo, Briefcase, Target, Loader2, Plus, Undo2, X,
+  Brain, Calendar, ListTodo, Briefcase, Target, Loader2, Plus, Undo2, X,
   ExternalLink, FolderOpen, ChevronDown, ArrowLeft, Archive, Sparkles,
-  FileText, TrendingUp, MessageSquare, Lightbulb, ArrowRight
+  FileText, TrendingUp, Lightbulb, ArrowRight, ArrowUp, PanelRight,
+  CheckCircle2, AlertTriangle, Activity,
 } from 'lucide-react';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { trackEvent } from '@/lib/analytics';
 
 /* ─── Types ─── */
@@ -35,6 +34,15 @@ interface CopilotResponse {
   undoExpiresAt?: string;
 }
 
+interface SidebarSignal { key: string; level: 'HIGH' | 'MEDIUM' | 'OK'; message: string }
+interface SidebarPlannerEvent { id: string; date: string; title: string; source: string }
+interface SidebarData {
+  signals: SidebarSignal[] | null;
+  profileCompletion: number;
+  cvScore: number | null;
+  todayPlannerEvents: SidebarPlannerEvent[];
+}
+
 /* ─── Quick Action Chips ─── */
 
 const QUICK_ACTIONS = [
@@ -45,6 +53,15 @@ const QUICK_ACTIONS = [
   { label: 'Career path advice', icon: TrendingUp, prompt: 'Based on my degree, experience, and interests, what are the most realistic career paths for me?' },
   { label: 'Profile gaps', icon: Lightbulb, prompt: 'What are the biggest gaps in my profile that are holding me back, and how can I fix them?' },
 ];
+
+/* ─── Helpers ─── */
+
+function localDateKey(d: Date = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 export default function CopilotPage() {
   const { user } = useAuth();
@@ -71,10 +88,15 @@ export default function CopilotPage() {
   const [addingToPlanner, setAddingToPlanner] = useState<string | null>(null);
   const [plannerDateFor, setPlannerDateFor] = useState<string | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Sidebar state
+  const [sidebar, setSidebar] = useState<SidebarData | null>(null);
+  const [sidebarOpenMobile, setSidebarOpenMobile] = useState(false);
 
   /* ─── API Helpers ─── */
 
-  const getToken = async () => user ? user.getIdToken() : null;
+  const getToken = useCallback(async () => (user ? user.getIdToken() : null), [user]);
 
   const archiveCurrentConversation = async () => {
     if (!user) return;
@@ -105,7 +127,7 @@ export default function CopilotPage() {
       } catch { /* ignore */ }
     })();
     return () => { cancelled = true; };
-  }, [conversationsOpen, user]);
+  }, [conversationsOpen, user, getToken]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -165,7 +187,7 @@ export default function CopilotPage() {
     finally { setRestoring(false); }
   };
 
-  const fetchLatestAndConversation = async () => {
+  const fetchLatestAndConversation = useCallback(async () => {
     if (!user) return;
     const token = await getToken();
     const [latestRes, currentRes] = await Promise.all([
@@ -182,7 +204,7 @@ export default function CopilotPage() {
       }
     }
     if (currentRes.ok) { const currentData = await currentRes.json(); setConversationMessages(currentData.messages ?? []); }
-  };
+  }, [user, getToken]);
 
   useEffect(() => {
     if (!user) { setLoadingLatest(false); return; }
@@ -193,12 +215,50 @@ export default function CopilotPage() {
       finally { if (!cancelled) setLoadingLatest(false); }
     })();
     return () => { cancelled = true; };
-  }, [user]);
+  }, [user, fetchLatestAndConversation]);
 
-  // Auto-scroll conversation thread
+  // Sidebar context — pulled from the same intelligence endpoint the dashboard uses
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getToken();
+        const res = await fetch(`/api/dashboard/intelligence?date=${localDateKey()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        setSidebar({
+          signals: data.signals ?? null,
+          profileCompletion: data.profileCompletion ?? 0,
+          cvScore: data.cvScore ?? null,
+          todayPlannerEvents: data.todayPlannerEvents ?? [],
+        });
+      } catch { /* sidebar is best-effort */ }
+    })();
+    return () => { cancelled = true; };
+  }, [user, getToken]);
+
+  // Auto-scroll conversation thread when messages change or response arrives
   useEffect(() => {
     if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight;
-  }, [conversationMessages]);
+  }, [conversationMessages, response, loading]);
+
+  // Auto-grow textarea (1–4 rows)
+  const autoGrowTextarea = useCallback(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = 'auto';
+    const lineHeight = 24;
+    const maxHeight = lineHeight * 4;
+    ta.style.height = `${Math.min(ta.scrollHeight, maxHeight)}px`;
+  }, []);
+
+  useEffect(() => {
+    autoGrowTextarea();
+  }, [message, autoGrowTextarea]);
 
   if (typeof window !== 'undefined' && !user) { router.push('/login'); return null; }
 
@@ -206,6 +266,9 @@ export default function CopilotPage() {
     const text = (overrideMessage ?? message).trim();
     if (!text || !user) return;
     setLoading(true); setError(null);
+    // Optimistic: append the user message immediately so the UI feels instant
+    setConversationMessages((prev) => [...prev, { role: 'user', content: text }]);
+    setSentToPlan(false);
     try {
       const token = await getToken();
       const res = await fetch('/api/copilot/chat', {
@@ -219,7 +282,11 @@ export default function CopilotPage() {
       if (!overrideMessage) setMessage('');
       const currentRes = await fetch('/api/copilot/current', { headers: { Authorization: `Bearer ${token}` } });
       if (currentRes.ok) { const currentData = await currentRes.json(); setConversationMessages(currentData.messages ?? []); }
-    } catch (e) { setError(e instanceof Error ? e.message : 'Something went wrong'); }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong');
+      // Roll back the optimistic user message on failure
+      setConversationMessages((prev) => prev.slice(0, -1));
+    }
     finally { setLoading(false); }
   };
 
@@ -255,7 +322,6 @@ export default function CopilotPage() {
       });
       if (!res.ok) throw new Error('Failed to send');
       setSentToPlan(true);
-      // Invalidate router cache so /planner refetches on next navigation
       router.refresh();
       trackEvent('copilot_send_to_planner', user.uid, { eventCount: events.length });
     } catch { setError('Failed to send plan to planner'); }
@@ -296,42 +362,314 @@ export default function CopilotPage() {
 
   const hasConversation = viewingArchiveId ? archivedView && archivedView.messages.length > 0 : conversationMessages.length > 0;
   const displayMessages = viewingArchiveId && archivedView ? archivedView.messages : conversationMessages;
+  const lastAssistantIndex = (() => {
+    for (let i = displayMessages.length - 1; i >= 0; i--) {
+      if (displayMessages[i].role === 'assistant') return i;
+    }
+    return -1;
+  })();
+
+  /* ─── Render helpers ─── */
+
+  const SignalIcon = ({ level }: { level: 'HIGH' | 'MEDIUM' | 'OK' }) => {
+    if (level === 'HIGH') return <AlertTriangle className="h-3.5 w-3.5 text-[var(--danger)]" />;
+    if (level === 'MEDIUM') return <Activity className="h-3.5 w-3.5 text-[var(--warning)]" />;
+    return <CheckCircle2 className="h-3.5 w-3.5 text-[var(--success)]" />;
+  };
+
+  const renderInlineActions = () => {
+    if (!response) return null;
+    return (
+      <div className="mt-3 space-y-3 max-w-2xl">
+        {/* Priority chips */}
+        {response.priorities.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {response.priorities.slice(0, 4).map((p, i) => (
+              <span
+                key={i}
+                title={p.rationale}
+                className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-blue-soft)] text-[var(--accent-blue)] text-xs font-medium px-2.5 py-1 border border-[var(--accent-blue)]/20"
+              >
+                <Target className="h-3 w-3" />
+                {p.title}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Suggested to-dos */}
+        {response.suggestedTodos.length > 0 && (
+          <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-card)] divide-y divide-[var(--border-soft)] overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide">
+              <ListTodo className="h-3.5 w-3.5" />
+              Suggested next actions
+            </div>
+            {response.suggestedTodos.slice(0, 5).map((t, i) => (
+              <div key={i} className="flex items-start gap-2 px-3 py-2.5">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-[var(--foreground)] truncate">{t.title}</p>
+                  {t.notes && <p className="text-xs text-[var(--text-muted)] truncate">{t.notes}</p>}
+                </div>
+                {mode === 'suggest' && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => addTodo(t)} disabled={!!addingTodo}>
+                      {addingTodo === t.title ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Plus className="h-3 w-3 mr-1" />Add</>}
+                    </Button>
+                    {plannerDateFor === t.title ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="date"
+                          className="text-xs rounded-md border border-[var(--border)] bg-[var(--surface-elevated)] px-1.5 py-1 text-[var(--foreground)]"
+                          onChange={(e) => { if (e.target.value) addTodoToPlanner(t, e.target.value); }}
+                          autoFocus
+                        />
+                        <button onClick={() => setPlannerDateFor(null)} aria-label="Cancel" className="text-[var(--text-muted)] hover:text-[var(--foreground)]">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setPlannerDateFor(t.title)} disabled={!!addingToPlanner} title="Add to Planner" aria-label="Add to Planner">
+                        {addingToPlanner === t.title ? <Loader2 className="h-3 w-3 animate-spin" /> : <Calendar className="h-3.5 w-3.5" />}
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Suggested opportunities */}
+        {response.suggestedOpportunities.length > 0 && (
+          <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-card)] divide-y divide-[var(--border-soft)] overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide">
+              <Briefcase className="h-3.5 w-3.5" />
+              Relevant opportunities
+            </div>
+            {response.suggestedOpportunities.slice(0, 4).map((o, i) => (
+              <div key={i} className="px-3 py-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{o.title}</p>
+                    <p className="text-xs text-[var(--text-muted)] truncate">{o.company} · {o.location}</p>
+                    {o.whyFit && <p className="text-xs text-[var(--accent-blue)] mt-0.5 line-clamp-2">{o.whyFit}</p>}
+                  </div>
+                  {o.url && (
+                    <a
+                      href={o.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 text-[var(--accent-blue)] hover:text-[var(--accent-blue-strong)]"
+                      aria-label="Open opportunity"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Weekly plan — compact pill with send action */}
+        {response.weeklyPlan && Object.keys(response.weeklyPlan).length > 0 && (
+          <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-card)] p-3 flex items-center gap-3">
+            <div className="rounded-lg bg-[var(--accent-blue-soft)] p-2 shrink-0">
+              <Calendar className="h-4 w-4 text-[var(--accent-blue)]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">Weekly plan ready</p>
+              <p className="text-xs text-[var(--text-muted)]">
+                {Object.values(response.weeklyPlan).reduce((sum, day) => sum + day.length, 0)} tasks across the week
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant={sentToPlan ? 'outline' : 'default'}
+              onClick={sendWeeklyPlanToPlanner}
+              disabled={sendingToPlan || sentToPlan}
+              className="shrink-0"
+            >
+              {sendingToPlan ? (
+                <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />Sending</>
+              ) : sentToPlan ? (
+                <>Sent</>
+              ) : (
+                <>Send to Planner</>
+              )}
+            </Button>
+          </div>
+        )}
+
+        {/* Consulting recommendation */}
+        {response.consultingRecommendation?.recommended && (
+          <div className="rounded-xl border border-[var(--warning)]/40 bg-[var(--warning-soft)] p-3 flex items-start gap-3">
+            <div className="rounded-lg bg-[var(--warning)]/10 p-2 shrink-0">
+              <Sparkles className="h-4 w-4 text-[var(--warning)]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">Consider Gradual Consulting</p>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">{response.consultingRecommendation.reason}</p>
+            </div>
+            <Link href="/consulting/contact" className="shrink-0">
+              <Button size="sm" variant="outline">
+                {response.consultingRecommendation.ctaText}
+                <ArrowRight className="h-3.5 w-3.5 ml-1" />
+              </Button>
+            </Link>
+          </div>
+        )}
+
+        {/* Undo assist banner */}
+        {response.undoToken && response.undoExpiresAt && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-[var(--border-soft)] bg-[var(--surface-subtle)] text-sm">
+            <Undo2 className="h-3.5 w-3.5 text-[var(--text-muted)]" />
+            <span className="flex-1 text-[var(--text-muted)] text-xs">Assist mode created to-dos. You can undo within 5 minutes.</span>
+            <Button variant="outline" size="sm" onClick={undoAssist} disabled={undoing}>
+              {undoing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Undo'}
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderSidebar = () => (
+    <aside className="flex flex-col gap-4 h-full overflow-y-auto p-5">
+      {/* Signals */}
+      <div>
+        <div className="text-xs uppercase tracking-wide text-[var(--text-subtle)] font-semibold mb-2 px-1">
+          Career signals
+        </div>
+        {sidebar?.signals && sidebar.signals.length > 0 ? (
+          <div className="space-y-1.5">
+            {sidebar.signals.slice(0, 5).map((s) => (
+              <div
+                key={s.key}
+                className="flex items-start gap-2 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-card)] px-2.5 py-2"
+              >
+                <SignalIcon level={s.level} />
+                <p className="text-xs text-[var(--foreground)] leading-snug flex-1">{s.message}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-[var(--text-subtle)] px-1">
+            {sidebar ? 'All signals look good.' : 'Loading signals…'}
+          </p>
+        )}
+      </div>
+
+      {/* Quick stats */}
+      <div>
+        <div className="text-xs uppercase tracking-wide text-[var(--text-subtle)] font-semibold mb-2 px-1">
+          Quick stats
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Link href="/profile" className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-card)] p-3 hover:border-[var(--accent-blue)]/40 transition-colors">
+            <div className="text-xs text-[var(--text-muted)] mb-1">Profile</div>
+            <div className="text-lg font-bold text-[var(--foreground)]">{sidebar?.profileCompletion ?? 0}%</div>
+          </Link>
+          <Link href="/cvscore" className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-card)] p-3 hover:border-[var(--accent-blue)]/40 transition-colors">
+            <div className="text-xs text-[var(--text-muted)] mb-1">CV score</div>
+            <div className="text-lg font-bold text-[var(--foreground)]">
+              {sidebar?.cvScore != null ? `${sidebar.cvScore}` : '—'}
+            </div>
+          </Link>
+        </div>
+      </div>
+
+      {/* Today's planner events */}
+      <div>
+        <div className="text-xs uppercase tracking-wide text-[var(--text-subtle)] font-semibold mb-2 px-1 flex items-center justify-between">
+          <span>Today</span>
+          <Link href="/planner" className="text-[var(--accent-blue)] normal-case tracking-normal hover:underline">
+            Open planner
+          </Link>
+        </div>
+        {sidebar && sidebar.todayPlannerEvents.length > 0 ? (
+          <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-card)] divide-y divide-[var(--border-soft)] overflow-hidden">
+            {sidebar.todayPlannerEvents.slice(0, 6).map((e) => (
+              <div key={e.id} className="flex items-center gap-2 px-2.5 py-2">
+                {e.source === 'copilot' && <Brain className="h-3 w-3 text-[var(--accent-blue)] shrink-0" />}
+                <p className="text-xs text-[var(--foreground)] truncate flex-1">{e.title}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-[var(--text-subtle)] px-1">
+            {sidebar ? 'Nothing planned for today.' : 'Loading…'}
+          </p>
+        )}
+      </div>
+
+      {/* Mode toggle */}
+      <div>
+        <div className="text-xs uppercase tracking-wide text-[var(--text-subtle)] font-semibold mb-2 px-1">
+          Copilot mode
+        </div>
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-soft)]">
+          <button
+            onClick={() => setMode('suggest')}
+            className={`flex-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              mode === 'suggest'
+                ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm'
+                : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
+            }`}
+          >
+            Suggest
+          </button>
+          <button
+            onClick={() => setMode('assist')}
+            className={`flex-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              mode === 'assist'
+                ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm'
+                : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
+            }`}
+          >
+            Assist
+          </button>
+        </div>
+        <p className="text-xs text-[var(--text-subtle)] mt-1.5 px-1 leading-snug">
+          {mode === 'suggest' ? 'Show Add buttons for to-dos.' : 'Auto-create top 3 to-dos with undo.'}
+        </p>
+      </div>
+    </aside>
+  );
 
   return (
-    <div className="min-h-screen">
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 pt-20 pb-12">
-        {/* ─── Header ─── */}
-        <motion.div
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-[var(--accent-blue-soft)] p-2.5">
-              <Brain className="h-6 w-6 text-[var(--accent-blue)]" />
+    <div className="h-[calc(100vh-4rem)] mt-16 flex">
+      {/* ─── Main chat zone ─── */}
+      <div className="flex-1 flex flex-col min-w-0 border-r border-[var(--border-soft)]">
+        {/* Header bar */}
+        <div className="shrink-0 border-b border-[var(--border-soft)] px-4 sm:px-6 py-3 flex items-center justify-between gap-3 bg-[var(--surface)]">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="rounded-lg bg-[var(--accent-blue-soft)] p-1.5 shrink-0">
+              <Brain className="h-4 w-4 text-[var(--accent-blue)]" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold">Career Copilot</h1>
-              <p className="text-sm text-[var(--text-muted)]">Your AI career strategist</p>
+            <div className="min-w-0">
+              <h1 className="text-sm font-semibold truncate">Career Copilot</h1>
+              <p className="text-xs text-[var(--text-subtle)] truncate">Your AI career strategist</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 shrink-0">
             {!viewingArchiveId && conversationMessages.length > 0 && (
-              <Button variant="outline" size="sm" onClick={archiveCurrentConversation} disabled={archivingCurrent}>
-                {archivingCurrent ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Archive className="h-3.5 w-3.5 mr-1.5" />}
-                Archive
+              <Button variant="ghost" size="sm" onClick={archiveCurrentConversation} disabled={archivingCurrent} title="Archive conversation">
+                {archivingCurrent ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Archive className="h-3.5 w-3.5" />}
               </Button>
             )}
+            <Button variant="ghost" size="sm" onClick={startNewConversation} title="New conversation">
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
             <div className="relative" ref={conversationsRef}>
-              <Button variant="outline" size="sm" onClick={() => setConversationsOpen(o => !o)} aria-expanded={conversationsOpen}>
-                <FolderOpen className="h-3.5 w-3.5 mr-1.5" />
+              <Button variant="ghost" size="sm" onClick={() => setConversationsOpen(o => !o)} aria-expanded={conversationsOpen}>
+                <FolderOpen className="h-3.5 w-3.5 mr-1" />
                 History
-                <ChevronDown className={`h-3.5 w-3.5 ml-1 transition-transform ${conversationsOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-3 w-3 ml-1 transition-transform ${conversationsOpen ? 'rotate-180' : ''}`} />
               </Button>
               {conversationsOpen && (
-                <div className="absolute right-0 top-full mt-1 w-72 max-h-[60vh] overflow-hidden rounded-lg border bg-[var(--surface)] shadow-[var(--shadow-lg)] z-50 flex flex-col" role="menu">
-                  <button type="button" onClick={startNewConversation} className="text-left px-3 py-2.5 text-sm font-medium hover:bg-[var(--surface-subtle)] border-b transition-colors" role="menuitem">
+                <div className="absolute right-0 top-full mt-1 w-72 max-h-[60vh] overflow-hidden rounded-lg border border-[var(--border-soft)] bg-[var(--surface)] shadow-[var(--shadow-lg)] z-50 flex flex-col" role="menu">
+                  <button type="button" onClick={startNewConversation} className="text-left px-3 py-2.5 text-sm font-medium hover:bg-[var(--surface-subtle)] border-b border-[var(--border-soft)] transition-colors" role="menuitem">
                     <Plus className="h-3.5 w-3.5 inline mr-1.5" />New conversation
                   </button>
                   <div className="overflow-y-auto flex-1 min-h-0">
@@ -356,13 +694,17 @@ export default function CopilotPage() {
                 </div>
               )}
             </div>
+            {/* Mobile sidebar toggle */}
+            <Button variant="ghost" size="sm" className="lg:hidden" onClick={() => setSidebarOpenMobile(true)} title="Show context">
+              <PanelRight className="h-3.5 w-3.5" />
+            </Button>
           </div>
-        </motion.div>
+        </div>
 
-        {/* ─── Archived banner ─── */}
+        {/* Archived banner */}
         {viewingArchiveId && archivedView && (
-          <div className="mb-4 rounded-lg border border-[var(--warning)] bg-[var(--warning-soft)] p-3 flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium">Viewing: {archivedView.title}</span>
+          <div className="shrink-0 mx-4 sm:mx-6 mt-3 rounded-lg border border-[var(--warning)]/40 bg-[var(--warning-soft)] p-3 flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium flex-1">Viewing archived: {archivedView.title}</span>
             <Button variant="outline" size="sm" onClick={restoreConversation} disabled={restoring}>
               {restoring && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
               Continue this conversation
@@ -374,369 +716,161 @@ export default function CopilotPage() {
         )}
 
         {loadingArchive && (
-          <div className="mb-4 flex items-center gap-2 text-sm text-[var(--text-muted)]">
+          <div className="shrink-0 mx-4 sm:mx-6 mt-3 flex items-center gap-2 text-sm text-[var(--text-muted)]">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading conversation...
           </div>
         )}
 
-        {/* ─── Mode toggle ─── */}
-        {!viewingArchiveId && (
-          <motion.div
-            className="flex items-center gap-2 mb-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.1 }}
-          >
-            <span className="text-xs text-[var(--text-muted)] font-medium">Mode:</span>
-            <button
-              onClick={() => setMode('suggest')}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${mode === 'suggest' ? 'bg-[var(--accent-blue)] text-white' : 'bg-[var(--surface-subtle)] text-[var(--text-muted)] hover:bg-[var(--border-soft)]'}`}
-            >
-              Suggest
-            </button>
-            <button
-              onClick={() => setMode('assist')}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${mode === 'assist' ? 'bg-[var(--accent-blue)] text-white' : 'bg-[var(--surface-subtle)] text-[var(--text-muted)] hover:bg-[var(--border-soft)]'}`}
-            >
-              Assist
-            </button>
-            <span className="text-xs text-[var(--text-subtle)] ml-1">
-              {mode === 'suggest' ? 'Show Add buttons for to-dos' : 'Auto-create top 3 to-dos (with undo)'}
-            </span>
-          </motion.div>
-        )}
-
-        {/* ─── Conversation thread ─── */}
-        {hasConversation && (
-          <div ref={threadRef} className="mb-4 space-y-2.5 max-h-[360px] overflow-y-auto rounded-lg border bg-[var(--surface-subtle)] p-3">
-            {displayMessages.map((m, i) => (
-              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-                  m.role === 'user'
-                    ? 'bg-[var(--accent-blue)] text-white'
-                    : 'bg-[var(--surface)] border text-[var(--foreground)]'
-                }`}>
-                  <div className="whitespace-pre-wrap break-words">{m.content}</div>
+        {/* Scrolling thread */}
+        <div ref={threadRef} className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-3xl px-4 sm:px-6 py-6">
+            {/* Empty state — quick actions */}
+            {!hasConversation && !loading && !loadingLatest && !viewingArchiveId && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="empty-state py-8 mb-4">
+                  <Brain className="empty-state-icon !w-10 !h-10" />
+                  <p className="font-medium mb-1">What would you like to work on?</p>
+                  <p className="text-sm text-[var(--text-subtle)] max-w-md">
+                    Copilot uses your profile, CV, applications, and to-dos to give personalized career guidance.
+                  </p>
                 </div>
-              </div>
-            ))}
-            {loading && (
-              <div className="flex justify-start">
-                <div className="rounded-lg bg-[var(--surface)] border px-3 py-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-[var(--accent-blue)]" />
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ─── Quick action chips (show when no conversation yet) ─── */}
-        {!hasConversation && !response && !loading && !loadingLatest && !viewingArchiveId && (
-          <motion.div
-            className="mb-6"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-          >
-            <div className="empty-state py-8 mb-4">
-              <Brain className="empty-state-icon !w-10 !h-10" />
-              <p className="font-medium mb-1">What would you like to work on?</p>
-              <p className="text-sm text-[var(--text-subtle)] max-w-md">
-                Copilot uses your profile, CV, applications, and to-dos to give personalized career guidance.
-              </p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {QUICK_ACTIONS.map(action => (
-                <button
-                  key={action.label}
-                  onClick={() => send(action.prompt)}
-                  disabled={loading}
-                  className="surface-card hover-lift rounded-lg p-3 flex items-start gap-2.5 text-left transition-all group"
-                >
-                  <action.icon className="h-4 w-4 text-[var(--accent-blue)] shrink-0 mt-0.5" />
-                  <span className="text-sm font-medium group-hover:text-[var(--accent-blue)] transition-colors">{action.label}</span>
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-        {/* ─── Input ─── */}
-        {!viewingArchiveId && (
-          <div className="flex gap-2 mb-6">
-            <Input
-              placeholder={conversationMessages.length > 0 ? 'Ask a follow-up...' : 'Ask a career question...'}
-              value={message}
-              onChange={e => setMessage(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
-              maxLength={4000}
-              disabled={loading}
-            />
-            <Button onClick={() => send()} disabled={loading || !message.trim()}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            </Button>
-          </div>
-        )}
-
-        {/* ─── Error ─── */}
-        {error && (
-          <div className="mb-4 p-3 rounded-lg bg-[var(--danger-soft)] border border-[var(--danger)] text-sm text-[var(--danger)]">
-            {error}
-          </div>
-        )}
-
-        {/* ─── Response sections ─── */}
-        {response && (
-          <motion.div
-            className="space-y-4"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            {/* Main answer */}
-            <Card>
-              <CardContent className="p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <Brain className="h-4 w-4 text-[var(--accent-blue)]" />
-                  <span className="text-sm font-semibold text-[var(--text-muted)]">Response</span>
-                </div>
-                <div className="text-sm leading-relaxed whitespace-pre-wrap">
-                  {response.answer}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Priorities */}
-            {response.priorities.length > 0 && (
-              <Card>
-                <CardContent className="p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Target className="h-4 w-4 text-[var(--accent-blue)]" />
-                    <span className="text-sm font-semibold text-[var(--text-muted)]">Priorities</span>
-                  </div>
-                  <div className="space-y-2">
-                    {response.priorities.map((p, i) => (
-                      <div key={i} className="surface-card-subtle rounded-lg p-3">
-                        <p className="font-medium text-sm">{p.title}</p>
-                        <p className="text-xs text-[var(--text-muted)] mt-0.5">{p.rationale}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {QUICK_ACTIONS.map(action => (
+                    <button
+                      key={action.label}
+                      onClick={() => send(action.prompt)}
+                      disabled={loading}
+                      className="surface-card hover-lift rounded-xl p-3 flex items-start gap-2.5 text-left transition-all group"
+                    >
+                      <div className="rounded-lg bg-[var(--accent-blue-soft)] p-1.5 shrink-0">
+                        <action.icon className="h-3.5 w-3.5 text-[var(--accent-blue)]" />
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                      <span className="text-sm font-medium text-[var(--foreground)] group-hover:text-[var(--accent-blue)] transition-colors">{action.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
             )}
 
-            {/* Suggested todos */}
-            {response.suggestedTodos.length > 0 && (
-              <Card>
-                <CardContent className="p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <ListTodo className="h-4 w-4 text-[var(--accent-blue)]" />
-                    <span className="text-sm font-semibold text-[var(--text-muted)]">Suggested To-dos</span>
-                  </div>
-                  <div className="space-y-2">
-                    {response.suggestedTodos.map((t, i) => (
-                      <div key={i} className="flex items-center justify-between surface-card-subtle rounded-lg p-3">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium text-sm">{t.title}</p>
-                          {t.notes && <p className="text-xs text-[var(--text-muted)] mt-0.5">{t.notes}</p>}
+            {loadingLatest && !hasConversation && (
+              <div className="empty-state py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-[var(--accent-blue)] mb-3" />
+                <p className="text-sm">Loading your last session...</p>
+              </div>
+            )}
+
+            {/* Conversation messages */}
+            {hasConversation && (
+              <div className="space-y-5">
+                {displayMessages.map((m, i) => {
+                  const isLastAssistant = i === lastAssistantIndex && !loading;
+                  if (m.role === 'user') {
+                    return (
+                      <div key={i} className="flex justify-end">
+                        <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-[var(--accent-blue-soft)] px-4 py-2.5 text-sm text-[var(--foreground)] leading-relaxed">
+                          <div className="whitespace-pre-wrap break-words">{m.content}</div>
                         </div>
-                        {mode === 'suggest' && (
-                          <div className="flex items-center gap-1.5 ml-2 shrink-0">
-                            <Button size="sm" variant="outline" onClick={() => addTodo(t)} disabled={!!addingTodo}>
-                              {addingTodo === t.title ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
-                              Add
-                            </Button>
-                            {plannerDateFor === t.title ? (
-                              <div className="flex items-center gap-1">
-                                <input
-                                  type="date"
-                                  className="text-xs rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-[var(--foreground)]"
-                                  onChange={(e) => { if (e.target.value) addTodoToPlanner(t, e.target.value); }}
-                                  autoFocus
-                                />
-                                <button onClick={() => setPlannerDateFor(null)} className="text-[var(--text-muted)] hover:text-[var(--foreground)]">
-                                  <X className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            ) : (
-                              <Button size="sm" variant="ghost" onClick={() => setPlannerDateFor(t.title)} disabled={!!addingToPlanner} title="Add to Planner">
-                                {addingToPlanner === t.title ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Calendar className="h-3.5 w-3.5" />}
-                              </Button>
-                            )}
-                          </div>
-                        )}
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Suggested opportunities */}
-            {response.suggestedOpportunities.length > 0 && (
-              <Card>
-                <CardContent className="p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Briefcase className="h-4 w-4 text-[var(--accent-blue)]" />
-                    <span className="text-sm font-semibold text-[var(--text-muted)]">Relevant Opportunities</span>
-                  </div>
-                  <div className="space-y-2">
-                    {response.suggestedOpportunities.map((o, i) => (
-                      <div key={i} className="surface-card-subtle rounded-lg p-3 hover:border-[var(--accent-blue)] transition-colors">
-                        <p className="font-medium text-sm">{o.title}</p>
-                        <p className="text-xs text-[var(--text-muted)]">{o.company} · {o.location}</p>
-                        {o.whyFit && <p className="text-xs text-[var(--accent-blue)] mt-1">{o.whyFit}</p>}
-                        {o.url && (
-                          <a href={o.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-[var(--accent-blue)] hover:underline mt-1.5 font-medium">
-                            <ExternalLink className="h-3 w-3" /> View opportunity
-                          </a>
-                        )}
+                    );
+                  }
+                  return (
+                    <div key={i} className="flex flex-col items-start">
+                      <div className="max-w-[90%] text-sm text-[var(--foreground)] leading-relaxed whitespace-pre-wrap break-words">
+                        {m.content}
                       </div>
-                    ))}
+                      {isLastAssistant && !viewingArchiveId && renderInlineActions()}
+                    </div>
+                  );
+                })}
+                {loading && (
+                  <div className="flex flex-col items-start">
+                    <div className="inline-flex items-center gap-2 text-sm text-[var(--text-muted)]">
+                      <Loader2 className="h-4 w-4 animate-spin text-[var(--accent-blue)]" />
+                      Thinking…
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
+                )}
+              </div>
             )}
 
-            {/* Consulting recommendation */}
-            {response.consultingRecommendation?.recommended && (
-              <Card className="border-[var(--warning)]">
-                <CardContent className="p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Sparkles className="h-4 w-4 text-[var(--warning)]" />
-                    <span className="text-sm font-semibold">Consider Gradual Consulting</span>
-                  </div>
-                  <p className="text-sm text-[var(--text-muted)] mb-3">{response.consultingRecommendation.reason}</p>
-                  <Link href="/consulting/contact">
-                    <Button size="sm">
-                      {response.consultingRecommendation.ctaText}
-                      <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
+            {/* Error inline */}
+            {error && (
+              <div className="mt-4 p-3 rounded-lg bg-[var(--danger-soft)] border border-[var(--danger)]/30 text-sm text-[var(--danger)]">
+                {error}
+              </div>
             )}
+          </div>
+        </div>
 
-            {/* Undo banner */}
-            {response.undoToken && response.undoExpiresAt && (
-              <div className="flex items-center gap-2 p-3 rounded-lg surface-card-subtle text-sm">
-                <span className="text-[var(--text-muted)]">Assist mode created to-dos. Undo within 5 minutes.</span>
-                <Button variant="outline" size="sm" onClick={undoAssist} disabled={undoing}>
-                  {undoing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Undo2 className="h-3.5 w-3.5 mr-1" />}
-                  Undo
+        {/* Pinned input bar */}
+        {!viewingArchiveId && (
+          <div className="shrink-0 border-t border-[var(--border-soft)] bg-[var(--surface)] px-4 sm:px-6 py-3">
+            <div className="mx-auto max-w-3xl">
+              <div className="flex items-end gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-card)] px-3 py-2 focus-within:border-[var(--accent-blue)] focus-within:ring-2 focus-within:ring-[var(--accent-blue)]/15 transition-all">
+                <textarea
+                  ref={textareaRef}
+                  rows={1}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      send();
+                    }
+                  }}
+                  placeholder={conversationMessages.length > 0 ? 'Ask a follow-up…' : 'Ask a career question…'}
+                  maxLength={4000}
+                  disabled={loading}
+                  className="flex-1 resize-none bg-transparent text-sm leading-6 text-[var(--foreground)] placeholder:text-[var(--text-muted)] outline-none min-h-[24px] max-h-[96px] py-1"
+                />
+                <Button
+                  size="sm"
+                  className="rounded-xl shrink-0 h-8 w-8 p-0"
+                  onClick={() => send()}
+                  disabled={loading || !message.trim()}
+                  aria-label="Send"
+                >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
                 </Button>
               </div>
-            )}
-
-            {/* Weekly plan */}
-            {response.weeklyPlan && Object.keys(response.weeklyPlan).length > 0 && (
-              <Card>
-                <CardContent className="p-5">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Calendar className="h-4 w-4 text-[var(--accent-blue)]" />
-                    <span className="text-sm font-semibold text-[var(--text-muted)]">Your Week at a Glance</span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2">
-                    {(() => {
-                      const mon = new Date();
-                      const day = mon.getDay();
-                      const diff = day === 0 ? -6 : 1 - day;
-                      mon.setDate(mon.getDate() + diff);
-                      const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
-                      return dayNames.map((dayName, i) => {
-                        const date = new Date(mon);
-                        date.setDate(mon.getDate() + i);
-                        const key = date.toISOString().slice(0, 10);
-                        const tasks = response.weeklyPlan![key] ?? [];
-                        return (
-                          <div key={dayName} className="surface-card-subtle rounded-lg p-2.5">
-                            <div className="text-xs font-medium text-[var(--text-muted)] mb-1.5">
-                              {dayName} {date.getDate()}/{date.getMonth() + 1}
-                            </div>
-                            <ul className="space-y-1 text-xs">
-                              {tasks.map((t, j) => (
-                                <li key={j}>
-                                  <span>{t.title}</span>
-                                  {t.notes && <span className="block text-[var(--text-subtle)]">{t.notes}</span>}
-                                </li>
-                              ))}
-                              {tasks.length === 0 && <span className="text-[var(--text-subtle)]">—</span>}
-                            </ul>
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                  <div className="flex items-center gap-3 mt-3">
-                    <Button
-                      size="sm"
-                      variant={sentToPlan ? 'outline' : 'default'}
-                      onClick={sendWeeklyPlanToPlanner}
-                      disabled={sendingToPlan || sentToPlan}
-                    >
-                      {sendingToPlan ? (
-                        <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />Sending...</>
-                      ) : sentToPlan ? (
-                        <>Sent to Planner</>
-                      ) : (
-                        <><Calendar className="h-3.5 w-3.5 mr-1.5" />Send to Planner</>
-                      )}
-                    </Button>
-                    <Link href="/planner" className="text-xs text-[var(--accent-blue)] hover:underline">
-                      Open Planner
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-            {/* Contextual next steps */}
-            {(() => {
-              const nextSteps: { label: string; href: string; icon: typeof ArrowRight }[] = [];
-              if (response.suggestedTodos.length > 0) {
-                nextSteps.push({ label: 'View your planner', href: '/planner', icon: Calendar });
-              }
-              if (response.suggestedOpportunities.length > 0) {
-                nextSteps.push({ label: 'Browse all opportunities', href: '/suggestions', icon: Briefcase });
-              }
-              if (response.weeklyPlan && Object.keys(response.weeklyPlan).length > 0) {
-                nextSteps.push({ label: 'Open planner', href: '/planner', icon: Calendar });
-              }
-              if (response.answer.toLowerCase().includes('cv') || response.answer.toLowerCase().includes('resume')) {
-                nextSteps.push({ label: 'Update your profile', href: '/profile', icon: FileText });
-              }
-              // Deduplicate by href
-              const seen = new Set<string>();
-              const unique = nextSteps.filter(s => { if (seen.has(s.href)) return false; seen.add(s.href); return true; });
-              if (unique.length === 0) return null;
-              return (
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {unique.map((step) => {
-                    const Icon = step.icon;
-                    return (
-                      <Link key={step.href} href={step.href}>
-                        <Button variant="outline" size="sm" className="text-xs">
-                          <Icon className="h-3.5 w-3.5 mr-1.5" />
-                          {step.label}
-                          <ArrowRight className="h-3 w-3 ml-1.5" />
-                        </Button>
-                      </Link>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-          </motion.div>
-        )}
-
-        {/* ─── Empty state (loading latest) ─── */}
-        {!response && !loading && loadingLatest && (
-          <div className="empty-state py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-[var(--accent-blue)] mb-3" />
-            <p className="text-sm">Loading your last session...</p>
+              <p className="text-xs text-[var(--text-subtle)] mt-1.5 px-1">
+                Press Enter to send · Shift+Enter for newline
+              </p>
+            </div>
           </div>
         )}
       </div>
+
+      {/* ─── Desktop sidebar ─── */}
+      <div className="hidden lg:flex w-[340px] shrink-0 bg-[var(--surface)]">
+        {renderSidebar()}
+      </div>
+
+      {/* ─── Mobile sidebar drawer ─── */}
+      {sidebarOpenMobile && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          <div
+            className="flex-1 bg-black/30"
+            onClick={() => setSidebarOpenMobile(false)}
+            aria-label="Close context panel"
+          />
+          <div className="w-[320px] bg-[var(--surface)] border-l border-[var(--border-soft)] shadow-[var(--shadow-lg)] flex flex-col">
+            <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-[var(--border-soft)]">
+              <span className="text-sm font-semibold">Context</span>
+              <Button variant="ghost" size="sm" onClick={() => setSidebarOpenMobile(false)} aria-label="Close">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {renderSidebar()}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
