@@ -73,6 +73,15 @@ interface IntelligenceData {
 
 /* ─── Helpers ─── */
 
+// Local-tz YYYY-MM-DD for Today's-Plan filter. Avoids the toISOString() UTC
+// shift that would put midnight events on the wrong day for non-UTC users.
+function localDateKey(d: Date = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function extractOverallScore(scoreText: string | number | null): string | null {
   if (!scoreText) return null;
   if (typeof scoreText === 'number') return scoreText.toString();
@@ -441,7 +450,7 @@ export default function DashboardPage() {
         const token = await user.getIdToken();
         const [userSnap, intelligenceRes] = await Promise.all([
           getDoc(doc(db, 'users', user.uid)),
-          fetch('/api/dashboard/intelligence', { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
+          fetch(`/api/dashboard/intelligence?date=${localDateKey()}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
         ]);
 
         // Process user doc
@@ -527,8 +536,16 @@ export default function DashboardPage() {
   const weeklyPlan = intelligence?.latestCopilot?.weeklyPlan ?? null;
   const priorities = intelligence?.latestCopilot?.priorities ?? [];
 
-  // Flatten weekly plan for display
-  const weekDays = weeklyPlan ? Object.entries(weeklyPlan).slice(0, 5) : [];
+  // Plan staleness — copilot plans older than 7 days should prompt a regenerate
+  // rather than display as the current focus. createdAt is ISO from the API.
+  const planCreatedAt = intelligence?.latestCopilot?.createdAt ?? null;
+  const planAgeDays = planCreatedAt
+    ? Math.floor((Date.now() - new Date(planCreatedAt).getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+  const planIsStale = planAgeDays !== null && planAgeDays > 7;
+
+  // Flatten weekly plan for display (only when fresh)
+  const weekDays = weeklyPlan && !planIsStale ? Object.entries(weeklyPlan).slice(0, 5) : [];
 
   // ─── Loading state ───
   if (loading || !user) return (
@@ -670,6 +687,23 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              ) : planIsStale ? (
+                <div className="rounded-lg border border-[var(--warning)]/30 bg-[var(--warning-soft)] p-4 flex items-start gap-3">
+                  <div className="rounded-lg bg-[var(--warning)]/10 p-2 shrink-0">
+                    <Brain className="h-4 w-4 text-[var(--warning)]" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium mb-1">Your weekly plan is {planAgeDays} days old</p>
+                    <p className="text-xs text-[var(--text-muted)] mb-3">
+                      Ask your Career Copilot to refresh this week&apos;s focus so it reflects where you are now.
+                    </p>
+                    <Link href="/copilot">
+                      <Button size="sm" variant="outline" className="text-xs">
+                        Regenerate plan <ArrowRight className="h-3 w-3 ml-1" />
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               ) : (
                 <div className="empty-state py-4">

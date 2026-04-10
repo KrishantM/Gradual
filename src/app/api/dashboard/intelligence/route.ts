@@ -99,10 +99,25 @@ export async function GET(req: NextRequest) {
 
     if (latestSnap.exists) {
       const data = latestSnap.data() || {};
+      // createdAt is stored as a Firestore Timestamp via `new Date()`. The admin
+      // SDK returns it as a Timestamp object, so we normalize to an ISO string here
+      // (matches the planner-events endpoint pattern). Falls back to a string if
+      // legacy data was already stored as a string.
+      const rawCreated = data.createdAt;
+      let createdAtIso: string | null = null;
+      if (rawCreated) {
+        if (typeof rawCreated === 'string') {
+          createdAtIso = rawCreated;
+        } else if (typeof (rawCreated as { toDate?: () => Date }).toDate === 'function') {
+          createdAtIso = (rawCreated as { toDate: () => Date }).toDate().toISOString();
+        } else if (rawCreated instanceof Date) {
+          createdAtIso = rawCreated.toISOString();
+        }
+      }
       result.latestCopilot = {
         weeklyPlan: data.weeklyPlan ?? null,
         priorities: data.priorities ?? [],
-        createdAt: data.createdAt ?? null,
+        createdAt: createdAtIso,
       };
     }
   } catch (e) {
@@ -110,9 +125,15 @@ export async function GET(req: NextRequest) {
     result.degraded.push('latestCopilot');
   }
 
-  // Today's planner events (UTC date for now — Stream 2 will switch to user-local tz)
+  // Today's planner events. Client passes ?date=YYYY-MM-DD in their LOCAL
+  // timezone — we trust it after a strict format check. Falls back to UTC date
+  // only when the param is missing or malformed (e.g. legacy callers).
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    const dateParam = new URL(req.url).searchParams.get('date');
+    const today =
+      dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)
+        ? dateParam
+        : new Date().toISOString().slice(0, 10);
     const todayEventsSnap = await db
       .collection('users')
       .doc(uid)

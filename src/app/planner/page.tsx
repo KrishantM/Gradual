@@ -17,7 +17,12 @@ function getMonday(d: Date): Date {
 }
 
 function formatDateKey(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  // Use local date components, not toISOString() which converts to UTC and
+  // shifts dates near midnight into the wrong day for users in non-UTC zones.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function getWeekRange(weekStart: Date): { from: string; to: string } {

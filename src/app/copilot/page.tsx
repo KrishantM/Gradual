@@ -255,6 +255,8 @@ export default function CopilotPage() {
       });
       if (!res.ok) throw new Error('Failed to send');
       setSentToPlan(true);
+      // Invalidate router cache so /planner refetches on next navigation
+      router.refresh();
       trackEvent('copilot_send_to_planner', user.uid, { eventCount: events.length });
     } catch { setError('Failed to send plan to planner'); }
     finally { setSendingToPlan(false); }
@@ -271,6 +273,7 @@ export default function CopilotPage() {
       });
       if (!res.ok) throw new Error('Failed to add');
       setPlannerDateFor(null);
+      router.refresh();
       trackEvent('copilot_add_to_planner', user.uid, { todoTitle: t.title, date });
     } catch { setError('Failed to add to planner'); }
     finally { setAddingToPlanner(null); }
