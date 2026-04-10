@@ -1,6 +1,6 @@
 import { Opportunity } from '@/types/opportunities';
 
-function normalizeText(text: string): string {
+function normalizeText(text: string | null | undefined): string {
   if (!text || typeof text !== 'string') return '';
   return text
     .toLowerCase()
@@ -9,7 +9,7 @@ function normalizeText(text: string): string {
     .trim();
 }
 
-function titleSimilarity(a: string, b: string): number {
+function titleSimilarity(a: string | null | undefined, b: string | null | undefined): number {
   const na = normalizeText(a);
   const nb = normalizeText(b);
   if (na === nb) return 1.0;
