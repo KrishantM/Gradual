@@ -11,7 +11,11 @@ type EventType =
   | 'copilot_add_todo'
   | 'copilot_send_to_planner'
   | 'copilot_add_to_planner'
-  | 'profile_save';
+  | 'profile_save'
+  | 'path_enrolled'
+  | 'path_module_completed'
+  | 'path_unenrolled'
+  | 'path_pinned';
 
 interface AnalyticsEvent {
   event: EventType;
