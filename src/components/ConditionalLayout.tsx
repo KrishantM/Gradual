@@ -70,7 +70,7 @@ export default function ConditionalLayout({ children }: ConditionalLayoutProps) 
   return (
     <>
       {shouldShowNavbar && <Navbar />}
-      <main className={`flex-1 ${shouldShowNavbar ? 'pt-16' : ''}`}>
+      <main className={`flex-1 ${shouldShowNavbar ? 'pt-14' : ''}`}>
         {children}
       </main>
       {shouldShowFooter && <Footer />}
