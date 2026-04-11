@@ -13,7 +13,7 @@
  * No LMS clutter — every section answers "why am I learning this?".
  */
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -125,104 +125,152 @@ export default function PathsPage() {
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [filter, setFilter] = useState<PathCategory | 'all'>('all');
 
-  const fetchPaths = useCallback(async () => {
-    if (!user) return;
+  // Stable getToken via ref — avoids the user→getToken→fetchPaths dependency
+  // cascade and isolates Firebase IndexedDB rejections (which can be raw DOM
+  // Event objects, not Errors).
+  const userRef = useRef(user);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  const safeGetToken = useCallback(async (): Promise<string | null> => {
     try {
-      const token = await user.getIdToken();
+      const u = userRef.current;
+      if (!u) return null;
+      return await u.getIdToken();
+    } catch (e) {
+      console.error('[paths] getIdToken failed', e);
+      return null;
+    }
+  }, []);
+
+  const fetchPaths = useCallback(async () => {
+    try {
+      const token = await safeGetToken();
+      if (!token) {
+        setLoading(false);
+        return;
+      }
       const res = await fetch('/api/paths', { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) {
         const json = (await res.json()) as PathsResponse;
         setData(json);
       }
     } catch (e) {
-      console.error('Failed to load paths', e);
+      console.error('[paths] fetchPaths failed', e);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [safeGetToken]);
 
   useEffect(() => {
     if (!user) {
       router.push('/login');
       return;
     }
-    fetchPaths();
+    fetchPaths().catch((e) => {
+      console.error('[paths] fetchPaths IIFE failed', e);
+    });
   }, [user, router, fetchPaths]);
 
-  const enroll = async (pathId: string, addToPlanner: boolean) => {
-    if (!user) return;
-    setActionPending(`enroll:${pathId}`);
-    try {
-      const token = await user.getIdToken();
-      const res = await fetch('/api/paths/enroll', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pathId, addToPlanner, startDateISO: localDateKey() }),
-      });
-      if (res.ok) {
-        trackEvent('path_enrolled', user.uid, { pathId, addToPlanner });
-        await fetchPaths();
-        router.refresh();
+  const enroll = useCallback(
+    async (pathId: string, addToPlanner: boolean) => {
+      setActionPending(`enroll:${pathId}`);
+      try {
+        const token = await safeGetToken();
+        if (!token) return;
+        const res = await fetch('/api/paths/enroll', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pathId, addToPlanner, startDateISO: localDateKey() }),
+        });
+        if (res.ok) {
+          const uid = userRef.current?.uid;
+          if (uid) trackEvent('path_enrolled', uid, { pathId, addToPlanner });
+          await fetchPaths();
+          router.refresh();
+        }
+      } catch (e) {
+        console.error('[paths] enroll failed', e);
+      } finally {
+        setActionPending(null);
       }
-    } finally {
-      setActionPending(null);
-    }
-  };
+    },
+    [safeGetToken, fetchPaths, router]
+  );
 
-  const completeModule = async (pathId: string, moduleId: string) => {
-    if (!user) return;
-    setActionPending(`complete:${moduleId}`);
-    try {
-      const token = await user.getIdToken();
-      const res = await fetch('/api/paths/complete-module', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pathId, moduleId }),
-      });
-      if (res.ok) {
-        trackEvent('path_module_completed', user.uid, { pathId, moduleId });
-        await fetchPaths();
-        router.refresh();
+  const completeModule = useCallback(
+    async (pathId: string, moduleId: string) => {
+      setActionPending(`complete:${moduleId}`);
+      try {
+        const token = await safeGetToken();
+        if (!token) return;
+        const res = await fetch('/api/paths/complete-module', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pathId, moduleId }),
+        });
+        if (res.ok) {
+          const uid = userRef.current?.uid;
+          if (uid) trackEvent('path_module_completed', uid, { pathId, moduleId });
+          await fetchPaths();
+          router.refresh();
+        }
+      } catch (e) {
+        console.error('[paths] completeModule failed', e);
+      } finally {
+        setActionPending(null);
       }
-    } finally {
-      setActionPending(null);
-    }
-  };
+    },
+    [safeGetToken, fetchPaths, router]
+  );
 
-  const togglePin = async (pathId: string, pinned: boolean) => {
-    if (!user) return;
-    setActionPending(`pin:${pathId}`);
-    try {
-      const token = await user.getIdToken();
-      await fetch('/api/paths/pin', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pathId, pinned }),
-      });
-      trackEvent('path_pinned', user.uid, { pathId, pinned });
-      await fetchPaths();
-    } finally {
-      setActionPending(null);
-    }
-  };
+  const togglePin = useCallback(
+    async (pathId: string, pinned: boolean) => {
+      setActionPending(`pin:${pathId}`);
+      try {
+        const token = await safeGetToken();
+        if (!token) return;
+        await fetch('/api/paths/pin', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pathId, pinned }),
+        });
+        const uid = userRef.current?.uid;
+        if (uid) trackEvent('path_pinned', uid, { pathId, pinned });
+        await fetchPaths();
+      } catch (e) {
+        console.error('[paths] togglePin failed', e);
+      } finally {
+        setActionPending(null);
+      }
+    },
+    [safeGetToken, fetchPaths]
+  );
 
-  const unenroll = async (pathId: string) => {
-    if (!user) return;
-    if (!window.confirm('Remove this path from your active list? Your planner tasks stay.')) return;
-    setActionPending(`unenroll:${pathId}`);
-    try {
-      const token = await user.getIdToken();
-      await fetch('/api/paths/unenroll', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pathId }),
-      });
-      trackEvent('path_unenrolled', user.uid, { pathId });
-      await fetchPaths();
-    } finally {
-      setActionPending(null);
-    }
-  };
+  const unenroll = useCallback(
+    async (pathId: string) => {
+      if (!window.confirm('Remove this path from your active list? Your planner tasks stay.')) return;
+      setActionPending(`unenroll:${pathId}`);
+      try {
+        const token = await safeGetToken();
+        if (!token) return;
+        await fetch('/api/paths/unenroll', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pathId }),
+        });
+        const uid = userRef.current?.uid;
+        if (uid) trackEvent('path_unenrolled', uid, { pathId });
+        await fetchPaths();
+      } catch (e) {
+        console.error('[paths] unenroll failed', e);
+      } finally {
+        setActionPending(null);
+      }
+    },
+    [safeGetToken, fetchPaths]
+  );
 
   const allPaths = data?.paths ?? [];
   const enrolledPaths = useMemo(() => allPaths.filter((p) => p.isEnrolled), [allPaths]);
