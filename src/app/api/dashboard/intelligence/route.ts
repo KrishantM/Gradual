@@ -4,10 +4,50 @@ import { getCareerContext } from '@/lib/copilot/get-career-context';
 import { evaluateSignals } from '@/lib/copilot/evaluate-signals';
 import { calculateProfileCompletion } from '@/lib/profile-completion';
 
-type Signals = ReturnType<typeof evaluateSignals> | null;
+interface DashboardSignal {
+  key: string;
+  level: 'HIGH' | 'MEDIUM' | 'OK';
+  message: string;
+}
+
+const SIGNAL_MESSAGES: Record<string, Record<'HIGH' | 'MEDIUM' | 'OK', string>> = {
+  profile: {
+    HIGH: 'Your profile is incomplete — fill it in so Copilot can give better advice.',
+    MEDIUM: 'Add your location to complete your profile.',
+    OK: 'Profile is in good shape.',
+  },
+  cv: {
+    HIGH: 'Your CV needs attention — upload or improve it to increase your chances.',
+    MEDIUM: 'Your CV score could be stronger. Consider a review.',
+    OK: 'CV looks good.',
+  },
+  applications: {
+    HIGH: 'No recent applications — get active to build momentum.',
+    MEDIUM: 'Application activity is low. Aim for at least one per week.',
+    OK: 'Good application momentum.',
+  },
+  todos: {
+    MEDIUM: 'No open career to-dos — add tasks to stay on track.',
+    HIGH: 'No career to-dos set. Add priorities to your list.',
+    OK: 'To-dos are on track.',
+  },
+};
+
+function toSignalArray(raw: ReturnType<typeof evaluateSignals>): DashboardSignal[] {
+  return Object.entries(raw.prioritySignals)
+    .map(([key, level]) => {
+      const lvl = level as 'HIGH' | 'MEDIUM' | 'OK';
+      const message = SIGNAL_MESSAGES[key]?.[lvl] ?? `${key}: ${lvl}`;
+      return { key, level: lvl, message };
+    })
+    .sort((a, b) => {
+      const order = { HIGH: 0, MEDIUM: 1, OK: 2 };
+      return order[a.level] - order[b.level];
+    });
+}
 
 interface IntelligenceResponse {
-  signals: Signals;
+  signals: DashboardSignal[];
   profileCompletion: number;
   cvScore: number | null;
   latestCopilot: {
@@ -46,7 +86,7 @@ export async function GET(req: NextRequest) {
 
   // Build response section by section. Any failure degrades that section only.
   const result: IntelligenceResponse = {
-    signals: null,
+    signals: [],
     profileCompletion: 0,
     cvScore: null,
     latestCopilot: null,
@@ -66,7 +106,7 @@ export async function GET(req: NextRequest) {
 
   if (context) {
     try {
-      result.signals = evaluateSignals(context);
+      result.signals = toSignalArray(evaluateSignals(context));
     } catch (e) {
       console.error('[GET /api/dashboard/intelligence] evaluateSignals failed', e);
       result.degraded.push('signals');
