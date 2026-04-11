@@ -96,7 +96,12 @@ export default function CopilotPage() {
 
   /* ─── API Helpers ─── */
 
-  const getToken = useCallback(async () => (user ? user.getIdToken() : null), [user]);
+  // Not memoized — always produces a fresh token from the current user.
+  // Using a ref-forwarding pattern so effects can call it without listing it
+  // as a dep (avoids the stale-closure / re-trigger cascade).
+  const userRef = useRef(user);
+  useEffect(() => { userRef.current = user; }, [user]);
+  const getToken = useCallback(async () => (userRef.current ? userRef.current.getIdToken() : null), []);
 
   const archiveCurrentConversation = async () => {
     if (!user) return;
@@ -125,7 +130,7 @@ export default function CopilotPage() {
         const res = await fetch('/api/copilot/conversations', { headers: { Authorization: `Bearer ${token}` } });
         if (!cancelled && res.ok) { const data = await res.json(); setConversationsList(data.conversations ?? []); }
       } catch { /* ignore */ }
-    })();
+    })().catch(() => {});
     return () => { cancelled = true; };
   }, [conversationsOpen, user, getToken]);
 
@@ -188,7 +193,7 @@ export default function CopilotPage() {
   };
 
   const fetchLatestAndConversation = useCallback(async () => {
-    if (!user) return;
+    if (!userRef.current) return;
     const token = await getToken();
     const [latestRes, currentRes] = await Promise.all([
       fetch('/api/copilot/latest', { headers: { Authorization: `Bearer ${token}` } }),
@@ -204,7 +209,7 @@ export default function CopilotPage() {
       }
     }
     if (currentRes.ok) { const currentData = await currentRes.json(); setConversationMessages(currentData.messages ?? []); }
-  }, [user, getToken]);
+  }, [getToken]); // getToken is stable, so this is effectively stable too
 
   useEffect(() => {
     if (!user) { setLoadingLatest(false); return; }
@@ -213,7 +218,7 @@ export default function CopilotPage() {
       try { await fetchLatestAndConversation(); }
       catch { /* ignore */ }
       finally { if (!cancelled) setLoadingLatest(false); }
-    })();
+    })().catch(() => {});
     return () => { cancelled = true; };
   }, [user, fetchLatestAndConversation]);
 
@@ -237,7 +242,7 @@ export default function CopilotPage() {
           todayPlannerEvents: data.todayPlannerEvents ?? [],
         });
       } catch { /* sidebar is best-effort */ }
-    })();
+    })().catch(() => {});
     return () => { cancelled = true; };
   }, [user, getToken]);
 
