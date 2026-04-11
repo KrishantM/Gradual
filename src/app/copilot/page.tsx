@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
   Brain, Calendar, ListTodo, Briefcase, Target, Loader2, Plus, Undo2, X,
-  ExternalLink, FolderOpen, ChevronDown, ArrowLeft, Archive, Sparkles,
+  ExternalLink, FolderOpen, ChevronDown, ArrowLeft, Archive,
   FileText, TrendingUp, Lightbulb, ArrowRight, ArrowUp, PanelRight,
   CheckCircle2, AlertTriangle, Activity,
 } from 'lucide-react';
@@ -21,14 +21,12 @@ type Mode = 'suggest' | 'assist';
 interface Priority { title: string; rationale: string }
 interface SuggestedTodo { title: string; notes?: string; priority: string; dueDateISO?: string }
 interface SuggestedOpp { jobId: string; title: string; company: string; location: string; url: string; whyFit: string }
-interface ConsultingRec { recommended: boolean; reason: string; ctaText: string }
 interface WeeklyPlanDay { title: string; notes?: string; }
 interface CopilotResponse {
   answer: string;
   priorities: Priority[];
   suggestedTodos: SuggestedTodo[];
   suggestedOpportunities: SuggestedOpp[];
-  consultingRecommendation?: ConsultingRec;
   weeklyPlan?: Record<string, WeeklyPlanDay[]>;
   undoToken?: string;
   undoExpiresAt?: string;
@@ -204,7 +202,7 @@ export default function CopilotPage() {
       if (data && data.answer) {
         setResponse({
           answer: data.answer, priorities: data.priorities ?? [], suggestedTodos: data.suggestedTodos ?? [],
-          suggestedOpportunities: data.suggestedOpportunities ?? [], consultingRecommendation: data.consultingRecommendation, weeklyPlan: data.weeklyPlan,
+          suggestedOpportunities: data.suggestedOpportunities ?? [], weeklyPlan: data.weeklyPlan,
         });
       }
     }
@@ -402,48 +400,6 @@ export default function CopilotPage() {
           </div>
         )}
 
-        {/* Suggested to-dos */}
-        {response.suggestedTodos.length > 0 && (
-          <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-card)] divide-y divide-[var(--border-soft)] overflow-hidden">
-            <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide">
-              <ListTodo className="h-3.5 w-3.5" />
-              Suggested next actions
-            </div>
-            {response.suggestedTodos.slice(0, 5).map((t, i) => (
-              <div key={i} className="flex items-start gap-2 px-3 py-2.5">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[var(--foreground)] truncate">{t.title}</p>
-                  {t.notes && <p className="text-xs text-[var(--text-muted)] truncate">{t.notes}</p>}
-                </div>
-                {mode === 'suggest' && (
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => addTodo(t)} disabled={!!addingTodo}>
-                      {addingTodo === t.title ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Plus className="h-3 w-3 mr-1" />Add</>}
-                    </Button>
-                    {plannerDateFor === t.title ? (
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="date"
-                          className="text-xs rounded-md border border-[var(--border)] bg-[var(--surface-elevated)] px-1.5 py-1 text-[var(--foreground)]"
-                          onChange={(e) => { if (e.target.value) addTodoToPlanner(t, e.target.value); }}
-                          autoFocus
-                        />
-                        <button onClick={() => setPlannerDateFor(null)} aria-label="Cancel" className="text-[var(--text-muted)] hover:text-[var(--foreground)]">
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setPlannerDateFor(t.title)} disabled={!!addingToPlanner} title="Add to Planner" aria-label="Add to Planner">
-                        {addingToPlanner === t.title ? <Loader2 className="h-3 w-3 animate-spin" /> : <Calendar className="h-3.5 w-3.5" />}
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
         {/* Suggested opportunities */}
         {response.suggestedOpportunities.length > 0 && (
           <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-card)] divide-y divide-[var(--border-soft)] overflow-hidden">
@@ -506,25 +462,6 @@ export default function CopilotPage() {
           </div>
         )}
 
-        {/* Consulting recommendation */}
-        {response.consultingRecommendation?.recommended && (
-          <div className="rounded-xl border border-[var(--warning)]/40 bg-[var(--warning-soft)] p-3 flex items-start gap-3">
-            <div className="rounded-lg bg-[var(--warning)]/10 p-2 shrink-0">
-              <Sparkles className="h-4 w-4 text-[var(--warning)]" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium">Consider Gradual Consulting</p>
-              <p className="text-xs text-[var(--text-muted)] mt-0.5">{response.consultingRecommendation.reason}</p>
-            </div>
-            <Link href="/consulting/contact" className="shrink-0">
-              <Button size="sm" variant="outline">
-                {response.consultingRecommendation.ctaText}
-                <ArrowRight className="h-3.5 w-3.5 ml-1" />
-              </Button>
-            </Link>
-          </div>
-        )}
-
         {/* Undo assist banner */}
         {response.undoToken && response.undoExpiresAt && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-[var(--border-soft)] bg-[var(--surface-subtle)] text-sm">
@@ -541,6 +478,53 @@ export default function CopilotPage() {
 
   const renderSidebar = () => (
     <aside className="flex flex-col gap-4 h-full overflow-y-auto p-5">
+
+      {/* ── Suggested next actions (appears when copilot has replied) ── */}
+      {response && response.suggestedTodos.length > 0 && (
+        <div className="rounded-xl border-l-4 border-l-[var(--accent-blue)] border border-[var(--accent-blue)]/20 bg-[var(--accent-blue-soft)] overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2.5 border-b border-[var(--accent-blue)]/15">
+            <ListTodo className="h-3.5 w-3.5 text-[var(--accent-blue)] shrink-0" />
+            <span className="text-xs font-semibold text-[var(--accent-blue)] uppercase tracking-wide">Suggested actions</span>
+          </div>
+          <div className="divide-y divide-[var(--accent-blue)]/10">
+            {response.suggestedTodos.slice(0, 5).map((t, i) => (
+              <div key={i} className="px-3 py-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-[var(--foreground)] leading-snug">{t.title}</p>
+                    {t.notes && <p className="text-xs text-[var(--text-muted)] mt-0.5 line-clamp-2">{t.notes}</p>}
+                  </div>
+                  {mode === 'suggest' && (
+                    <div className="flex items-center gap-0.5 shrink-0 ml-1">
+                      <Button size="sm" variant="ghost" className="h-6 px-1.5 text-xs text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10" onClick={() => addTodo(t)} disabled={!!addingTodo} title="Add to to-dos">
+                        {addingTodo === t.title ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                      </Button>
+                      {plannerDateFor === t.title ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="date"
+                            className="text-xs rounded border border-[var(--border)] bg-[var(--surface-elevated)] px-1 py-0.5 text-[var(--foreground)] w-28"
+                            onChange={(e) => { if (e.target.value) addTodoToPlanner(t, e.target.value); }}
+                            autoFocus
+                          />
+                          <button onClick={() => setPlannerDateFor(null)} aria-label="Cancel" className="text-[var(--text-muted)] hover:text-[var(--foreground)]">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10" onClick={() => setPlannerDateFor(t.title)} disabled={!!addingToPlanner} title="Add to Planner" aria-label="Add to Planner">
+                          {addingToPlanner === t.title ? <Loader2 className="h-3 w-3 animate-spin" /> : <Calendar className="h-3 w-3" />}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Signals */}
       <div>
         <div className="text-xs uppercase tracking-wide text-[var(--text-subtle)] font-semibold mb-2 px-1">
@@ -643,7 +627,7 @@ export default function CopilotPage() {
   );
 
   return (
-    <div className="h-[calc(100vh-4rem)] mt-16 flex">
+    <div className="h-[calc(100vh-3.5rem)] mt-14 flex">
       {/* ─── Main chat zone ─── */}
       <div className="flex-1 flex flex-col min-w-0 border-r border-[var(--border-soft)]">
         {/* Header bar */}
