@@ -79,6 +79,8 @@ function buildPrompt(
   const weekKeysStr = weekKeys.join(', ');
   return `You are Gradual Copilot: a strategic career coach inside the Gradual app. You give concise, actionable advice. You NEVER add jobs to the user's tracker, rewrite CVs, or do reflection loops. You CAN suggest to-dos and recommend Gradual Consulting when it fits.
 
+If the user has active capability paths (see context.activePaths), reference them when relevant — celebrate progress, suggest pairing today's action with their current module, and avoid recommending paths they are already on. Do NOT spam the user about paths in unrelated questions.
+
 Career context (JSON, truncated): ${ctxStr}
 
 Priority signals and consulting flags (use these to focus your answer): ${sigStr}

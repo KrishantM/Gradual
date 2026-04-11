@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Brain, Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Loader2 } from 'lucide-react';
+import { Brain, Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Loader2, GraduationCap } from 'lucide-react';
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -255,6 +255,11 @@ export default function PlannerPage() {
                                   <Brain className="h-3 w-3" />
                                 </span>
                               )}
+                              {e.source === 'path' && (
+                                <span className="inline-flex items-center gap-0.5 shrink-0 text-[var(--accent-blue)]" title="From a capability path">
+                                  <GraduationCap className="h-3 w-3" />
+                                </span>
+                              )}
                               <span className="truncate">{e.title}</span>
                             </div>
                             <button
@@ -349,6 +354,7 @@ export default function PlannerPage() {
                             {dayEvents.slice(0, 3).map((e) => (
                               <div key={e.id} className="flex items-center gap-1 text-xs text-[var(--foreground)]">
                                 {e.source === 'copilot' && <Brain className="h-2.5 w-2.5 text-[var(--accent-blue)] shrink-0" />}
+                                {e.source === 'path' && <GraduationCap className="h-2.5 w-2.5 text-[var(--accent-blue)] shrink-0" />}
                                 <span className="flex-1 min-w-0 truncate">{e.title}</span>
                                 <button
                                   type="button"

@@ -16,6 +16,7 @@ import {
   Calendar,
   Moon,
   Sun,
+  GraduationCap,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
@@ -158,6 +159,12 @@ export default function Navbar() {
                   <Button variant="ghost" className={navButtonClass}>
                     <Brain className="mr-2 h-4 w-4 text-[var(--accent-blue)]" />
                     Copilot
+                  </Button>
+                </Link>
+                <Link href="/paths">
+                  <Button variant="ghost" className={navButtonClass}>
+                    <GraduationCap className="mr-2 h-4 w-4 text-[var(--accent-blue)]" />
+                    Paths
                   </Button>
                 </Link>
                 <div className="mx-1 h-5 w-px bg-[var(--border-soft)]" />
@@ -316,6 +323,10 @@ export default function Navbar() {
                     <Link href="/copilot" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-subtle)]">
                       <Brain className="mr-2 inline h-4 w-4 text-[var(--accent-blue)]" />
                       Copilot
+                    </Link>
+                    <Link href="/paths" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-subtle)]">
+                      <GraduationCap className="mr-2 inline h-4 w-4 text-[var(--accent-blue)]" />
+                      Paths
                     </Link>
                     <Link href="/suggestions" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-subtle)]">
                       Opportunities

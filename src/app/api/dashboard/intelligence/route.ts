@@ -3,6 +3,9 @@ import { auth, db } from '@/lib/firebase-admin';
 import { getCareerContext } from '@/lib/copilot/get-career-context';
 import { evaluateSignals } from '@/lib/copilot/evaluate-signals';
 import { calculateProfileCompletion } from '@/lib/profile-completion';
+import { PATHS } from '@/lib/paths/catalog';
+import { hydratePathProgress, pickActivePath } from '@/lib/paths/progress';
+import type { PathState } from '@/lib/paths/types';
 
 interface DashboardSignal {
   key: string;
@@ -46,6 +49,16 @@ function toSignalArray(raw: ReturnType<typeof evaluateSignals>): DashboardSignal
     });
 }
 
+interface ActivePathSummary {
+  pathId: string;
+  pathTitle: string;
+  outcome: string;
+  progressPercent: number;
+  completedCount: number;
+  totalCount: number;
+  currentModule: { id: string; title: string; estimatedMinutes: number } | null;
+}
+
 interface IntelligenceResponse {
   signals: DashboardSignal[];
   profileCompletion: number;
@@ -66,6 +79,7 @@ interface IntelligenceResponse {
     savedCount: number;
     recentApplications: number;
   };
+  activePath: ActivePathSummary | null;
   degraded: string[];
 }
 
@@ -92,6 +106,7 @@ export async function GET(req: NextRequest) {
     latestCopilot: null,
     todayPlannerEvents: [],
     opportunityMomentum: { savedCount: 0, recentApplications: 0 },
+    activePath: null,
     degraded: [],
   };
 
@@ -196,5 +211,61 @@ export async function GET(req: NextRequest) {
     result.degraded.push('todayPlannerEvents');
   }
 
+  // Active capability path — degrades silently if path_state read fails
+  try {
+    const pathStateSnap = await db
+      .collection('users')
+      .doc(uid)
+      .collection('path_state')
+      .get();
+    const stateMap = new Map<string, PathState>();
+    type TS = { toDate?: () => Date } | Date | string | undefined;
+    const toIso = (v: TS): string => {
+      if (!v) return new Date().toISOString();
+      if (typeof v === 'string') return v;
+      if (typeof (v as { toDate?: () => Date }).toDate === 'function')
+        return (v as { toDate: () => Date }).toDate().toISOString();
+      if (v instanceof Date) return v.toISOString();
+      return new Date().toISOString();
+    };
+    pathStateSnap.forEach((doc) => {
+      const d = doc.data();
+      const enrolledAt = toIso(d.enrolledAt as TS);
+      stateMap.set(doc.id, {
+        pathId: doc.id,
+        enrolledAt,
+        completedModuleIds: Array.isArray(d.completedModuleIds) ? d.completedModuleIds : [],
+        currentModuleId: (d.currentModuleId as string) ?? null,
+        pinned: Boolean(d.pinned),
+        lastActivityAt: toIso((d.lastActivityAt as TS) ?? d.enrolledAt),
+      });
+    });
+    if (stateMap.size > 0) {
+      const progresses = PATHS.filter((p) => stateMap.has(p.id)).map((p) =>
+        hydratePathProgress(p, stateMap.get(p.id) ?? null)
+      );
+      const active = pickActivePath(progresses);
+      if (active) {
+        result.activePath = {
+          pathId: active.path.id,
+          pathTitle: active.path.title,
+          outcome: active.path.outcome,
+          progressPercent: active.progressPercent,
+          completedCount: active.completedCount,
+          totalCount: active.totalCount,
+          currentModule: active.currentModule
+            ? {
+                id: active.currentModule.id,
+                title: active.currentModule.title,
+                estimatedMinutes: active.currentModule.estimatedMinutes,
+              }
+            : null,
+        };
+      }
+    }
+  } catch (e) {
+    console.error('[GET /api/dashboard/intelligence] activePath failed', e);
+    result.degraded.push('activePath');
+  }
   return NextResponse.json(result);
 }

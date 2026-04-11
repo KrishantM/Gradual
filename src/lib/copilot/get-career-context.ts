@@ -11,9 +11,12 @@
  */
 
 import { db } from '../../../lib/firebase-admin';
-import type { CareerContext, ApplicationSnapshot, TodoSnapshot, CopilotSummary, OpportunityMatch } from '@/types/copilot';
+import type { CareerContext, ApplicationSnapshot, TodoSnapshot, CopilotSummary, OpportunityMatch, ActivePathContext } from '@/types/copilot';
 import { matchOpportunities } from '@/lib/opportunities-engine/matching-engine';
 import type { UserProfileSnapshot } from '@/types/opportunities';
+import { PATHS } from '@/lib/paths/catalog';
+import { hydratePathProgress } from '@/lib/paths/progress';
+import type { PathState } from '@/lib/paths/types';
 
 const CV_SCORE_THRESHOLD_LOW = 50;
 const RECENT_DAYS = 7;
@@ -41,6 +44,7 @@ export async function getCareerContext(uid: string): Promise<CareerContext> {
     applications: { active: [], recent: [] },
     todos: { open: [], completedRecently: [] },
     history: { recentCopilotSummaries: [] },
+    activePaths: [],
   };
 
   try {
@@ -141,6 +145,43 @@ export async function getCareerContext(uid: string): Promise<CareerContext> {
       });
     });
     context.history.recentCopilotSummaries = summaries;
+
+    // Phase 3 — active capability paths (degrades silently)
+    try {
+      const pathStateSnap = await userRef.collection('path_state').get();
+      const stateMap = new Map<string, PathState>();
+      pathStateSnap.forEach((doc) => {
+        const d = doc.data();
+        const enrolledAt = toISO(d.enrolledAt as TimestampLike) ?? new Date().toISOString();
+        stateMap.set(doc.id, {
+          pathId: doc.id,
+          enrolledAt,
+          completedModuleIds: Array.isArray(d.completedModuleIds) ? d.completedModuleIds : [],
+          currentModuleId: (d.currentModuleId as string) ?? null,
+          pinned: Boolean(d.pinned),
+          lastActivityAt: toISO(d.lastActivityAt as TimestampLike) ?? enrolledAt,
+        });
+      });
+      if (stateMap.size > 0) {
+        const enrolled: ActivePathContext[] = [];
+        for (const path of PATHS) {
+          const state = stateMap.get(path.id);
+          if (!state) continue;
+          const hydrated = hydratePathProgress(path, state);
+          if (hydrated.progressPercent >= 100) continue;
+          enrolled.push({
+            pathId: path.id,
+            pathTitle: path.title,
+            outcome: path.outcome,
+            progressPercent: hydrated.progressPercent,
+            currentModuleTitle: hydrated.currentModule?.title ?? null,
+          });
+        }
+        context.activePaths = enrolled;
+      }
+    } catch (pathErr) {
+      console.error('[getCareerContext] activePaths failed', pathErr);
+    }
 
     const profileSnapshot: UserProfileSnapshot = {
       uid,

@@ -23,6 +23,20 @@ export interface CareerContext {
   history: {
     recentCopilotSummaries: CopilotSummary[];
   };
+  /**
+   * Phase 3 — capability paths the user is currently engaged with. Used by
+   * the copilot prompt so it can reference active learning and avoid
+   * suggesting things the user is already working on.
+   */
+  activePaths?: ActivePathContext[];
+}
+
+export interface ActivePathContext {
+  pathId: string;
+  pathTitle: string;
+  outcome: string;
+  progressPercent: number;
+  currentModuleTitle: string | null;
 }
 
 export interface OpportunityMatch {

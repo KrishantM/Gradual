@@ -30,7 +30,8 @@ import {
   ArrowRight,
   AlertTriangle,
   Zap,
-  ClipboardList
+  ClipboardList,
+  GraduationCap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -58,6 +59,16 @@ interface Signal {
   message: string;
 }
 
+interface ActivePathSummary {
+  pathId: string;
+  pathTitle: string;
+  outcome: string;
+  progressPercent: number;
+  completedCount: number;
+  totalCount: number;
+  currentModule: { id: string; title: string; estimatedMinutes: number } | null;
+}
+
 interface IntelligenceData {
   signals: Signal[];
   profileCompletion: number;
@@ -69,6 +80,7 @@ interface IntelligenceData {
   } | null;
   todayPlannerEvents: { id: string; date: string; title: string; notes?: string; source: string }[];
   opportunityMomentum: { savedCount: number; recentApplications: number };
+  activePath: ActivePathSummary | null;
 }
 
 /* ─── Helpers ─── */
@@ -538,6 +550,7 @@ export default function DashboardPage() {
 
   // Plan staleness — copilot plans older than 7 days should prompt a regenerate
   // rather than display as the current focus. createdAt is ISO from the API.
+  const activePath = intelligence?.activePath ?? null;
   const planCreatedAt = intelligence?.latestCopilot?.createdAt ?? null;
   const planAgeDays = planCreatedAt
     ? Math.floor((Date.now() - new Date(planCreatedAt).getTime()) / (1000 * 60 * 60 * 24))
@@ -639,6 +652,84 @@ export default function DashboardPage() {
             sublabel={todayEvents.length === 0 ? 'No tasks planned' : `${todayEvents.length} task${todayEvents.length !== 1 ? 's' : ''} planned`}
             href="/planner"
           />
+        </motion.div>
+
+        {/* ─── Capability Building (Active Path) ─── */}
+        <motion.div
+          className="mb-6"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.12 }}
+        >
+          <Card>
+            <CardContent className="p-5 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <GraduationCap className="h-5 w-5 text-[var(--accent-blue)]" />
+                  <h2 className="text-lg font-semibold">Capability Building</h2>
+                </div>
+                <Link href="/paths">
+                  <Button variant="outline" size="sm" className="text-xs">
+                    {activePath ? 'Open path' : 'Browse paths'} <ArrowRight className="h-3 w-3 ml-1" />
+                  </Button>
+                </Link>
+              </div>
+
+              {activePath ? (
+                <div className="flex items-center gap-5">
+                  {/* Mini progress ring */}
+                  <div className="shrink-0">
+                    <svg width={64} height={64}>
+                      <circle cx={32} cy={32} r={28} stroke="var(--border-soft)" strokeWidth={5} fill="none" />
+                      <circle
+                        cx={32}
+                        cy={32}
+                        r={28}
+                        stroke="var(--accent-blue)"
+                        strokeWidth={5}
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeDasharray={2 * Math.PI * 28}
+                        strokeDashoffset={2 * Math.PI * 28 - (activePath.progressPercent / 100) * (2 * Math.PI * 28)}
+                        transform="rotate(-90 32 32)"
+                      />
+                      <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" className="fill-[var(--foreground)] font-semibold" style={{ fontSize: 14 }}>
+                        {activePath.progressPercent}%
+                      </text>
+                    </svg>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-blue)] mb-0.5">
+                      Currently learning
+                    </p>
+                    <h3 className="text-base font-semibold truncate">{activePath.pathTitle}</h3>
+                    {activePath.currentModule ? (
+                      <p className="text-xs text-[var(--text-muted)] mt-0.5 truncate">
+                        Next: {activePath.currentModule.title} · {activePath.currentModule.estimatedMinutes} min
+                      </p>
+                    ) : (
+                      <p className="text-xs text-[var(--success)] mt-0.5">All modules complete</p>
+                    )}
+                    <p className="text-xs text-[var(--text-subtle)] mt-1 line-clamp-1">{activePath.outcome}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="empty-state py-4">
+                  <GraduationCap className="empty-state-icon" />
+                  <p className="font-medium mb-1">Build a new capability</p>
+                  <p className="text-sm text-[var(--text-subtle)] mb-3">
+                    Pick a path that improves your career outcomes — AI for consulting, CV mastery, interview readiness, and more.
+                  </p>
+                  <Link href="/paths">
+                    <Button size="sm" variant="outline">
+                      <GraduationCap className="h-4 w-4 mr-2" />
+                      Explore paths
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </motion.div>
 
         {/* ─── This Week's Focus ─── */}
