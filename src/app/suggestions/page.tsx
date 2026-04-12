@@ -570,23 +570,21 @@ export default function SuggestionsPage() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
     >
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-20 pb-12">
+      <div className="page-container">
         <div>
           {/* Header */}
           <motion.div
-            className="mb-8"
+            className="page-header"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
           >
-            <div className="mb-4">
-              <h1 className="text-2xl sm:text-3xl font-bold mb-1">
-                <span className="text-[var(--accent-blue)]">Opportunities Engine</span>
-              </h1>
-              <p className="text-[var(--text-muted)]">
-                Discover matched opportunities and get AI-powered career recommendations
-              </p>
-            </div>
+            <h1 className="page-title">
+              <span className="text-[var(--accent-blue)]">Opportunities Engine</span>
+            </h1>
+            <p className="page-subtitle">
+              Discover matched opportunities and get AI-powered career recommendations
+            </p>
           </motion.div>
 
           {/* Opportunities Engine Content */}

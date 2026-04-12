@@ -627,7 +627,7 @@ export default function CopilotPage() {
   );
 
   return (
-    <div className="h-[calc(100vh-3.5rem)] flex">
+    <div className="h-[calc(100dvh-3rem)] lg:h-screen flex">
       {/* ─── Main chat zone ─── */}
       <div className="flex-1 flex flex-col min-w-0 border-r border-[var(--border-soft)]">
         {/* Header bar */}

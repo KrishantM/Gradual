@@ -295,10 +295,10 @@ export default function PathsPage() {
 
   return (
     <div className="min-h-screen">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-8 pb-16">
+      <div className="page-container">
         {/* ─── Header ─── */}
         <motion.div
-          className="mb-8"
+          className="page-header"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
@@ -307,9 +307,9 @@ export default function PathsPage() {
             <div className="rounded-xl bg-[var(--accent-blue-soft)] p-2.5">
               <GraduationCap className="h-5 w-5 text-[var(--accent-blue)]" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Capability Paths</h1>
+            <h1 className="page-title">Capability Paths</h1>
           </div>
-          <p className="text-[var(--text-muted)] max-w-2xl">
+          <p className="page-subtitle max-w-2xl">
             Structured, outcome-linked upskilling. Each path is built around the question: <em>what
             changes in your career when you finish?</em>
           </p>

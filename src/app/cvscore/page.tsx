@@ -665,45 +665,21 @@ export default function CVScorePage() {
         <title>Gradual CV Tools</title>
       </Head>
       
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-20 pb-12">
+      <div className="page-container">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <motion.div 
-            className="text-center mb-12"
-            initial={{ opacity: 0, y: 30 }}
+          <motion.div
+            className="page-header"
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.4 }}
           >
-            <div className="mb-6">
-              <motion.h1 
-                className="text-4xl lg:text-5xl font-bold text-white mb-4"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-              >
-                AI <motion.span 
-                  className="text-blue-400"
-                  animate={{ 
-                    textShadow: [
-                      "0 0 0px rgba(59, 130, 246, 0)",
-                      "0 0 20px rgba(59, 130, 246, 0.5)",
-                      "0 0 0px rgba(59, 130, 246, 0)"
-                    ]
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  CV Tools
-                </motion.span>
-              </motion.h1>
-              <motion.p 
-                className="text-gray-300 text-lg max-w-2xl mx-auto"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-              >
-                Score your CV and get AI-powered rewrites to improve your career prospects
-              </motion.p>
-            </div>
+            <h1 className="page-title">
+              AI <span className="text-[var(--accent-blue)]">CV Tools</span>
+            </h1>
+            <p className="page-subtitle">
+              Score your CV and get AI-powered rewrites to improve your career prospects
+            </p>
           </motion.div>
 
           {/* AI Consistency Disclaimer */}
@@ -712,13 +688,13 @@ export default function CVScorePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.6 }}
           >
-            <Card className="bg-amber-500/10 backdrop-blur-md border-amber-400/30 shadow-2xl mb-8 hover-lift">
-            <CardContent className="p-6">
-              <div className="flex items-start gap-4">
-                <AlertTriangle className="h-6 w-6 text-amber-400 mt-1 flex-shrink-0" />
+            <Card className="border-[var(--warning)]/30 bg-[var(--warning-soft)] section-gap">
+            <CardContent className="p-5">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-[var(--warning)] mt-0.5 flex-shrink-0" />
                 <div>
-                  <h3 className="text-amber-300 font-semibold mb-2">AI Scoring Consistency Notice</h3>
-                  <p className="text-amber-200 text-sm leading-relaxed">
+                  <h3 className="font-semibold text-sm mb-1">AI Scoring Consistency Notice</h3>
+                  <p className="text-xs text-[var(--text-muted)] leading-relaxed">
                     Our CV scoring combines deterministic analysis (60-70%) with AI enhancement (30-40%). 
                     While we strive for consistency, AI-powered scoring may vary slightly between sessions due to the evolving nature of AI technology. 
                     Scores are designed to be reliable indicators of CV quality and improvement areas.

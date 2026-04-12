@@ -589,25 +589,25 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-20 pb-12">
+      <div className="page-container">
         {/* ─── Header ─── */}
         <motion.div
-          className="mb-6"
+          className="page-header"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
         >
-          <h1 className="text-2xl sm:text-3xl font-bold mb-1">
+          <h1 className="page-title">
             Welcome back{name ? `, ${name}` : ''}
           </h1>
-          <p className="text-[var(--text-muted)]">
+          <p className="page-subtitle">
             Here&apos;s what matters today
           </p>
         </motion.div>
 
         {/* ─── Priority Signal Banner ─── */}
         <motion.div
-          className="mb-6"
+          className="section-gap"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.05 }}
@@ -626,7 +626,7 @@ export default function DashboardPage() {
 
         {/* ─── Three Metric Cards ─── */}
         <motion.div
-          className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6"
+          className="grid grid-cols-1 sm:grid-cols-3 gap-3 section-gap"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
@@ -656,7 +656,7 @@ export default function DashboardPage() {
 
         {/* ─── Capability Building (Active Path) ─── */}
         <motion.div
-          className="mb-6"
+          className="section-gap"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.12 }}
@@ -734,7 +734,7 @@ export default function DashboardPage() {
 
         {/* ─── This Week's Focus ─── */}
         <motion.div
-          className="mb-6"
+          className="section-gap"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.15 }}
@@ -893,7 +893,7 @@ export default function DashboardPage() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.3 }}
-          className="mb-6"
+          className="section-gap"
         >
           <Card>
             <CardContent className="p-5 sm:p-6">

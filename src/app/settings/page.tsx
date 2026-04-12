@@ -53,10 +53,10 @@ export default function SettingsPage() {
 
   if (!user) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="page-container max-w-4xl">
         <Card>
           <CardContent className="p-6">
-            <p className="text-center text-gray-600">Please log in to access settings.</p>
+            <p className="text-center text-[var(--text-muted)]">Please log in to access settings.</p>
           </CardContent>
         </Card>
       </div>
@@ -64,9 +64,9 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl mt-20">
+    <div className="page-container max-w-4xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-3">Settings</h1>
+        <h1 className="page-title mb-3">Settings</h1>
         <p className="text-gray-300 text-lg">Manage your account settings and view system information</p>
       </div>
 

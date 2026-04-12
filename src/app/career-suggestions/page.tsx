@@ -143,45 +143,21 @@ export default function CareerSuggestionsPage() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.8 }}
     >
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-20 pb-12">
+      <div className="page-container">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
-          <motion.div 
-            className="text-center mb-12"
-            initial={{ opacity: 0, y: 30 }}
+          <motion.div
+            className="page-header"
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.4 }}
           >
-            <div className="mb-6">
-              <motion.h1 
-                className="text-4xl lg:text-5xl font-bold text-white mb-4"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-              >
-                <motion.span 
-                  className="text-blue-400"
-                  animate={{ 
-                    textShadow: [
-                      "0 0 0px rgba(59, 130, 246, 0)",
-                      "0 0 20px rgba(59, 130, 246, 0.5)",
-                      "0 0 0px rgba(59, 130, 246, 0)"
-                    ]
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  Career Suggestions
-                </motion.span>
-              </motion.h1>
-              <motion.p 
-                className="text-gray-300 text-lg max-w-2xl mx-auto"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-              >
-                Get AI-powered career recommendations tailored to your profile
-              </motion.p>
-            </div>
+            <h1 className="page-title">
+              <span className="text-[var(--accent-blue)]">Career Suggestions</span>
+            </h1>
+            <p className="page-subtitle">
+              Get AI-powered career recommendations tailored to your profile
+            </p>
           </motion.div>
 
           {/* Profile Summary */}
@@ -189,13 +165,13 @@ export default function CareerSuggestionsPage() {
             <>
               {/* Check if profile is complete */}
               {!isProfileComplete(profile) ? (
-                <Card className="bg-red-500/10 backdrop-blur-md border-red-400/30 shadow-2xl mb-8">
-                  <CardContent className="p-6">
-                    <div className="flex items-center mb-4">
-                      <AlertCircle className="h-6 w-6 text-red-400 mr-3" />
-                      <h2 className="text-xl font-semibold text-white">Complete Your Profile</h2>
+                <Card className="border-[var(--danger)]/30 bg-[var(--danger-soft)] section-gap">
+                  <CardContent className="p-5">
+                    <div className="flex items-center mb-3">
+                      <AlertCircle className="h-5 w-5 text-[var(--danger)] mr-2" />
+                      <h2 className="text-lg font-semibold">Complete Your Profile</h2>
                     </div>
-                    <div className="text-gray-300 mb-4">
+                    <div className="text-sm text-[var(--text-muted)] mb-4">
                       <p className="mb-3">To generate personalized career suggestions, please complete your academic information:</p>
                       <ul className="space-y-2">
                         {!profile.university && <li className="flex items-center"><span className="text-red-400 mr-2">•</span> University</li>}

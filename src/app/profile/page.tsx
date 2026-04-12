@@ -469,7 +469,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen">
-      <div className="mx-auto max-w-3xl px-4 sm:px-6 pt-20 pb-12">
+      <div className="page-container max-w-3xl">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-1">Profile</h1>

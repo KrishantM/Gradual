@@ -29,7 +29,8 @@ import {
   MapPin,
   DollarSign,
   MoreVertical,
-  ArrowUpDown
+  ArrowUpDown,
+  ClipboardList
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -360,12 +361,12 @@ export default function TrackerPage() {
 
   const getStageColor = (stage: string) => {
     switch (stage) {
-      case 'to_apply': return 'bg-gray-500/20 text-gray-300 border-gray-400/30';
-      case 'applied': return 'bg-blue-500/20 text-blue-300 border-blue-400/30';
-      case 'interviewing': return 'bg-yellow-500/20 text-yellow-300 border-yellow-400/30';
-      case 'offered': return 'bg-green-500/20 text-green-300 border-green-400/30';
-      case 'rejected': return 'bg-red-500/20 text-red-300 border-red-400/30';
-      default: return 'bg-gray-500/20 text-gray-300 border-gray-400/30';
+      case 'to_apply': return 'bg-[var(--surface-subtle)] text-[var(--text-muted)] border-[var(--border-soft)]';
+      case 'applied': return 'bg-[var(--accent-blue-soft)] text-[var(--accent-blue)] border-[var(--accent-blue)]/30';
+      case 'interviewing': return 'bg-[var(--warning-soft)] text-[var(--warning)] border-[var(--warning)]/30';
+      case 'offered': return 'bg-[var(--success-soft)] text-[var(--success)] border-[var(--success)]/30';
+      case 'rejected': return 'bg-[var(--danger-soft)] text-[var(--danger)] border-[var(--danger)]/30';
+      default: return 'bg-[var(--surface-subtle)] text-[var(--text-muted)] border-[var(--border-soft)]';
     }
   };
 
@@ -386,12 +387,10 @@ export default function TrackerPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-20 pb-12">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
-            <p className="text-gray-300">Loading your applications...</p>
-          </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--accent-blue)] mx-auto mb-3"></div>
+          <p className="text-sm text-[var(--text-muted)]">Loading your applications...</p>
         </div>
       </div>
     );
@@ -399,18 +398,15 @@ export default function TrackerPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-20 pb-12">
-          <div className="text-center">
-            <div className="text-red-400 text-xl mb-4">⚠️ Error</div>
-            <p className="text-gray-300 mb-4">{error}</p>
-            <Button 
-              onClick={() => window.location.reload()}
-              className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
-            >
-              Refresh Page
-            </Button>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="rounded-full bg-[var(--danger-soft)] p-3 w-fit mx-auto mb-4">
+            <ClipboardList className="h-6 w-6 text-[var(--danger)]" />
           </div>
+          <p className="text-[var(--text-muted)] mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()} variant="outline">
+            Refresh Page
+          </Button>
         </div>
       </div>
     );
@@ -423,89 +419,65 @@ export default function TrackerPage() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.8 }}
     >
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-20 pb-12">
-        <div className="max-w-7xl mx-auto">
+      <div className="page-container">
+        <div>
           {/* Header */}
-          <motion.div 
-            className="text-center mb-12"
-            initial={{ opacity: 0, y: 30 }}
+          <motion.div
+            className="page-header"
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.4 }}
           >
-            <motion.h1 
-              className="text-4xl lg:text-5xl font-bold text-white mb-4"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-            >
-              Job Application <motion.span 
-                className="text-blue-400"
-                animate={{ 
-                  textShadow: [
-                    "0 0 0px rgba(59, 130, 246, 0)",
-                    "0 0 20px rgba(59, 130, 246, 0.5)",
-                    "0 0 0px rgba(59, 130, 246, 0)"
-                  ]
-                }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                Tracker
-              </motion.span>
-            </motion.h1>
-            <motion.p 
-              className="text-gray-300 text-lg max-w-2xl mx-auto"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-            >
+            <h1 className="page-title">Application Tracker</h1>
+            <p className="page-subtitle">
               Track your job applications and manage your career search progress
-            </motion.p>
+            </p>
           </motion.div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <Card className="bg-white/5 backdrop-blur-md border-white/10">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 section-gap">
+            <Card>
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-white">{applications.length}</div>
-                <div className="text-gray-400 text-sm">Total Applications</div>
+                <div className="text-2xl font-bold">{applications.length}</div>
+                <div className="text-[var(--text-muted)] text-sm">Total Applications</div>
               </CardContent>
             </Card>
-            <Card className="bg-white/5 backdrop-blur-md border-white/10">
+            <Card>
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-blue-400">
+                <div className="text-2xl font-bold text-[var(--accent-blue)]">
                   {applications.filter(app => app.stage === 'applied').length}
                 </div>
-                <div className="text-gray-400 text-sm">Applied</div>
+                <div className="text-[var(--text-muted)] text-sm">Applied</div>
               </CardContent>
             </Card>
-            <Card className="bg-white/5 backdrop-blur-md border-white/10">
+            <Card>
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-yellow-400">
+                <div className="text-2xl font-bold text-[var(--warning)]">
                   {applications.filter(app => app.stage === 'interviewing').length}
                 </div>
-                <div className="text-gray-400 text-sm">Interviewing</div>
+                <div className="text-[var(--text-muted)] text-sm">Interviewing</div>
               </CardContent>
             </Card>
-            <Card className="bg-white/5 backdrop-blur-md border-white/10">
+            <Card>
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-green-400">
+                <div className="text-2xl font-bold text-[var(--success)]">
                   {applications.filter(app => app.stage === 'offered').length}
                 </div>
-                <div className="text-gray-400 text-sm">Offers</div>
+                <div className="text-[var(--text-muted)] text-sm">Offers</div>
               </CardContent>
             </Card>
           </div>
 
           {/* Controls */}
-          <div className="flex flex-col md:flex-row gap-4 mb-8">
+          <div className="flex flex-col md:flex-row gap-4 section-gap">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-subtle)] h-4 w-4" />
                 <Input
                   placeholder="Search applications..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                  className="pl-10"
                 />
               </div>
             </div>
@@ -514,32 +486,24 @@ export default function TrackerPage() {
                 <select
                   value={filterStage}
                   onChange={(e) => setFilterStage(e.target.value)}
-                  className="bg-white/10 border border-white/20 text-white rounded-lg px-3 py-2 text-sm"
-                  style={{
-                    color: 'white',
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)'
-                  }}
+                  className="rounded-md border bg-[var(--surface)] text-[var(--foreground)] px-3 py-2 text-sm"
                 >
-                  <option value="all" style={{ backgroundColor: '#1e293b', color: 'white' }}>All Stages</option>
-                  <option value="to_apply" style={{ backgroundColor: '#1e293b', color: 'white' }}>To Apply</option>
-                  <option value="applied" style={{ backgroundColor: '#1e293b', color: 'white' }}>Applied</option>
-                  <option value="interviewing" style={{ backgroundColor: '#1e293b', color: 'white' }}>Interviewing</option>
-                  <option value="offered" style={{ backgroundColor: '#1e293b', color: 'white' }}>Offered</option>
-                  <option value="rejected" style={{ backgroundColor: '#1e293b', color: 'white' }}>Rejected</option>
+                  <option value="all">All Stages</option>
+                  <option value="to_apply">To Apply</option>
+                  <option value="applied">Applied</option>
+                  <option value="interviewing">Interviewing</option>
+                  <option value="offered">Offered</option>
+                  <option value="rejected">Rejected</option>
                 </select>
                 <Button
                   onClick={() => setViewMode(viewMode === 'card' ? 'table' : 'card')}
                   variant="outline"
-                  className="bg-white/10 border-white/20 text-white hover:bg-white/20"
                   title={viewMode === 'card' ? 'Switch to Table View' : 'Switch to Card View'}
                 >
                   {viewMode === 'card' ? <List className="h-4 w-4" /> : <Grid3X3 className="h-4 w-4" />}
                 </Button>
               </div>
-              <Button
-                onClick={() => setShowAddApplication(true)}
-                className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
-              >
+              <Button onClick={() => setShowAddApplication(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Application
               </Button>
@@ -549,93 +513,68 @@ export default function TrackerPage() {
           {/* Applications */}
           {filteredApplications.length === 0 ? (
             <Card className="bg-white/5 backdrop-blur-md border-white/10 mb-12">
-              <CardContent className="p-8 text-center">
-                <div className="text-gray-400 mb-4">
-                  <Building className="h-12 w-12 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-white mb-2">No applications found</h3>
-                  <p className="text-gray-300">
-                    {searchTerm || filterStage !== 'all' 
-                      ? 'Try adjusting your search or filters' 
+              <CardContent className="p-8">
+                <div className="empty-state">
+                  <Building className="empty-state-icon" />
+                  <h3 className="font-semibold mb-1">No applications found</h3>
+                  <p className="text-sm text-[var(--text-muted)] mb-4">
+                    {searchTerm || filterStage !== 'all'
+                      ? 'Try adjusting your search or filters'
                       : 'Start tracking your job applications to see them here'
                     }
                   </p>
+                  <Button onClick={() => setShowAddApplication(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Your First Application
+                  </Button>
                 </div>
-                <Button
-                  onClick={() => setShowAddApplication(true)}
-                  className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Your First Application
-                </Button>
               </CardContent>
             </Card>
           ) : viewMode === 'card' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 section-gap">
               {filteredApplications.map((application) => (
-                <Card key={application.id} className="bg-white/5 backdrop-blur-md border-white/10 hover:bg-white/10 transition-all duration-300">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="text-white font-semibold text-lg mb-1">{application.position}</h3>
-                        <p className="text-gray-300 flex items-center">
-                          <Building className="h-4 w-4 mr-2" />
+                <Card key={application.id} className="hover-lift">
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm mb-0.5 truncate">{application.position}</h3>
+                        <p className="text-sm text-[var(--text-muted)] flex items-center">
+                          <Building className="h-3.5 w-3.5 mr-1.5 shrink-0" />
                           {application.company}
                         </p>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStageColor(application.stage)}`}>
-                          {getStageLabel(application.stage)}
-                        </span>
-                      </div>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium border shrink-0 ml-2 ${getStageColor(application.stage)}`}>
+                        {getStageLabel(application.stage)}
+                      </span>
                     </div>
-                    
-                    <div className="space-y-2 mb-4">
+
+                    <div className="space-y-1.5 mb-4">
                       {application.location && (
-                        <div className="flex items-center text-gray-400 text-sm">
-                          <MapPin className="h-3 w-3 mr-2" />
+                        <div className="flex items-center text-[var(--text-subtle)] text-xs">
+                          <MapPin className="h-3 w-3 mr-1.5" />
                           {application.location}
                         </div>
                       )}
                       {application.salary && (
-                        <div className="flex items-center text-gray-400 text-sm">
-                          <DollarSign className="h-3 w-3 mr-2" />
+                        <div className="flex items-center text-[var(--text-subtle)] text-xs">
+                          <DollarSign className="h-3 w-3 mr-1.5" />
                           {application.salary}
                         </div>
                       )}
-                      <div className="flex items-center text-gray-400 text-sm">
-                        <FileText className="h-3 w-3 mr-2" />
-                        {application.resumeUsed}
-                      </div>
-                      <div className="flex items-center text-gray-400 text-sm">
-                        <Calendar className="h-3 w-3 mr-2" />
+                      <div className="flex items-center text-[var(--text-subtle)] text-xs">
+                        <Calendar className="h-3 w-3 mr-1.5" />
                         Applied: {formatDate(application.applyDate)}
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                        onClick={() => window.open(application.jobUrl, '_blank')}
-                      >
-                        <Link className="h-3 w-3 mr-1" />
-                        View Job
+                    <div className="flex items-center gap-1.5">
+                      <Button variant="outline" size="sm" onClick={() => window.open(application.jobUrl, '_blank')}>
+                        <Link className="h-3 w-3 mr-1" /> View
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                        onClick={() => handleEditApplication(application.id)}
-                      >
+                      <Button variant="ghost" size="sm" onClick={() => handleEditApplication(application.id)}>
                         <Edit className="h-3 w-3" />
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="bg-white/10 border-white/20 text-white hover:bg-white/20 text-red-400 hover:text-red-300"
-                        onClick={() => handleDeleteApplication(application.id)}
-                      >
+                      <Button variant="ghost" size="sm" className="text-[var(--danger)]" onClick={() => handleDeleteApplication(application.id)}>
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
@@ -644,57 +583,42 @@ export default function TrackerPage() {
               ))}
             </div>
           ) : (
-            <Card className="bg-white/5 backdrop-blur-md border-white/10 mb-12">
-              <CardContent className="p-6">
+            <Card className="section-gap">
+              <CardContent className="p-5">
                 {/* Desktop Table View */}
                 <div className="hidden md:block overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-white/10">
-                        <th className="text-left py-3 text-gray-300 font-medium">Stage</th>
-                        <th className="text-left py-3 text-gray-300 font-medium">Company</th>
-                        <th className="text-left py-3 text-gray-300 font-medium">Position</th>
-                        <th className="text-left py-3 text-gray-300 font-medium">Location</th>
-                        <th className="text-left py-3 text-gray-300 font-medium">Applied</th>
-                        <th className="text-left py-3 text-gray-300 font-medium">Actions</th>
+                      <tr className="border-b">
+                        <th className="text-left py-3 text-sm font-medium text-[var(--text-muted)]">Stage</th>
+                        <th className="text-left py-3 text-sm font-medium text-[var(--text-muted)]">Company</th>
+                        <th className="text-left py-3 text-sm font-medium text-[var(--text-muted)]">Position</th>
+                        <th className="text-left py-3 text-sm font-medium text-[var(--text-muted)]">Location</th>
+                        <th className="text-left py-3 text-sm font-medium text-[var(--text-muted)]">Applied</th>
+                        <th className="text-left py-3 text-sm font-medium text-[var(--text-muted)]">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredApplications.map((application) => (
-                        <tr key={application.id} className="border-b border-white/5">
+                        <tr key={application.id} className="border-b border-[var(--border-soft)]">
                           <td className="py-3">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStageColor(application.stage)}`}>
                               {getStageLabel(application.stage)}
                             </span>
                           </td>
-                          <td className="py-3 text-white">{application.company}</td>
-                          <td className="py-3 text-white">{application.position}</td>
-                          <td className="py-3 text-gray-300">{application.location || '-'}</td>
-                          <td className="py-3 text-gray-300">{formatDate(application.applyDate)}</td>
+                          <td className="py-3 text-sm">{application.company}</td>
+                          <td className="py-3 text-sm">{application.position}</td>
+                          <td className="py-3 text-sm text-[var(--text-muted)]">{application.location || '-'}</td>
+                          <td className="py-3 text-sm text-[var(--text-muted)]">{formatDate(application.applyDate)}</td>
                           <td className="py-3">
-                            <div className="flex items-center space-x-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                                onClick={() => handleEditApplication(application.id)}
-                              >
+                            <div className="flex items-center gap-1">
+                              <Button variant="ghost" size="sm" onClick={() => handleEditApplication(application.id)}>
                                 <Edit className="h-3 w-3" />
                               </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                                onClick={() => window.open(application.jobUrl, '_blank')}
-                              >
+                              <Button variant="ghost" size="sm" onClick={() => window.open(application.jobUrl, '_blank')}>
                                 <Link className="h-3 w-3" />
                               </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="bg-white/10 border-white/20 text-white hover:bg-white/20 text-red-400 hover:text-red-300"
-                                onClick={() => handleDeleteApplication(application.id)}
-                              >
+                              <Button variant="ghost" size="sm" className="text-[var(--danger)]" onClick={() => handleDeleteApplication(application.id)}>
                                 <Trash2 className="h-3 w-3" />
                               </Button>
                             </div>
@@ -706,14 +630,14 @@ export default function TrackerPage() {
                 </div>
 
                 {/* Mobile Card View */}
-                <div className="md:hidden space-y-4">
+                <div className="md:hidden space-y-3">
                   {filteredApplications.map((application) => (
-                    <div key={application.id} className="bg-white/5 border border-white/10 rounded-lg p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <h3 className="text-white font-semibold text-lg mb-1">{application.position}</h3>
-                          <p className="text-gray-300 flex items-center mb-2">
-                            <Building className="h-4 w-4 mr-2" />
+                    <div key={application.id} className="surface-card-subtle rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-sm mb-0.5">{application.position}</h3>
+                          <p className="text-sm text-[var(--text-muted)] flex items-center mb-1.5">
+                            <Building className="h-3.5 w-3.5 mr-1.5 shrink-0" />
                             {application.company}
                           </p>
                           <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStageColor(application.stage)}`}>
@@ -721,55 +645,39 @@ export default function TrackerPage() {
                           </span>
                         </div>
                       </div>
-                      
-                      <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
+
+                      <div className="grid grid-cols-2 gap-2 mb-3 text-xs text-[var(--text-subtle)]">
                         {application.location && (
-                          <div className="flex items-center text-gray-400">
-                            <MapPin className="h-3 w-3 mr-2 flex-shrink-0" />
+                          <div className="flex items-center">
+                            <MapPin className="h-3 w-3 mr-1.5 shrink-0" />
                             <span className="truncate">{application.location}</span>
                           </div>
                         )}
-                        <div className="flex items-center text-gray-400">
-                          <Calendar className="h-3 w-3 mr-2 flex-shrink-0" />
+                        <div className="flex items-center">
+                          <Calendar className="h-3 w-3 mr-1.5 shrink-0" />
                           <span>{formatDate(application.applyDate)}</span>
                         </div>
                         {application.salary && (
-                          <div className="flex items-center text-gray-400">
-                            <DollarSign className="h-3 w-3 mr-2 flex-shrink-0" />
+                          <div className="flex items-center">
+                            <DollarSign className="h-3 w-3 mr-1.5 shrink-0" />
                             <span className="truncate">{application.salary}</span>
                           </div>
                         )}
-                        <div className="flex items-center text-gray-400">
-                          <FileText className="h-3 w-3 mr-2 flex-shrink-0" />
+                        <div className="flex items-center">
+                          <FileText className="h-3 w-3 mr-1.5 shrink-0" />
                           <span className="truncate">{application.resumeUsed}</span>
                         </div>
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                          onClick={() => window.open(application.jobUrl, '_blank')}
-                        >
-                          <Link className="h-3 w-3 mr-1" />
-                          View Job
+                        <Button variant="outline" size="sm" onClick={() => window.open(application.jobUrl, '_blank')}>
+                          <Link className="h-3 w-3 mr-1" /> View Job
                         </Button>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                            onClick={() => handleEditApplication(application.id)}
-                          >
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => handleEditApplication(application.id)}>
                             <Edit className="h-3 w-3" />
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="bg-white/10 border-white/20 text-white hover:bg-white/20 text-red-400 hover:text-red-300"
-                            onClick={() => handleDeleteApplication(application.id)}
-                          >
+                          <Button variant="ghost" size="sm" className="text-[var(--danger)]" onClick={() => handleDeleteApplication(application.id)}>
                             <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
@@ -782,68 +690,53 @@ export default function TrackerPage() {
           )}
 
           {/* Action Items */}
-          <Card className="bg-white/5 backdrop-blur-md border-white/10">
-            <CardContent className="p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                 <div>
-                  <h2 className="text-2xl font-semibold text-white mb-2">Action Items</h2>
-                  <p className="text-gray-300">Outline and prioritize tasks for your job search journey</p>
+                  <h2 className="text-lg font-semibold mb-0.5">Action Items</h2>
+                  <p className="text-sm text-[var(--text-muted)]">Outline and prioritize tasks for your job search journey</p>
                 </div>
-                <Button
-                  onClick={() => setShowAddActionItem(true)}
-                  className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 w-full sm:w-auto"
-                >
+                <Button onClick={() => setShowAddActionItem(true)} className="w-full sm:w-auto">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Task
                 </Button>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {actionItems.length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="text-gray-400 mb-4">
-                      <CheckCircle className="h-12 w-12 mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-white mb-2">No action items yet</h3>
-                      <p className="text-gray-300">Add tasks to keep track of your job search progress</p>
-                    </div>
+                  <div className="empty-state py-6">
+                    <CheckCircle className="empty-state-icon" />
+                    <h3 className="font-semibold mb-1">No action items yet</h3>
+                    <p className="text-sm text-[var(--text-muted)]">Add tasks to keep track of your job search progress</p>
                   </div>
                 ) : (
                   actionItems.map((item) => (
-                    <div key={item.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-white/5 rounded-lg">
+                    <div key={item.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 surface-card-subtle rounded-lg">
                       <div className="flex items-center space-x-3 flex-1">
-                        <button 
-                          className="text-blue-400 hover:text-blue-300 flex-shrink-0"
+                        <button
+                          className="text-[var(--accent-blue)] hover:opacity-80 flex-shrink-0"
                           onClick={() => handleToggleActionItem(item.id, item.completed)}
                         >
                           {item.completed ? <CheckCircle className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
                         </button>
-                        <span className={`flex-1 ${item.completed ? 'line-through text-gray-400' : 'text-white'}`}>
+                        <span className={`flex-1 text-sm ${item.completed ? 'line-through text-[var(--text-subtle)]' : ''}`}>
                           {item.title}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between sm:justify-end space-x-2">
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          item.priority === 'high' ? 'bg-red-500/20 text-red-300' :
-                          item.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
-                          'bg-green-500/20 text-green-300'
+                      <div className="flex items-center justify-between sm:justify-end gap-2">
+                        <span className={`badge text-xs ${
+                          item.priority === 'high' ? 'badge-danger' :
+                          item.priority === 'medium' ? 'badge-warning' :
+                          'badge-success'
                         }`}>
                           {item.priority}
                         </span>
-                        <div className="flex items-center space-x-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                            onClick={() => handleEditActionItem(item.id)}
-                          >
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => handleEditActionItem(item.id)}>
                             <Edit className="h-3 w-3" />
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="bg-white/10 border-white/20 text-white hover:bg-white/20 text-red-400"
-                            onClick={() => handleDeleteActionItem(item.id)}
-                          >
+                          <Button variant="ghost" size="sm" className="text-[var(--danger)]" onClick={() => handleDeleteActionItem(item.id)}>
                             <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>

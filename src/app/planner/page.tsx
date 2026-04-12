@@ -161,11 +161,11 @@ export default function PlannerPage() {
 
   return (
     <div className="min-h-screen">
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="flex items-center justify-between gap-4 mb-6">
+      <div className="page-container">
+        <div className="flex items-center justify-between gap-4 page-header">
           <div className="flex items-center gap-3">
-            <Calendar className="h-8 w-8 text-[var(--accent-blue)]" />
-            <h1 className="text-2xl font-bold text-[var(--foreground)]">Planner</h1>
+            <Calendar className="h-6 w-6 text-[var(--accent-blue)]" />
+            <h1 className="page-title">Planner</h1>
           </div>
           <div className="flex gap-2">
             <Button
