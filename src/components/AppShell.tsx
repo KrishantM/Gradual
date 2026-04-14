@@ -171,6 +171,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="shrink-0 px-3 py-3 border-t border-[var(--border-soft)] space-y-1">
+          {user && (
+            <div className="flex items-center gap-2.5 px-2 py-2 mb-1">
+              <div className="sidebar-avatar">
+                {user.displayName
+                  ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+                  : user.email?.[0]?.toUpperCase() || '?'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-medium text-[var(--foreground)] truncate">
+                  {user.displayName || 'Student'}
+                </div>
+                <div className="text-[0.6875rem] text-[var(--text-subtle)] truncate">
+                  {user.email}
+                </div>
+              </div>
+            </div>
+          )}
           <button
             type="button"
             onClick={() => applyTheme(!isDarkMode)}
@@ -192,16 +209,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="app-main">
         {/* Mobile top bar */}
-        <div className="lg:hidden sticky top-0 z-30 flex items-center justify-between h-12 px-4 border-b border-[var(--border-soft)] bg-[var(--surface)]/90 backdrop-blur-md">
+        <div className="lg:hidden sticky top-0 z-30 flex items-center justify-between h-14 px-4 border-b border-[var(--border-soft)] bg-[var(--surface)]/90 backdrop-blur-md">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
-            className="rounded-md p-1.5 text-[var(--foreground)] hover:bg-[var(--surface-subtle)]"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[var(--foreground)] hover:bg-[var(--surface-subtle)] transition-colors"
             aria-label="Open menu"
           >
             <Menu className="h-5 w-5" />
           </button>
-          <Link href="/dashboard">
+          <Link href="/dashboard" className="flex items-center">
             <span className="logo-pill">
               <Image
                 src="/newlogo2.png"
@@ -209,7 +226,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 width={80}
                 height={80}
                 unoptimized
-                className="logo-img logo-full h-4 w-auto"
+                className="logo-img logo-full h-5 w-auto"
                 style={{ objectFit: 'contain' }}
               />
               <Image
@@ -218,7 +235,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 width={80}
                 height={80}
                 unoptimized
-                className="logo-img logo-g h-4 w-auto"
+                className="logo-img logo-g h-5 w-auto"
                 style={{ objectFit: 'contain' }}
                 aria-hidden
               />
@@ -228,13 +245,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 width={80}
                 height={80}
                 unoptimized
-                className="logo-img logo-radual h-4 w-auto"
+                className="logo-img logo-radual h-5 w-auto"
                 style={{ objectFit: 'contain' }}
                 aria-hidden
               />
             </span>
           </Link>
-          <div className="w-8" />
+          <div className="w-10" />
         </div>
         <main className="flex-1">
           {children}

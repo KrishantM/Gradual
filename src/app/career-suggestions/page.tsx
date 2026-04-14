@@ -191,40 +191,40 @@ export default function CareerSuggestionsPage() {
                   </CardContent>
                 </Card>
               ) : (
-                <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl mb-8">
-                  <CardContent className="p-6">
+                <Card className="surface-card section-gap">
+                  <CardContent className="p-5">
                     <div className="flex items-center mb-4">
-                      <User className="h-6 w-6 text-blue-400 mr-3" />
-                      <h2 className="text-xl font-semibold text-white">Your Profile Summary</h2>
+                      <User className="h-5 w-5 text-[var(--accent-blue)] mr-2.5" />
+                      <h2 className="text-lg font-semibold">Your Profile Summary</h2>
                     </div>
-                    <div className="grid md:grid-cols-2 gap-4 text-gray-300">
+                    <div className="grid md:grid-cols-2 gap-3 text-sm">
                       <div className="flex items-center">
-                        <span className="font-medium text-blue-300 mr-2">Name:</span>
-                        <span>{profile.fullName}</span>
+                        <span className="font-medium text-[var(--accent-blue)] mr-2">Name:</span>
+                        <span className="text-[var(--text-secondary)]">{profile.fullName}</span>
                       </div>
                       <div className="flex items-center">
-                        <GraduationCap className="h-4 w-4 text-blue-400 mr-2" />
-                        <span className="font-medium text-blue-300 mr-2">University:</span>
-                        <span>{profile.university}</span>
+                        <GraduationCap className="h-4 w-4 text-[var(--accent-blue)] mr-2" />
+                        <span className="font-medium text-[var(--accent-blue)] mr-2">University:</span>
+                        <span className="text-[var(--text-secondary)]">{profile.university}</span>
                       </div>
                       <div className="flex items-center">
-                        <span className="font-medium text-blue-300 mr-2">Degree:</span>
-                        <span>{profile.degree}</span>
+                        <span className="font-medium text-[var(--accent-blue)] mr-2">Degree:</span>
+                        <span className="text-[var(--text-secondary)]">{profile.degree}</span>
                       </div>
                       <div className="flex items-center">
-                        <span className="font-medium text-blue-300 mr-2">GPA:</span>
-                        <span>
+                        <span className="font-medium text-[var(--accent-blue)] mr-2">GPA:</span>
+                        <span className="text-[var(--text-secondary)]">
                           {profile.gpa}
                           {profile.gpaScale && profile.gpaScale !== '4.0' && (
-                            <span className="text-gray-400 text-sm ml-1">
+                            <span className="text-[var(--text-muted)] text-xs ml-1">
                               (out of {profile.gpaScale})
                             </span>
                           )}
                         </span>
                       </div>
                       <div className="md:col-span-2">
-                        <span className="font-medium text-blue-300 mr-2">Interests:</span>
-                        <span className="text-gray-300">{profile.interests}</span>
+                        <span className="font-medium text-[var(--accent-blue)] mr-2">Interests:</span>
+                        <span className="text-[var(--text-secondary)]">{profile.interests}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -234,27 +234,27 @@ export default function CareerSuggestionsPage() {
           )}
 
           {/* Career Suggestions Content */}
-          <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl">
-            <CardContent className="p-6">
-              <div className="flex items-center mb-6">
-                <Brain className="h-6 w-6 text-blue-400 mr-3" />
-                <h2 className="text-2xl font-semibold text-white">AI Career Suggestions</h2>
+          <Card className="surface-card">
+            <CardContent className="p-5">
+              <div className="flex items-center mb-5">
+                <Brain className="h-5 w-5 text-[var(--accent-blue)] mr-2.5" />
+                <h2 className="text-lg font-semibold">AI Career Suggestions</h2>
               </div>
-              
+
               {/* Extra Context Section */}
-              <div className="mb-6">
+              <div className="mb-5">
                 <div className="flex items-center mb-3">
-                  <Sparkles className="h-5 w-5 text-blue-400 mr-2" />
-                  <p className="text-blue-400 text-sm font-medium">Suggestions are based on your profile</p>
+                  <Sparkles className="h-4 w-4 text-[var(--accent-blue)] mr-2" />
+                  <p className="text-[var(--accent-blue)] text-sm font-medium">Suggestions are based on your profile</p>
                 </div>
                 <div className="mb-4">
-                  <label className="block text-white font-medium mb-2">
-                    <Sparkles className="inline h-4 w-4 mr-2 text-blue-400" />
+                  <label className="block font-medium text-sm mb-2">
+                    <Sparkles className="inline h-4 w-4 mr-1.5 text-[var(--accent-blue)]" />
                     Extra Context (Optional)
                   </label>
-                  <p className="text-orange-300 text-sm mb-3">Add extra context for more specific results</p>
+                  <p className="text-[var(--text-muted)] text-sm mb-3">Add extra context for more specific results</p>
                   <textarea
-                    className="w-full p-4 rounded-lg bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-blue-400 focus:ring-blue-400/20 resize-none"
+                    className="form-textarea"
                     rows={4}
                     placeholder="e.g., I'm particularly interested in remote work, or I want to focus on AI/ML roles..."
                     value={extraContext}
@@ -262,7 +262,7 @@ export default function CareerSuggestionsPage() {
                   />
                 </div>
                 <Button
-                  className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  className="w-full bg-[var(--accent-blue)] hover:bg-[var(--accent-blue-strong)] text-white font-semibold py-3 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={handleGenerate}
                   disabled={loading || !profile || !isProfileComplete(profile)}
                 >
@@ -274,23 +274,23 @@ export default function CareerSuggestionsPage() {
                   ) : (
                     <div className="flex items-center justify-center">
                       <Brain className="h-5 w-5 mr-2" />
-                      {(!profile || !isProfileComplete(profile)) 
-                        ? 'Complete Profile First' 
+                      {(!profile || !isProfileComplete(profile))
+                        ? 'Complete Profile First'
                         : 'Generate Suggestions'
                       }
                     </div>
                   )}
                 </Button>
               </div>
-              
+
               {suggestions.length > 0 && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {suggestions.map((suggestion, index) => (
                     <div
                       key={index}
-                      className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-4 hover:bg-white/15 transition-all duration-300"
+                      className="feedback-card"
                     >
-                      <p className="text-gray-200 leading-relaxed whitespace-pre-wrap">
+                      <p className="text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap text-sm">
                         {suggestion}
                       </p>
                     </div>

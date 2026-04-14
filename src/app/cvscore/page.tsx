@@ -80,19 +80,27 @@ const EnhancedScoreDisplay = ({ score }: { score: string }) => {
   
   console.log('Parsed CV Score:', { overallScore, sections });
   
-  const getScoreColor = (score: number, maxScore: number) => {
+  const getScoreClass = (score: number, maxScore: number) => {
     const percentage = (score / maxScore) * 100;
-    if (percentage >= 80) return 'from-cyan-400 to-blue-500';
-    if (percentage >= 60) return 'from-blue-400 to-purple-500';
-    if (percentage >= 40) return 'from-purple-400 to-pink-500';
-    return 'from-pink-400 to-red-500';
+    if (percentage >= 80) return 'score-excellent';
+    if (percentage >= 60) return 'score-good';
+    if (percentage >= 40) return 'score-fair';
+    return 'score-poor';
   };
 
-  const getOverallColor = (score: number) => {
-    if (score >= 80) return 'from-cyan-400 to-blue-500';
-    if (score >= 60) return 'from-blue-400 to-purple-500';
-    if (score >= 40) return 'from-purple-400 to-pink-500';
-    return 'from-pink-400 to-red-500';
+  const getScoreBgClass = (score: number, maxScore: number) => {
+    const percentage = (score / maxScore) * 100;
+    if (percentage >= 80) return 'score-bg-excellent';
+    if (percentage >= 60) return 'score-bg-good';
+    if (percentage >= 40) return 'score-bg-fair';
+    return 'score-bg-poor';
+  };
+
+  const getOverallScoreClass = (score: number) => {
+    if (score >= 80) return 'score-excellent';
+    if (score >= 60) return 'score-good';
+    if (score >= 40) return 'score-fair';
+    return 'score-poor';
   };
 
   const getCategoryFeedback = (scoreText: string, category: string) => {
@@ -129,28 +137,15 @@ const EnhancedScoreDisplay = ({ score }: { score: string }) => {
         transition={{ duration: 0.6, delay: 0.2 }}
         className="text-center"
       >
-        <div className="relative inline-block">
-          <motion.div
-            animate={{ 
-              boxShadow: [
-                "0 0 20px rgba(34, 211, 238, 0.3)",
-                "0 0 40px rgba(34, 211, 238, 0.6)",
-                "0 0 20px rgba(34, 211, 238, 0.3)"
-              ]
-            }}
-            transition={{ duration: 2, repeat: Infinity }}
-            className={`bg-gradient-to-r ${getOverallColor(overallScore)} rounded-full p-1`}
-          >
-            <div className="bg-slate-900/80 backdrop-blur-sm rounded-full px-8 py-4">
-              <div className="text-4xl font-bold text-white mb-2">
-                {overallScore}
-              </div>
-              <div className="text-sm text-gray-300">Overall Score</div>
+        <div className="score-ring" style={{ border: `3px solid var(--accent-blue)` }}>
+          <div className="score-ring-inner">
+            <div className={`text-4xl font-bold mb-1 ${getOverallScoreClass(overallScore)}`}>
+              {overallScore}
             </div>
-          </motion.div>
+            <div className="text-sm text-[var(--text-muted)]">Overall Score</div>
+          </div>
         </div>
       </motion.div>
-
 
       {/* Detailed Feedback Section */}
       <motion.div
@@ -164,13 +159,13 @@ const EnhancedScoreDisplay = ({ score }: { score: string }) => {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, delay: 1.0 }}
-          className="bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-cyan-500/10 border border-blue-400/30 rounded-lg p-4"
+          className="card-section-accent"
         >
           <div className="flex items-center mb-3">
-            <Target className="h-5 w-5 text-cyan-400 mr-2" />
-            <h3 className="text-lg font-semibold text-white">Areas to Improve</h3>
+            <Target className="h-5 w-5 text-[var(--accent-blue)] mr-2" />
+            <h3 className="text-base font-semibold">Areas to Improve</h3>
           </div>
-          <div className="text-gray-200 leading-relaxed">
+          <div className="text-[var(--text-secondary)] text-sm leading-relaxed">
             {score.split('5. Areas to improve:')[1]?.trim() || 'Focus on enhancing professional language, adding quantifiable achievements, and improving overall structure.'}
           </div>
         </motion.div>
@@ -181,13 +176,13 @@ const EnhancedScoreDisplay = ({ score }: { score: string }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 1.2 }}
-            className="bg-gradient-to-r from-slate-800/20 to-slate-700/20 backdrop-blur-sm border border-slate-600/30 rounded-lg p-4"
+            className="card-section"
           >
             <div className="flex items-center mb-4">
-              <Brain className="h-5 w-5 text-purple-400 mr-2" />
-              <h3 className="text-lg font-semibold text-white">Scoring Breakdown</h3>
+              <Brain className="h-5 w-5 text-[var(--accent-purple)] mr-2" />
+              <h3 className="text-base font-semibold">Scoring Breakdown</h3>
             </div>
-            
+
             <div className="space-y-3">
               {sections.map((section, index) => {
                 const feedback = getCategoryFeedback(score, section.category);
@@ -197,16 +192,16 @@ const EnhancedScoreDisplay = ({ score }: { score: string }) => {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.5, delay: 1.4 + index * 0.1 }}
-                    className="bg-gradient-to-r from-blue-500/5 to-purple-500/5 border border-blue-400/10 rounded-lg p-3"
+                    className="feedback-card"
                   >
                     <div className="flex items-start space-x-3">
-                      <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${getScoreColor(section.score, section.maxScore)} mt-1.5 flex-shrink-0`} />
+                      <div className={`w-3 h-3 rounded-full mt-1.5 flex-shrink-0 ${getScoreBgClass(section.score, section.maxScore)}`} />
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-1">
-                          <h4 className="font-semibold text-white text-sm">{section.category}</h4>
-                          <span className="text-2xl font-bold text-white">{section.score}/{section.maxScore}</span>
+                          <h4 className="font-semibold text-sm">{section.category}</h4>
+                          <span className={`text-xl font-bold ${getScoreClass(section.score, section.maxScore)}`}>{section.score}/{section.maxScore}</span>
                         </div>
-                        <p className="text-gray-300 text-sm leading-relaxed">{feedback}</p>
+                        <p className="text-[var(--text-muted)] text-sm leading-relaxed">{feedback}</p>
                       </div>
                     </div>
                   </motion.div>
@@ -706,25 +701,17 @@ export default function CVScorePage() {
           </motion.div>
 
           {/* Tab Navigation */}
-          <div className="flex mb-8 bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-1">
+          <div className="tab-nav mb-8">
             <button
               onClick={() => setActiveTab('score')}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 px-6 rounded-md transition-all duration-300 ${
-                activeTab === 'score'
-                  ? 'bg-blue-600 text-white shadow-lg'
-                  : 'text-gray-300 hover:text-white hover:bg-white/10'
-              }`}
+              className={`tab-nav-item ${activeTab === 'score' ? 'active' : ''}`}
             >
               <BarChart3 className="h-5 w-5" />
               CV Scoring
             </button>
             <button
               onClick={() => setActiveTab('rewrite')}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 px-6 rounded-md transition-all duration-300 ${
-                activeTab === 'rewrite'
-                  ? 'bg-purple-600 text-white shadow-lg'
-                  : 'text-gray-300 hover:text-white hover:bg-white/10'
-              }`}
+              className={`tab-nav-item ${activeTab === 'rewrite' ? 'active-purple' : ''}`}
             >
               <Edit3 className="h-5 w-5" />
               CV Rewriting
@@ -735,15 +722,15 @@ export default function CVScorePage() {
           {activeTab === 'score' && (
             <>
               {/* Main Form Card */}
-              <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl mb-8">
-                <CardContent className="p-8">
+              <Card className="surface-card mb-8">
+                <CardContent className="p-5 sm:p-6">
                   {/* File Upload Section */}
-                  <div className="mb-8">
-                    <div className="flex items-center mb-4">
-                      <Upload className="h-6 w-6 text-blue-400 mr-3" />
-                      <h2 className="text-xl font-semibold text-white">Upload PDF CV</h2>
+                  <div className="mb-6">
+                    <div className="flex items-center mb-3">
+                      <Upload className="h-5 w-5 text-[var(--accent-blue)] mr-2.5" />
+                      <h2 className="text-base font-semibold">Upload PDF CV</h2>
                     </div>
-                    
+
                     <div className="relative">
                       <input
                         type="file"
@@ -754,26 +741,25 @@ export default function CVScorePage() {
                         disabled={isProcessingPdf}
                       />
                       <label htmlFor="pdf-upload" className="cursor-pointer">
-                        <div className="border-2 border-dashed border-white/20 rounded-lg p-8 text-center hover:border-blue-400/50 transition-colors duration-300 bg-white/5">
+                        <div className="upload-zone">
                           {isProcessingPdf ? (
                             <div className="flex items-center justify-center">
-                              <Loader2 className="h-8 w-8 text-blue-400 animate-spin mr-3" />
-                              <span className="text-gray-300">Processing PDF...</span>
+                              <Loader2 className="h-8 w-8 text-[var(--accent-blue)] animate-spin mr-3" />
+                              <span className="text-[var(--text-muted)]">Processing PDF...</span>
                             </div>
                           ) : (
-                            <div className="text-gray-300">
-                              <Upload className="h-12 w-12 text-blue-400 mx-auto mb-4" />
-                              <p className="text-lg font-medium mb-2">Click to upload PDF or drag and drop</p>
-                              <p className="text-sm text-gray-400">Maximum file size: 10MB</p>
-                              <p className="text-xs text-gray-500 mt-1">CV must be 10-1500 words</p>
+                            <div className="text-[var(--text-muted)]">
+                              <Upload className="h-10 w-10 text-[var(--accent-blue)] mx-auto mb-3" />
+                              <p className="text-sm font-medium mb-1">Click to upload PDF or drag and drop</p>
+                              <p className="text-xs text-[var(--text-subtle)]">Maximum file size: 10MB &middot; 10-1500 words</p>
                             </div>
                           )}
                         </div>
                       </label>
                     </div>
-                    
+
                     {file && (
-                      <div className="mt-4 flex items-center text-green-400 text-sm">
+                      <div className="mt-3 flex items-center text-[var(--success)] text-sm">
                         <CheckCircle className="h-4 w-4 mr-2" />
                         {file.name} uploaded successfully
                       </div>
@@ -781,39 +767,39 @@ export default function CVScorePage() {
                   </div>
 
                   {/* Text Input Section */}
-                  <div className="mb-8">
-                    <div className="flex items-center mb-4">
-                      <FileText className="h-6 w-6 text-blue-400 mr-3" />
-                      <h2 className="text-xl font-semibold text-white">Or Paste CV Text</h2>
+                  <div className="mb-6">
+                    <div className="flex items-center mb-3">
+                      <FileText className="h-5 w-5 text-[var(--accent-blue)] mr-2.5" />
+                      <h2 className="text-base font-semibold">Or Paste CV Text</h2>
                     </div>
-                    
-                    <p className="text-gray-400 text-sm mb-3">
+
+                    <p className="text-[var(--text-muted)] text-sm mb-3">
                       Your CV should be between 10-1500 words for optimal analysis
                     </p>
                     <textarea
                       value={cvText}
                       onChange={(e) => setCvText(e.target.value)}
                       placeholder="Paste your CV text here..."
-                      className="w-full h-48 p-4 bg-white/10 border border-white/20 rounded-lg text-white placeholder:text-gray-400 resize-none focus:outline-none focus:border-blue-400/50 transition-colors duration-300"
+                      className="form-textarea h-48"
                       disabled={isProcessingPdf}
                     />
-                    
+
                     {/* Word Counter Display */}
-                    <div className="mt-2 flex items-center justify-between text-sm">
+                    <div className="mt-2 flex items-center justify-between text-xs">
                       <div className="flex items-center space-x-4">
-                        <span className={`${cvText.trim().split(/\s+/).length < 10 ? 'text-red-400' : 'text-gray-400'}`}>
+                        <span className={cvText.trim().split(/\s+/).length < 10 ? 'text-[var(--danger)]' : 'text-[var(--text-subtle)]'}>
                           Min: 10 words
                         </span>
-                        <span className={`${cvText.trim().split(/\s+/).length > 1500 ? 'text-red-400' : 'text-gray-400'}`}>
+                        <span className={cvText.trim().split(/\s+/).length > 1500 ? 'text-[var(--danger)]' : 'text-[var(--text-subtle)]'}>
                           Max: 1500 words
                         </span>
                       </div>
                       <span className={`font-medium ${
-                        cvText.trim().split(/\s+/).length < 10 || cvText.trim().split(/\s+/).length > 1500 
-                          ? 'text-red-400' 
-                          : cvText.trim().split(/\s+/).length < 300 
-                            ? 'text-yellow-400' 
-                            : 'text-green-400'
+                        cvText.trim().split(/\s+/).length < 10 || cvText.trim().split(/\s+/).length > 1500
+                          ? 'text-[var(--danger)]'
+                          : cvText.trim().split(/\s+/).length < 300
+                            ? 'text-[var(--warning)]'
+                            : 'text-[var(--success)]'
                       }`}>
                         {cvText.trim().split(/\s+/).length} words
                       </span>
@@ -821,11 +807,11 @@ export default function CVScorePage() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <Button
                       onClick={handleSubmit}
                       disabled={isLoading || !cvText.trim()}
-                      className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                      className="flex-1 bg-[var(--accent-blue)] hover:bg-[var(--accent-blue-strong)] text-white font-semibold py-3 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isLoading ? (
                         <div className="flex items-center">
@@ -839,11 +825,10 @@ export default function CVScorePage() {
                         </div>
                       )}
                     </Button>
-                    
+
                     <Button
                       onClick={clearScoreTab}
                       variant="outline"
-                      className="bg-white/10 border-white/20 text-white hover:bg-white/20"
                     >
                       <X className="h-5 w-5 mr-2" />
                       Clear All
@@ -852,8 +837,8 @@ export default function CVScorePage() {
 
                   {/* Error Display */}
                   {error && (
-                    <div className="mt-6 p-4 bg-red-500/20 border border-red-400/30 rounded-lg">
-                      <p className="text-red-300 text-center">{error}</p>
+                    <div className="mt-5 banner-error">
+                      <p>{error}</p>
                     </div>
                   )}
                 </CardContent>
@@ -866,24 +851,17 @@ export default function CVScorePage() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{ duration: 0.8, ease: "easeOut" }}
                 >
-                  <Card className="bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-cyan-500/10 backdrop-blur-md border-white/20 shadow-2xl mb-6 overflow-hidden">
-                    <CardHeader 
-                      className="cursor-pointer hover:bg-white/10 transition-all duration-300 p-6 relative"
+                  <Card className="surface-card-elevated mb-6 overflow-hidden">
+                    <CardHeader
+                      className="cursor-pointer hover:bg-[var(--surface-subtle)] transition-all duration-200 p-5 relative"
                       onClick={() => setScoreResultsCollapsed(!scoreResultsCollapsed)}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <BarChart3 className="h-6 w-6 text-cyan-400" />
-                          <CardTitle className="text-xl text-white font-bold">CV Score Results</CardTitle>
+                        <div className="flex items-center space-x-2.5">
+                          <BarChart3 className="h-5 w-5 text-[var(--accent-blue)]" />
+                          <CardTitle className="text-lg font-bold">CV Score Results</CardTitle>
                         </div>
-                        <motion.div
-                          animate={{ 
-                            scale: scoreResultsCollapsed ? 1 : [1, 1.2, 1]
-                          }}
-                          transition={{ duration: 0.3 }}
-                        >
-                          {scoreResultsCollapsed ? <ChevronDown className="h-5 w-5 text-gray-400" /> : <ChevronUp className="h-5 w-5 text-gray-400" />}
-                        </motion.div>
+                        {scoreResultsCollapsed ? <ChevronDown className="h-5 w-5 text-[var(--text-subtle)]" /> : <ChevronUp className="h-5 w-5 text-[var(--text-subtle)]" />}
                       </div>
                     </CardHeader>
                     <AnimatePresence>
@@ -910,15 +888,15 @@ export default function CVScorePage() {
           {activeTab === 'rewrite' && (
             <>
               {/* Main Form Card */}
-              <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-2xl mb-8">
-                <CardContent className="p-8">
+              <Card className="surface-card mb-8">
+                <CardContent className="p-5 sm:p-6">
                   {/* File Upload Section */}
-                  <div className="mb-8">
-                    <div className="flex items-center mb-4">
-                      <Upload className="h-6 w-6 text-purple-400 mr-3" />
-                      <h2 className="text-xl font-semibold text-white">Upload PDF CV</h2>
+                  <div className="mb-6">
+                    <div className="flex items-center mb-3">
+                      <Upload className="h-5 w-5 text-[var(--accent-purple)] mr-2.5" />
+                      <h2 className="text-base font-semibold">Upload PDF CV</h2>
                     </div>
-                    
+
                     <div className="relative">
                       <input
                         type="file"
@@ -929,26 +907,25 @@ export default function CVScorePage() {
                         disabled={isProcessingRewritePdf}
                       />
                       <label htmlFor="rewrite-pdf-upload" className="cursor-pointer">
-                        <div className="border-2 border-dashed border-white/20 rounded-lg p-8 text-center hover:border-purple-400/50 transition-colors duration-300 bg-white/5">
+                        <div className="upload-zone">
                           {isProcessingRewritePdf ? (
                             <div className="flex items-center justify-center">
-                              <Loader2 className="h-8 w-8 text-purple-400 animate-spin mr-3" />
-                              <span className="text-gray-300">Processing PDF...</span>
+                              <Loader2 className="h-8 w-8 text-[var(--accent-purple)] animate-spin mr-3" />
+                              <span className="text-[var(--text-muted)]">Processing PDF...</span>
                             </div>
                           ) : (
-                            <div className="text-gray-300">
-                              <Upload className="h-12 w-12 text-purple-400 mx-auto mb-4" />
-                              <p className="text-lg font-medium mb-2">Click to upload PDF or drag and drop</p>
-                              <p className="text-sm text-gray-400">Maximum file size: 10MB</p>
-                              <p className="text-xs text-gray-500 mt-1">CV must be 10-1500 words</p>
+                            <div className="text-[var(--text-muted)]">
+                              <Upload className="h-10 w-10 text-[var(--accent-purple)] mx-auto mb-3" />
+                              <p className="text-sm font-medium mb-1">Click to upload PDF or drag and drop</p>
+                              <p className="text-xs text-[var(--text-subtle)]">Maximum file size: 10MB &middot; 10-1500 words</p>
                             </div>
                           )}
                         </div>
                       </label>
                     </div>
-                    
+
                     {rewriteFile && (
-                      <div className="mt-4 flex items-center text-green-400 text-sm">
+                      <div className="mt-3 flex items-center text-[var(--success)] text-sm">
                         <CheckCircle className="h-4 w-4 mr-2" />
                         {rewriteFile.name} uploaded successfully
                       </div>
@@ -956,39 +933,39 @@ export default function CVScorePage() {
                   </div>
 
                   {/* Text Input Section */}
-                  <div className="mb-8">
-                    <div className="flex items-center mb-4">
-                      <FileText className="h-6 w-6 text-purple-400 mr-3" />
-                      <h2 className="text-xl font-semibold text-white">Or Paste CV Text</h2>
+                  <div className="mb-6">
+                    <div className="flex items-center mb-3">
+                      <FileText className="h-5 w-5 text-[var(--accent-purple)] mr-2.5" />
+                      <h2 className="text-base font-semibold">Or Paste CV Text</h2>
                     </div>
-                    
-                    <p className="text-gray-400 text-sm mb-3">
+
+                    <p className="text-[var(--text-muted)] text-sm mb-3">
                       Your CV should be between 10-1500 words for optimal rewriting
                     </p>
                     <textarea
                       value={rewriteCvText}
                       onChange={(e) => setRewriteCvText(e.target.value)}
                       placeholder="Paste your CV text here..."
-                      className="w-full h-48 p-4 bg-white/10 border border-white/20 rounded-lg text-white placeholder:text-gray-400 resize-none focus:outline-none focus:border-purple-400/50 transition-colors duration-300"
+                      className="form-textarea h-48"
                       disabled={isProcessingRewritePdf}
                     />
-                    
+
                     {/* Word Counter Display */}
-                    <div className="mt-2 flex items-center justify-between text-sm">
+                    <div className="mt-2 flex items-center justify-between text-xs">
                       <div className="flex items-center space-x-4">
-                        <span className={`${rewriteCvText.trim().split(/\s+/).length < 10 ? 'text-red-400' : 'text-gray-400'}`}>
+                        <span className={rewriteCvText.trim().split(/\s+/).length < 10 ? 'text-[var(--danger)]' : 'text-[var(--text-subtle)]'}>
                           Min: 10 words
                         </span>
-                        <span className={`${rewriteCvText.trim().split(/\s+/).length > 1500 ? 'text-red-400' : 'text-gray-400'}`}>
+                        <span className={rewriteCvText.trim().split(/\s+/).length > 1500 ? 'text-[var(--danger)]' : 'text-[var(--text-subtle)]'}>
                           Max: 1500 words
                         </span>
                       </div>
                       <span className={`font-medium ${
-                        rewriteCvText.trim().split(/\s+/).length < 10 || rewriteCvText.trim().split(/\s+/).length > 1500 
-                          ? 'text-red-400' 
-                          : rewriteCvText.trim().split(/\s+/).length < 300 
-                            ? 'text-yellow-400' 
-                            : 'text-green-400'
+                        rewriteCvText.trim().split(/\s+/).length < 10 || rewriteCvText.trim().split(/\s+/).length > 1500
+                          ? 'text-[var(--danger)]'
+                          : rewriteCvText.trim().split(/\s+/).length < 300
+                            ? 'text-[var(--warning)]'
+                            : 'text-[var(--success)]'
                       }`}>
                         {rewriteCvText.trim().split(/\s+/).length} words
                       </span>
@@ -996,29 +973,29 @@ export default function CVScorePage() {
                   </div>
 
                   {/* Target Role Input */}
-                  <div className="mb-8">
-                    <div className="flex items-center mb-4">
-                      <Target className="h-6 w-6 text-purple-400 mr-3" />
-                      <h2 className="text-xl font-semibold text-white">Target Role (Optional)</h2>
+                  <div className="mb-6">
+                    <div className="flex items-center mb-3">
+                      <Target className="h-5 w-5 text-[var(--accent-purple)] mr-2.5" />
+                      <h2 className="text-base font-semibold">Target Role (Optional)</h2>
                     </div>
                     <Input
                       type="text"
                       value={targetRole}
                       onChange={(e) => setTargetRole(e.target.value)}
                       placeholder="e.g., Software Engineer, Marketing Manager..."
-                      className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                      className="form-input"
                     />
-                    <p className="text-gray-400 text-sm mt-2">
+                    <p className="text-[var(--text-muted)] text-sm mt-2">
                       Specify a target role to get more tailored rewrite suggestions
                     </p>
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <Button
                       onClick={handleRewrite}
                       disabled={isRewriting || !rewriteCvText.trim()}
-                      className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                      className="flex-1 bg-[var(--accent-purple)] hover:opacity-90 text-white font-semibold py-3 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isRewriting ? (
                         <div className="flex items-center">
@@ -1032,11 +1009,10 @@ export default function CVScorePage() {
                         </div>
                       )}
                     </Button>
-                    
+
                     <Button
                       onClick={clearRewriteTab}
                       variant="outline"
-                      className="bg-white/10 border-white/20 text-white hover:bg-white/20"
                     >
                       <X className="h-5 w-5 mr-2" />
                       Clear All
@@ -1045,8 +1021,8 @@ export default function CVScorePage() {
 
                   {/* Error Display */}
                   {rewriteError && (
-                    <div className="mt-6 p-4 bg-red-500/20 border border-red-400/30 rounded-lg">
-                      <p className="text-red-300 text-center">{rewriteError}</p>
+                    <div className="mt-5 banner-error">
+                      <p>{rewriteError}</p>
                     </div>
                   )}
                 </CardContent>

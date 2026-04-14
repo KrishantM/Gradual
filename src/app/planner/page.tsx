@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Brain, Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Loader2, GraduationCap } from 'lucide-react';
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DAY_NAMES_SHORT = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 function getMonday(d: Date): Date {
   const day = d.getDay();
@@ -17,8 +18,6 @@ function getMonday(d: Date): Date {
 }
 
 function formatDateKey(d: Date): string {
-  // Use local date components, not toISOString() which converts to UTC and
-  // shifts dates near midnight into the wrong day for users in non-UTC zones.
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -162,41 +161,42 @@ export default function PlannerPage() {
   return (
     <div className="min-h-screen">
       <div className="page-container">
-        <div className="flex items-center justify-between gap-4 page-header">
-          <div className="flex items-center gap-3">
-            <Calendar className="h-6 w-6 text-[var(--accent-blue)]" />
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 page-header">
+          <div className="flex items-center gap-2.5">
+            <Calendar className="h-5 w-5 text-[var(--accent-blue)]" />
             <h1 className="page-title">Planner</h1>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={goToToday}
-              className="border-[var(--border)] text-[var(--text-muted)]"
+              className="text-xs border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-subtle)]"
             >
               Today
             </Button>
-            <Button
-              variant={view === 'week' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setView('week')}
-              className={view === 'week' ? 'bg-[var(--accent-blue)]' : 'border-[var(--border)] text-[var(--text-muted)]'}
-            >
-              Week
-            </Button>
-            <Button
-              variant={view === 'month' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setView('month')}
-              className={view === 'month' ? 'bg-[var(--accent-blue)]' : 'border-[var(--border)] text-[var(--text-muted)]'}
-            >
-              Month
-            </Button>
+            <div className="tab-nav !p-0.5 !gap-0.5">
+              <button
+                onClick={() => setView('week')}
+                className={`tab-nav-item !py-1.5 !px-3 !text-xs ${view === 'week' ? 'active' : ''}`}
+              >
+                Week
+              </button>
+              <button
+                onClick={() => setView('month')}
+                className={`tab-nav-item !py-1.5 !px-3 !text-xs ${view === 'month' ? 'active' : ''}`}
+              >
+                Month
+              </button>
+            </div>
           </div>
         </div>
 
+        {/* Week View */}
         {view === 'week' && (
           <>
+            {/* Week Navigation */}
             <div className="flex items-center justify-between mb-4">
               <Button
                 variant="outline"
@@ -206,11 +206,11 @@ export default function PlannerPage() {
                   d.setDate(d.getDate() - 7);
                   setWeekStart(d);
                 }}
-                className="border-[var(--border)] text-[var(--text-muted)]"
+                className="border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] h-8 w-8 p-0"
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="text-[var(--foreground)] font-medium">
+              <span className="text-sm font-medium text-[var(--foreground)]">
                 {weekDays[0].toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' })} –{' '}
                 {weekDays[6].toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' })}
               </span>
@@ -222,163 +222,88 @@ export default function PlannerPage() {
                   d.setDate(d.getDate() + 7);
                   setWeekStart(d);
                 }}
-                className="border-[var(--border)] text-[var(--text-muted)]"
+                className="border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] h-8 w-8 p-0"
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-            {loading ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-[var(--accent-blue)]" />
-              </div>
-            ) : (
-              <div className="grid grid-cols-7 gap-2">
-                {weekDays.map((d) => {
-                  const key = formatDateKey(d);
-                  const isToday = key === todayKey;
-                  const dayEvents = eventsByDate[key] ?? [];
-                  return (
-                    <Card key={key} className={`bg-[var(--surface-card)] border-[var(--border)] ${isToday ? 'ring-2 ring-[var(--accent-blue)]' : ''}`}>
-                      <CardHeader className="py-2 px-3">
-                        <CardTitle className={`text-sm ${isToday ? 'text-[var(--accent-blue)] font-bold' : 'text-[var(--text-muted)]'}`}>{DAY_NAMES[d.getDay() === 0 ? 6 : d.getDay() - 1]}</CardTitle>
-                        <p className={`text-xs ${isToday ? 'text-[var(--accent-blue)]' : 'text-[var(--text-muted)] opacity-60'}`}>{d.getDate()}</p>
-                      </CardHeader>
-                      <CardContent className="px-3 pb-3 space-y-2">
-                        {dayEvents.map((e) => (
-                          <div
-                            key={e.id}
-                            className="flex items-start justify-between gap-1 p-2 rounded bg-[var(--surface-elevated)] text-[var(--foreground)] text-sm"
-                          >
-                            <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                              {e.source === 'copilot' && (
-                                <span className="inline-flex items-center gap-0.5 shrink-0 text-[var(--accent-blue)]" title="AI-generated">
-                                  <Brain className="h-3 w-3" />
-                                </span>
-                              )}
-                              {e.source === 'path' && (
-                                <span className="inline-flex items-center gap-0.5 shrink-0 text-[var(--accent-blue)]" title="From a capability path">
-                                  <GraduationCap className="h-3 w-3" />
-                                </span>
-                              )}
-                              <span className="truncate">{e.title}</span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => deleteEvent(e.id)}
-                              disabled={!!deleting}
-                              className="text-red-500 hover:text-red-400 shrink-0"
-                            >
-                              {deleting === e.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-                            </button>
-                          </div>
-                        ))}
-                        <div className="flex gap-1">
-                          <Input
-                            placeholder="Add task..."
-                            value={newTitle[key] ?? ''}
-                            onChange={(e) => setNewTitle((prev) => ({ ...prev, [key]: e.target.value }))}
-                            onKeyDown={(e) => e.key === 'Enter' && addEvent(key)}
-                            className="flex-1 h-8 text-xs bg-[var(--surface-elevated)] border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)]"
-                          />
-                          <Button
-                            size="sm"
-                            className="h-8 w-8 p-0 bg-[var(--accent-blue)]"
-                            onClick={() => addEvent(key)}
-                            disabled={!!adding || !(newTitle[key] ?? '').trim()}
-                          >
-                            {adding === key ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </>
-        )}
 
-        {view === 'month' && (
-          <>
-            <div className="flex items-center justify-between mb-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setMonthDate(new Date(monthYear, month - 1))}
-                className="border-[var(--border)] text-[var(--text-muted)]"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-[var(--foreground)] font-medium">
-                {monthDate.toLocaleDateString('en-NZ', { month: 'long', year: 'numeric' })}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setMonthDate(new Date(monthYear, month + 1))}
-                className="border-[var(--border)] text-[var(--text-muted)]"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
             {loading ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-[var(--accent-blue)]" />
+              <div className="flex justify-center py-16">
+                <Loader2 className="h-6 w-6 animate-spin text-[var(--accent-blue)]" />
               </div>
             ) : (
-              <Card className="bg-[var(--surface-card)] border-[var(--border)] overflow-hidden">
-                <CardContent className="p-0">
-                  <div className="grid grid-cols-7 border-b border-[var(--border)]">
-                    {DAY_NAMES.map((name) => (
-                      <div key={name} className="py-2 text-center text-sm font-medium text-[var(--text-muted)] border-r border-[var(--border)] last:border-r-0">
-                        {name}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-7 auto-rows-fr" style={{ minHeight: 400 }}>
-                    {monthGrid.map((d, i) => {
-                      if (!d) {
-                        return <div key={`pad-${i}`} className="border-r border-b border-[var(--border)] bg-[var(--surface)] min-h-[80px]" />;
-                      }
-                      const key = formatDateKey(d);
-                      const isToday = key === todayKey;
-                      const dayEvents = eventsByDate[key] ?? [];
-                      const isCurrentMonth = d.getMonth() === month;
-                      return (
-                        <div
-                          key={key}
-                          className={`border-r border-b border-[var(--border)] min-h-[80px] p-2 flex flex-col bg-[var(--surface-card)] ${isToday ? 'ring-2 ring-inset ring-[var(--accent-blue)]' : ''}`}
-                        >
-                          <p className={`text-xs font-medium ${isToday ? 'text-[var(--accent-blue)] font-bold' : isCurrentMonth ? 'text-[var(--foreground)]' : 'text-[var(--text-muted)] opacity-40'}`}>{d.getDate()}</p>
-                          <div className="flex-1 space-y-1 overflow-auto">
-                            {dayEvents.slice(0, 3).map((e) => (
-                              <div key={e.id} className="flex items-center gap-1 text-xs text-[var(--foreground)]">
-                                {e.source === 'copilot' && <Brain className="h-2.5 w-2.5 text-[var(--accent-blue)] shrink-0" />}
-                                {e.source === 'path' && <GraduationCap className="h-2.5 w-2.5 text-[var(--accent-blue)] shrink-0" />}
-                                <span className="flex-1 min-w-0 truncate">{e.title}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => deleteEvent(e.id)}
-                                  disabled={!!deleting}
-                                  className="text-red-500 hover:text-red-400 shrink-0"
-                                >
-                                  {deleting === e.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-                                </button>
-                              </div>
-                            ))}
-                            {dayEvents.length > 3 && <p className="text-xs text-[var(--text-muted)]">+{dayEvents.length - 3} more</p>}
+              <>
+                {/* Desktop: 7-column grid */}
+                <div className="hidden md:grid grid-cols-7 gap-2">
+                  {weekDays.map((d) => {
+                    const key = formatDateKey(d);
+                    const isToday = key === todayKey;
+                    const dayEvents = eventsByDate[key] ?? [];
+                    return (
+                      <div
+                        key={key}
+                        className={`rounded-xl border bg-[var(--surface-card)] flex flex-col min-h-[180px] transition-shadow duration-200 ${
+                          isToday
+                            ? 'border-[var(--accent-blue)] ring-1 ring-[var(--accent-blue)] shadow-md'
+                            : 'border-[var(--border-soft)] hover:shadow-sm'
+                        }`}
+                      >
+                        {/* Day Header */}
+                        <div className={`px-3 py-2 border-b ${isToday ? 'border-[var(--accent-blue)]/20 bg-[var(--accent-blue-soft)]' : 'border-[var(--border-soft)]'}`}>
+                          <div className={`text-xs font-semibold ${isToday ? 'text-[var(--accent-blue)]' : 'text-[var(--text-muted)]'}`}>
+                            {DAY_NAMES[d.getDay() === 0 ? 6 : d.getDay() - 1]}
                           </div>
-                          <div className="flex gap-1 mt-1">
+                          <div className={`text-lg font-bold leading-tight ${isToday ? 'text-[var(--accent-blue)]' : 'text-[var(--foreground)]'}`}>
+                            {d.getDate()}
+                          </div>
+                        </div>
+
+                        {/* Events */}
+                        <div className="flex-1 px-2.5 py-2 space-y-1.5 overflow-y-auto">
+                          {dayEvents.map((e) => (
+                            <div
+                              key={e.id}
+                              className="group flex items-start justify-between gap-1 p-1.5 rounded-md bg-[var(--surface-elevated)] text-xs transition-colors hover:bg-[var(--surface-subtle)]"
+                            >
+                              <div className="flex items-center gap-1 flex-1 min-w-0">
+                                {e.source === 'copilot' && (
+                                  <span title="AI-generated" className="inline-flex shrink-0">
+                                    <Brain className="h-3 w-3 text-[var(--accent-blue)]" />
+                                  </span>
+                                )}
+                                {e.source === 'path' && (
+                                  <span title="From capability path" className="inline-flex shrink-0">
+                                    <GraduationCap className="h-3 w-3 text-[var(--accent-blue)]" />
+                                  </span>
+                                )}
+                                <span className="truncate text-[var(--foreground)]">{e.title}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => deleteEvent(e.id)}
+                                disabled={!!deleting}
+                                className="text-[var(--danger)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                              >
+                                {deleting === e.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Add Task */}
+                        <div className="px-2.5 pb-2.5 pt-1">
+                          <div className="flex gap-1">
                             <Input
-                              placeholder="Add"
+                              placeholder="Add task..."
                               value={newTitle[key] ?? ''}
                               onChange={(e) => setNewTitle((prev) => ({ ...prev, [key]: e.target.value }))}
                               onKeyDown={(e) => e.key === 'Enter' && addEvent(key)}
-                              className="flex-1 h-6 text-xs bg-[var(--surface-elevated)] border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)]"
+                              className="flex-1 h-7 text-xs bg-[var(--surface-elevated)] border-[var(--border-soft)] text-[var(--foreground)] placeholder:text-[var(--text-subtle)] focus:border-[var(--accent-blue)]"
                             />
                             <Button
                               size="sm"
-                              className="h-6 w-6 p-0 bg-[var(--accent-blue)] shrink-0"
+                              className="h-7 w-7 p-0 bg-[var(--accent-blue)] hover:bg-[var(--accent-blue-strong)] shrink-0"
                               onClick={() => addEvent(key)}
                               disabled={!!adding || !(newTitle[key] ?? '').trim()}
                             >
@@ -386,11 +311,213 @@ export default function PlannerPage() {
                             </Button>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Mobile: stacked list */}
+                <div className="md:hidden space-y-3">
+                  {weekDays.map((d) => {
+                    const key = formatDateKey(d);
+                    const isToday = key === todayKey;
+                    const dayEvents = eventsByDate[key] ?? [];
+                    return (
+                      <div
+                        key={key}
+                        className={`rounded-xl border bg-[var(--surface-card)] overflow-hidden transition-shadow duration-200 ${
+                          isToday
+                            ? 'border-[var(--accent-blue)] ring-1 ring-[var(--accent-blue)]'
+                            : 'border-[var(--border-soft)]'
+                        }`}
+                      >
+                        {/* Day Header */}
+                        <div className={`flex items-center justify-between px-4 py-2.5 border-b ${
+                          isToday ? 'border-[var(--accent-blue)]/20 bg-[var(--accent-blue-soft)]' : 'border-[var(--border-soft)]'
+                        }`}>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-sm font-semibold ${isToday ? 'text-[var(--accent-blue)]' : 'text-[var(--text-muted)]'}`}>
+                              {DAY_NAMES[d.getDay() === 0 ? 6 : d.getDay() - 1]}
+                            </span>
+                            <span className={`text-sm font-bold ${isToday ? 'text-[var(--accent-blue)]' : 'text-[var(--foreground)]'}`}>
+                              {d.getDate()}
+                            </span>
+                            {isToday && (
+                              <span className="badge badge-blue !text-[0.625rem]">Today</span>
+                            )}
+                          </div>
+                          <span className="text-xs text-[var(--text-subtle)]">
+                            {dayEvents.length > 0 ? `${dayEvents.length} task${dayEvents.length > 1 ? 's' : ''}` : ''}
+                          </span>
+                        </div>
+
+                        {/* Events + Add */}
+                        <div className="p-3 space-y-2">
+                          {dayEvents.map((e) => (
+                            <div
+                              key={e.id}
+                              className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-[var(--surface-elevated)] text-sm"
+                            >
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                {e.source === 'copilot' && (
+                                  <Brain className="h-3.5 w-3.5 text-[var(--accent-blue)] shrink-0" />
+                                )}
+                                {e.source === 'path' && (
+                                  <GraduationCap className="h-3.5 w-3.5 text-[var(--accent-blue)] shrink-0" />
+                                )}
+                                <span className="truncate text-[var(--foreground)]">{e.title}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => deleteEvent(e.id)}
+                                disabled={!!deleting}
+                                className="text-[var(--danger)] shrink-0 p-1"
+                              >
+                                {deleting === e.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                              </button>
+                            </div>
+                          ))}
+
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Add task..."
+                              value={newTitle[key] ?? ''}
+                              onChange={(e) => setNewTitle((prev) => ({ ...prev, [key]: e.target.value }))}
+                              onKeyDown={(e) => e.key === 'Enter' && addEvent(key)}
+                              className="flex-1 h-9 text-sm bg-[var(--surface-elevated)] border-[var(--border-soft)] text-[var(--foreground)] placeholder:text-[var(--text-subtle)] focus:border-[var(--accent-blue)]"
+                            />
+                            <Button
+                              size="sm"
+                              className="h-9 w-9 p-0 bg-[var(--accent-blue)] hover:bg-[var(--accent-blue-strong)] shrink-0"
+                              onClick={() => addEvent(key)}
+                              disabled={!!adding || !(newTitle[key] ?? '').trim()}
+                            >
+                              {adding === key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {/* Month View */}
+        {view === 'month' && (
+          <>
+            <div className="flex items-center justify-between mb-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setMonthDate(new Date(monthYear, month - 1))}
+                className="border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] h-8 w-8 p-0"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm font-medium text-[var(--foreground)]">
+                {monthDate.toLocaleDateString('en-NZ', { month: 'long', year: 'numeric' })}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setMonthDate(new Date(monthYear, month + 1))}
+                className="border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] h-8 w-8 p-0"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {loading ? (
+              <div className="flex justify-center py-16">
+                <Loader2 className="h-6 w-6 animate-spin text-[var(--accent-blue)]" />
+              </div>
+            ) : (
+              <div className="surface-card overflow-hidden">
+                {/* Day name header */}
+                <div className="grid grid-cols-7 border-b border-[var(--border-soft)]">
+                  {DAY_NAMES.map((name, i) => (
+                    <div key={name} className="py-2.5 text-center text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider border-r border-[var(--border-soft)] last:border-r-0">
+                      <span className="hidden sm:inline">{name}</span>
+                      <span className="sm:hidden">{DAY_NAMES_SHORT[i]}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Month grid */}
+                <div className="grid grid-cols-7 auto-rows-fr" style={{ minHeight: 420 }}>
+                  {monthGrid.map((d, i) => {
+                    if (!d) {
+                      return <div key={`pad-${i}`} className="border-r border-b border-[var(--border-soft)] bg-[var(--surface-subtle)] min-h-[80px]" />;
+                    }
+                    const key = formatDateKey(d);
+                    const isToday = key === todayKey;
+                    const dayEvents = eventsByDate[key] ?? [];
+                    const isCurrentMonth = d.getMonth() === month;
+                    return (
+                      <div
+                        key={key}
+                        className={`border-r border-b border-[var(--border-soft)] min-h-[80px] p-1.5 sm:p-2 flex flex-col transition-colors ${
+                          isToday
+                            ? 'bg-[var(--accent-blue-soft)] ring-1 ring-inset ring-[var(--accent-blue)]'
+                            : 'bg-[var(--surface-card)] hover:bg-[var(--surface-subtle)]'
+                        }`}
+                      >
+                        <p className={`text-xs font-medium mb-1 ${
+                          isToday
+                            ? 'text-[var(--accent-blue)] font-bold'
+                            : isCurrentMonth
+                              ? 'text-[var(--foreground)]'
+                              : 'text-[var(--text-subtle)]'
+                        }`}>
+                          {d.getDate()}
+                        </p>
+                        <div className="flex-1 space-y-0.5 overflow-auto">
+                          {dayEvents.slice(0, 3).map((e) => (
+                            <div key={e.id} className="group flex items-center gap-0.5 text-[0.625rem] sm:text-xs text-[var(--foreground)] leading-tight">
+                              {e.source === 'copilot' && <Brain className="h-2.5 w-2.5 text-[var(--accent-blue)] shrink-0" />}
+                              {e.source === 'path' && <GraduationCap className="h-2.5 w-2.5 text-[var(--accent-blue)] shrink-0" />}
+                              <span className="flex-1 min-w-0 truncate">{e.title}</span>
+                              <button
+                                type="button"
+                                onClick={() => deleteEvent(e.id)}
+                                disabled={!!deleting}
+                                className="text-[var(--danger)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                              >
+                                {deleting === e.id ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Trash2 className="h-2.5 w-2.5" />}
+                              </button>
+                            </div>
+                          ))}
+                          {dayEvents.length > 3 && (
+                            <p className="text-[0.625rem] text-[var(--text-subtle)]">+{dayEvents.length - 3} more</p>
+                          )}
+                        </div>
+
+                        {/* Inline add — hidden on small screens, visible on hover on larger */}
+                        <div className="hidden sm:flex gap-0.5 mt-1 opacity-0 hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                          <Input
+                            placeholder="Add"
+                            value={newTitle[key] ?? ''}
+                            onChange={(e) => setNewTitle((prev) => ({ ...prev, [key]: e.target.value }))}
+                            onKeyDown={(e) => e.key === 'Enter' && addEvent(key)}
+                            className="flex-1 h-5 text-[0.625rem] bg-[var(--surface-elevated)] border-[var(--border-soft)] text-[var(--foreground)] placeholder:text-[var(--text-subtle)] px-1"
+                          />
+                          <Button
+                            size="sm"
+                            className="h-5 w-5 p-0 bg-[var(--accent-blue)] shrink-0"
+                            onClick={() => addEvent(key)}
+                            disabled={!!adding || !(newTitle[key] ?? '').trim()}
+                          >
+                            {adding === key ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Plus className="h-2.5 w-2.5" />}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </>
         )}
