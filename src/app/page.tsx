@@ -245,7 +245,7 @@ export default function LandingPage() {
             }}
           />
           <h2 className="mx-auto max-w-2xl text-2xl font-semibold tracking-tight text-[var(--foreground)] sm:text-3xl">
-            Stop guessing. Start building your career gradually.
+            Stop guessing. Start growing.
           </h2>
           <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-[var(--text-muted)] sm:text-base">
             Free to start. Upgrade when you&apos;re ready.
