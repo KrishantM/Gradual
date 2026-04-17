@@ -43,11 +43,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Fetch user path states
+  // Fetch user path states and career context in parallel
   const stateMap = new Map<string, PathState>();
-  try {
-    const snap = await db.collection('users').doc(uid).collection('path_state').get();
-    snap.forEach((doc) => {
+  let careerContext: Awaited<ReturnType<typeof getCareerContext>> | null = null;
+
+  const [stateSnap, contextResult] = await Promise.allSettled([
+    db.collection('users').doc(uid).collection('path_state').get(),
+    getCareerContext(uid),
+  ]);
+
+  if (stateSnap.status === 'fulfilled') {
+    stateSnap.value.forEach((doc) => {
       const d = doc.data();
       const enrolledAt = toISO(d.enrolledAt as TimestampLike) ?? new Date().toISOString();
       const lastActivityAt = toISO(d.lastActivityAt as TimestampLike) ?? enrolledAt;
@@ -60,26 +66,33 @@ export async function GET(req: NextRequest) {
         lastActivityAt,
       });
     });
-  } catch (e) {
-    console.error('[GET /api/paths] failed to read path_state', e);
+  } else {
+    console.error('[GET /api/paths] failed to read path_state', stateSnap.reason);
+  }
+
+  if (contextResult.status === 'fulfilled') {
+    careerContext = contextResult.value;
+  } else {
+    console.error('[GET /api/paths] getCareerContext failed', contextResult.reason);
   }
 
   // Hydrate every path with the user's state
   const progresses = PATHS.map((path) => hydratePathProgress(path, stateMap.get(path.id) ?? null));
   const activePath = pickActivePath(progresses);
 
-  // Recommendations — best-effort, never blocks the response
+  // Recommendations — best-effort using pre-fetched context
   let recommendations: Awaited<ReturnType<typeof recommendPaths>> = [];
   try {
-    const context = await getCareerContext(uid);
-    const signals = evaluateSignals(context);
-    const enrolledIds = progresses.filter((p) => p.isEnrolled).map((p) => p.path.id);
-    recommendations = recommendPaths({
-      context,
-      signals,
-      excludePathIds: enrolledIds,
-      limit: 3,
-    });
+    if (careerContext) {
+      const signals = evaluateSignals(careerContext);
+      const enrolledIds = progresses.filter((p) => p.isEnrolled).map((p) => p.path.id);
+      recommendations = recommendPaths({
+        context: careerContext,
+        signals,
+        excludePathIds: enrolledIds,
+        limit: 3,
+      });
+    }
   } catch (e) {
     console.error('[GET /api/paths] recommendations failed', e);
   }

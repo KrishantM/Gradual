@@ -144,8 +144,8 @@ export async function GET(req: NextRequest) {
   try {
     console.log('[Cron] Starting scheduled opportunity ingestion...');
 
-    // Run all connectors without user profile (broad ingestion)
-    const ingestionResult = await runAllConnectors({ maxResults: 300 });
+    // Run all connectors without user profile (weekly deep refresh)
+    const ingestionResult = await runAllConnectors({ maxResults: 800 });
 
     console.log(`[Cron] Fetched ${ingestionResult.totalFetched}, validated ${ingestionResult.totalValidated}, deduplicated to ${ingestionResult.totalDeduplicated}, fresh: ${ingestionResult.totalFresh}`);
 
@@ -204,6 +204,14 @@ export async function GET(req: NextRequest) {
     }
 
     const durationMs = Date.now() - startTime;
+
+    // Write last-refresh timestamp for the UI
+    try {
+      await db.collection('opportunities_meta').doc('last_refresh').set({
+        refreshedAt: new Date().toISOString(),
+        totalStored: storeResult.added + storeResult.updated,
+      });
+    } catch { /* non-fatal */ }
 
     // Log run to Firestore for observability
     try {

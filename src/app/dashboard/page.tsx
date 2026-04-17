@@ -31,7 +31,8 @@ import {
   AlertTriangle,
   Zap,
   ClipboardList,
-  GraduationCap
+  GraduationCap,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -51,6 +52,14 @@ interface SavedOpportunity {
   salary_max?: number;
   source: string;
   score: number;
+}
+
+interface PinnedSuggestion {
+  id: string;
+  title: string;
+  notes?: string;
+  priority: string;
+  pinnedAt: string;
 }
 
 interface Signal {
@@ -409,30 +418,26 @@ export default function DashboardPage() {
   const [unstarringLoading, setUnstarringLoading] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
   const [clearingScore, setClearingScore] = useState(false);
+  const [pinnedSuggestions, setPinnedSuggestions] = useState<PinnedSuggestion[]>([]);
+  const [unpinning, setUnpinning] = useState<string | null>(null);
 
   // Intelligence state
   const [intelligence, setIntelligence] = useState<IntelligenceData | null>(null);
 
-  const fetchSavedOpportunities = useCallback(async (savedIds: string[]) => {
+  const unpinSuggestion = async (suggestionId: string) => {
     if (!user) return;
-    setOpportunitiesLoading(true);
+    setUnpinning(suggestionId);
     try {
       const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) {
-        const userData = userSnap.data();
-        const savedOpportunitiesData = userData.savedOpportunitiesData || [];
-        const validOpportunities = savedOpportunitiesData.filter((opp: SavedOpportunity) =>
-          savedIds.includes(opp.id)
-        );
-        setSavedOpportunities(validOpportunities);
-      }
+      const updated = pinnedSuggestions.filter(s => s.id !== suggestionId);
+      await updateDoc(userRef, { pinnedSuggestions: updated });
+      setPinnedSuggestions(updated);
     } catch (error) {
-      console.error('Error fetching saved opportunities:', error);
+      console.error('Error unpinning suggestion:', error);
     } finally {
-      setOpportunitiesLoading(false);
+      setUnpinning(null);
     }
-  }, [user]);
+  };
 
   useEffect(() => {
     if (!user) {
@@ -482,8 +487,16 @@ export default function DashboardPage() {
           if (rawCvScoreAnalysis && typeof rawCvScoreAnalysis === 'string') setCvScoreAnalysis(rawCvScoreAnalysis);
           else setCvScoreAnalysis(null);
 
-          const savedIds = userData.savedOpportunities || [];
-          if (savedIds.length > 0) await fetchSavedOpportunities(savedIds);
+          // Read saved opportunities directly from the user doc — no second Firestore read needed
+          const savedIds: string[] = userData.savedOpportunities || [];
+          const savedOppsData: SavedOpportunity[] = userData.savedOpportunitiesData || [];
+          const validOpps = savedOppsData.filter((opp) => savedIds.includes(opp.id));
+          setSavedOpportunities(validOpps);
+          setOpportunitiesLoading(false);
+
+          // Load pinned suggestions
+          const pinned: PinnedSuggestion[] = userData.pinnedSuggestions || [];
+          setPinnedSuggestions(pinned);
         }
 
         // Process intelligence
@@ -500,7 +513,7 @@ export default function DashboardPage() {
     };
 
     checkUserRole();
-  }, [user, router, fetchSavedOpportunities]);
+  }, [user, router]);
 
   const clearCVScore = async () => {
     if (!user) return;
@@ -935,6 +948,51 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* ─── Pinned Suggestions from Copilot ─── */}
+        {pinnedSuggestions.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.32 }}
+            className="section-gap"
+          >
+            <Card>
+              <CardContent className="p-5 sm:p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-[var(--accent-blue)]" />
+                    <h2 className="text-lg font-semibold">Pinned Suggestions</h2>
+                    <span className="badge badge-blue">{pinnedSuggestions.length}</span>
+                  </div>
+                  <Link href="/copilot">
+                    <Button variant="outline" size="sm" className="text-xs">
+                      Open Copilot <ArrowRight className="h-3 w-3 ml-1" />
+                    </Button>
+                  </Link>
+                </div>
+                <div className="space-y-2">
+                  {pinnedSuggestions.map((s) => (
+                    <div key={s.id} className="flex items-start gap-3 surface-card-subtle rounded-lg px-4 py-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{s.title}</p>
+                        {s.notes && <p className="text-xs text-[var(--text-muted)] truncate mt-0.5">{s.notes}</p>}
+                      </div>
+                      <button
+                        onClick={() => unpinSuggestion(s.id)}
+                        disabled={unpinning === s.id}
+                        className="p-1 rounded text-[var(--text-subtle)] hover:text-[var(--danger)] transition-colors shrink-0"
+                        title="Unpin"
+                      >
+                        {unpinning === s.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* ─── Saved Opportunities ─── */}
         <motion.div

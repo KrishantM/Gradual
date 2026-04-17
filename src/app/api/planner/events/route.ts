@@ -12,6 +12,8 @@ const PostBodySchema = z.object({
   title: z.string().min(1).max(500).transform((s) => s.trim()),
   notes: z.string().max(2000).optional(),
   source: z.enum(['user', 'copilot', 'system']).optional().default('user'),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  endTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -47,6 +49,8 @@ export async function GET(req: NextRequest) {
         title: d.title,
         notes: d.notes,
         source: d.source,
+        startTime: d.startTime ?? null,
+        endTime: d.endTime ?? null,
         createdAt: (d.createdAt as { toDate?: () => Date })?.toDate?.()?.toISOString() ?? null,
       };
     });
@@ -72,17 +76,16 @@ export async function POST(req: NextRequest) {
     if (!parseResult.success) {
       return NextResponse.json({ error: 'Invalid body', details: parseResult.error.flatten() }, { status: 400 });
     }
-    const { date, title, notes } = parseResult.data;
+    const { date, title, notes, source, startTime, endTime } = parseResult.data;
 
-    const ref = await db.collection('users').doc(uid).collection('planner_events').add({
-      date,
-      title,
-      notes: notes ?? '',
-      source: parseResult.data.source,
-      createdAt: new Date(),
-    });
+    const docData: Record<string, unknown> = {
+      date, title, notes: notes ?? '', source, createdAt: new Date(),
+    };
+    if (startTime) docData.startTime = startTime;
+    if (endTime) docData.endTime = endTime;
 
-    return NextResponse.json({ id: ref.id, date, title, notes });
+    const ref = await db.collection('users').doc(uid).collection('planner_events').add(docData);
+    return NextResponse.json({ id: ref.id, date, title, notes, startTime, endTime });
   } catch (e) {
     console.error('[POST /api/planner/events]', e);
     return NextResponse.json({ error: 'Failed to create event' }, { status: 500 });

@@ -1,7 +1,8 @@
 'use client';
 
 import Head from 'next/head';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
@@ -217,7 +218,8 @@ const EnhancedScoreDisplay = ({ score }: { score: string }) => {
 
 export default function CVScorePage() {
   const [activeTab, setActiveTab] = useState<'score' | 'rewrite'>('score');
-  
+  const router = useRouter();
+
   // CV Score Tab State
   const [cvText, setCvText] = useState('');
   const [score, setScore] = useState('');
@@ -239,6 +241,13 @@ export default function CVScorePage() {
   const [rewriteError, setRewriteError] = useState('');
 
   const { user } = useAuth();
+
+  // Redirect unauthenticated users to login
+  useEffect(() => {
+    if (user === null) {
+      router.push('/login');
+    }
+  }, [user, router]);
 
   // Simple cache for CV scores to ensure consistency
   const [cvScoreCache, setCvScoreCache] = useState<Map<string, string>>(new Map());
@@ -329,38 +338,24 @@ export default function CVScorePage() {
     setIsLoading(true);
     setError('');
 
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
     try {
-      let res;
-      
-      if (user) {
-        // Get previous CV score for comparison
-        const previousScore = await getPreviousCVScore();
-        const shouldPassPreviousScore = previousScore && await isSimilarCV(cvText.trim(), previousScore);
-        
-        console.log('CV Scoring - Similarity Check:', {
-          hasPreviousScore: !!previousScore,
-          previousScore,
-          shouldPassPreviousScore,
-          cvTextLength: cvText.trim().length
-        });
-        
-        // Use authenticated API call with unified scoring endpoint
-        res = await authenticatedFetch('/api/score', {
-          method: 'POST',
-          body: JSON.stringify({ 
-            cvText: cvText.trim(), 
-            guest: false,
-            originalScore: shouldPassPreviousScore ? previousScore : undefined
-          }),
-        });
-      } else {
-        // Use guest mode
-        res = await fetch('/api/score', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ cvText: cvText.trim(), guest: true }),
-        });
-      }
+      // Get previous CV score for comparison
+      const previousScore = await getPreviousCVScore();
+      const shouldPassPreviousScore = previousScore && await isSimilarCV(cvText.trim(), previousScore);
+
+      const res = await authenticatedFetch('/api/score', {
+        method: 'POST',
+        body: JSON.stringify({
+          cvText: cvText.trim(),
+          guest: false,
+          originalScore: shouldPassPreviousScore ? previousScore : undefined,
+        }),
+      });
 
       if (!res.ok) {
         const errorData = await res.json();
@@ -375,26 +370,25 @@ export default function CVScorePage() {
       // Cache the score for this CV text to ensure consistency
       setCvScoreCache(prev => new Map(prev).set(normalizedCvText, data.score));
 
-      // Only save to Firestore if user is logged in
+      // Save to Firestore
       if (user) {
-        // Extract numerical score for storage
         const numericalScore = extractNumericalScore(data.score);
-        
-        const updateData: any = {
+        const analysisText = data.score ? String(data.score) : null;
+
+        const updateData: Record<string, any> = {
           cvScore: numericalScore,
           cvScoreTimestamp: new Date(),
+          cvText: cvText.trim(),
         };
-        
-        // Save breakdown if available
+
         if (data.breakdown) {
           updateData.cvScoreBreakdown = data.breakdown;
         }
-        
-        // Save the full CV analysis text for display on dashboard
-        if (data.score && typeof data.score === 'string') {
-          updateData.cvScoreAnalysis = data.score;
+
+        if (analysisText) {
+          updateData.cvScoreAnalysis = analysisText;
         }
-        
+
         await updateDoc(doc(db, 'users', user.uid), updateData);
       }
     } catch (err) {
@@ -542,23 +536,23 @@ export default function CVScorePage() {
       // Extract numerical score and save to Firestore
       const numericalScore = extractNumericalScore(data.score);
       
+      const rewriteAnalysis = data.score ? String(data.score) : null;
       const updateData: any = {
         cvScore: numericalScore,
         cvScoreTimestamp: new Date(),
+        cvText: rewriteResult.sections.rewrittenCV,
       };
-      
-      // Save breakdown if available
+
       if (data.breakdown) {
         updateData.cvScoreBreakdown = data.breakdown;
       }
-      
-      // Save the full CV analysis text for display on dashboard
-      if (data.score && typeof data.score === 'string') {
-        updateData.cvScoreAnalysis = data.score;
+
+      if (rewriteAnalysis) {
+        updateData.cvScoreAnalysis = rewriteAnalysis;
       }
-      
+
       await updateDoc(doc(db, 'users', user.uid), updateData);
-      
+
       console.log('Scoring Debug Info:', {
         rewrittenCVLength: rewriteResult.sections.rewrittenCV.length,
         newScore: data.score,

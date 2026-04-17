@@ -309,9 +309,8 @@ export default function PathsPage() {
             </div>
             <h1 className="page-title">Capability Paths</h1>
           </div>
-          <p className="page-subtitle max-w-2xl">
-            Structured, outcome-linked upskilling. Each path is built around the question: <em>what
-            changes in your career when you finish?</em>
+          <p className="page-subtitle max-w-2xl truncate">
+            Structured, outcome-linked upskilling — built around what changes in your career when you finish.
           </p>
         </motion.div>
 
@@ -798,25 +797,30 @@ function EnrolledMiniCard({
   actionPending: string | null;
 }) {
   const { path, currentModule, progressPercent } = progress;
+  const isPending = actionPending === `pin:${path.id}`;
   return (
-    <Card className="hover-lift">
-      <CardContent className="p-4 flex items-center gap-4">
-        <ProgressRing percent={progressPercent} size={48} />
-        <div className="min-w-0 flex-1">
-          <h4 className="text-sm font-semibold truncate">{path.title}</h4>
-          <p className="text-xs text-[var(--text-muted)] truncate">
-            {currentModule ? `Next: ${currentModule.title}` : 'All modules complete'}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onPin}
-          className="text-xs text-[var(--accent-blue)] hover:underline shrink-0"
-          disabled={actionPending === `pin:${path.id}`}
-        >
-          Pin
-        </button>
-      </CardContent>
-    </Card>
+    <button
+      type="button"
+      onClick={onPin}
+      disabled={isPending}
+      className="w-full text-left"
+    >
+      <Card className="hover-lift transition-all cursor-pointer hover:border-[var(--accent-blue)]/40">
+        <CardContent className="p-4 flex items-center gap-4">
+          <ProgressRing percent={progressPercent} size={48} />
+          <div className="min-w-0 flex-1">
+            <h4 className="text-sm font-semibold truncate">{path.title}</h4>
+            <p className="text-xs text-[var(--text-muted)] truncate">
+              {currentModule ? `Next: ${currentModule.title}` : 'All modules complete'}
+            </p>
+          </div>
+          {isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin text-[var(--accent-blue)] shrink-0" />
+          ) : (
+            <span className="text-xs text-[var(--accent-blue)] shrink-0 font-medium">Switch</span>
+          )}
+        </CardContent>
+      </Card>
+    </button>
   );
 }

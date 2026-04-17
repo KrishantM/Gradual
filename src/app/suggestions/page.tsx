@@ -94,6 +94,7 @@ export default function SuggestionsPage() {
   const [newListName, setNewListName] = useState('');
   const [addingToListId, setAddingToListId] = useState<string | null>(null);
   const [isMyListsExpanded, setIsMyListsExpanded] = useState(true);
+  const [lastRefreshed, setLastRefreshed] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -160,49 +161,38 @@ export default function SuggestionsPage() {
   }, [user, allOpportunities]);
 
 
-  const triggerIngestion = useCallback(async () => {
-    if (!user) return;
-    const THROTTLE_KEY = 'gradual_last_ingest';
-    const THROTTLE_MS = 6 * 60 * 60 * 1000; // 6 hours
-    const lastRun = localStorage.getItem(THROTTLE_KEY);
-    if (lastRun && Date.now() - parseInt(lastRun, 10) < THROTTLE_MS) return;
-
+  const fetchLastRefreshed = useCallback(async () => {
     try {
-      localStorage.setItem(THROTTLE_KEY, String(Date.now()));
-      const token = await user.getIdToken();
-      fetch('/api/opportunities-engine/ingest', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ maxResults: 200 }),
-      }).catch(() => {});
-    } catch (err) {
-      console.error('Ingestion trigger failed (non-blocking):', err);
-    }
-  }, [user]);
+      const metaRef = doc(db, 'opportunities_meta', 'last_refresh');
+      const snap = await getDoc(metaRef);
+      if (snap.exists()) setLastRefreshed(snap.data().refreshedAt ?? null);
+    } catch { /* non-fatal */ }
+  }, []);
 
   const fetchOpportunities = useCallback(async () => {
-    if (!user || !profile) return;
-    
+    if (!user) return;
+
     try {
       setOpportunitiesLoading(true);
       const token = await user.getIdToken();
-      
-      // Map profile to UserProfileSnapshot format
+
+      // Use available profile data — empty fields mean default/recency-based scoring
+      const p = profile || {};
       const userProfileSnapshot = {
         uid: user.uid,
-        university: profile.university,
-        degree: profile.degree,
-        gpa: profile.gpa ? parseFloat(profile.gpa) : undefined,
-        interests: profile.interests,
-        preferredIndustries: profile.preferredIndustries,
-        bio: profile.bio,
-        goal: profile.goal,
-        city: profile.city,
-        country: profile.country,
-        skills: profile.skills || extractSkillsFromProfile(profile),
-        tags: extractTagsFromProfile(profile),
-        age: profile.age ? parseInt(profile.age) : undefined,
-        yearOfStudy: profile.yearOfStudy
+        university: p.university,
+        degree: p.degree,
+        gpa: p.gpa ? parseFloat(p.gpa) : undefined,
+        interests: p.interests,
+        preferredIndustries: p.preferredIndustries,
+        bio: p.bio,
+        goal: p.goal,
+        city: p.city,
+        country: p.country,
+        skills: p.skills || extractSkillsFromProfile(p),
+        tags: extractTagsFromProfile(p),
+        age: p.age ? parseInt(p.age) : undefined,
+        yearOfStudy: p.yearOfStudy,
       };
       
       const response = await fetch('/api/opportunities-engine/match', {
@@ -282,12 +272,12 @@ export default function SuggestionsPage() {
     return tags;
   };
 
+  // Fetch opportunities and last-refresh timestamp on mount
   useEffect(() => {
-    if (profile) {
-      triggerIngestion();
-      fetchOpportunities();
-    }
-  }, [profile, fetchOpportunities, triggerIngestion]);
+    if (!user) return;
+    fetchOpportunities();
+    fetchLastRefreshed();
+  }, [user, profile, fetchOpportunities, fetchLastRefreshed]);
 
   const toggleStarOpportunity = async (opportunityId: string) => {
     if (!user) return;
@@ -598,7 +588,14 @@ export default function SuggestionsPage() {
                     <div className="flex items-center justify-between mb-5">
                       <div className="flex items-center gap-2">
                         <Zap className="h-5 w-5 text-[var(--accent-blue)]" />
-                        <h2 className="text-lg font-semibold">Opportunity Engine</h2>
+                        <div>
+                          <h2 className="text-lg font-semibold leading-tight">Opportunity Engine</h2>
+                          {lastRefreshed && (
+                            <p className="text-xs text-[var(--text-subtle)] mt-0.5">
+                              Store refreshed {new Date(lastRefreshed).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </p>
+                          )}
+                        </div>
                       </div>
                       <Button
                         variant="outline"
@@ -623,7 +620,7 @@ export default function SuggestionsPage() {
                     {/* Tab Navigation */}
                     <div className="mb-6">
                       <div className="surface-card-subtle rounded-lg p-2">
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:pb-0 scrollbar-hide">
                           {[
                             { id: 'all' as TabType, label: 'All', icon: Zap },
                             { id: 'job' as TabType, label: 'Jobs', icon: Briefcase },
@@ -641,7 +638,7 @@ export default function SuggestionsPage() {
                               <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                                className={`flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 whitespace-nowrap shrink-0 ${
                                   isActive
                                     ? 'bg-[var(--accent-blue)] text-white shadow-sm'
                                     : 'text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-elevated)]'
@@ -984,23 +981,23 @@ export default function SuggestionsPage() {
                               key={opportunity.id}
                               className="surface-card rounded-xl p-6 hover:shadow-[var(--shadow-md)] transition-all duration-200"
                             >
-                              <div className="flex items-start justify-between mb-4">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <TypeIcon className="h-5 w-5 text-[var(--accent-blue)]" />
-                                    <span className={`px-2 py-1 rounded text-xs font-medium border ${getTypeColor(opportunity.type)}`}>
+                              <div className="flex items-start justify-between mb-4 gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                    <TypeIcon className="h-4 w-4 text-[var(--accent-blue)] shrink-0" />
+                                    <span className={`px-2 py-0.5 rounded text-xs font-medium border ${getTypeColor(opportunity.type)}`}>
                                       {getTypeLabel(opportunity.type)}
                                     </span>
                                   </div>
-                                  <h3 className="text-[var(--foreground)] font-semibold text-lg mb-2 line-clamp-2">
+                                  <h3 className="text-[var(--foreground)] font-semibold text-base sm:text-lg mb-1 line-clamp-2">
                                     {opportunity.title}
                                   </h3>
-                                  <p className="text-[var(--text-secondary)] text-base mb-3">{opportunity.organization}</p>
+                                  <p className="text-[var(--text-secondary)] text-sm sm:text-base mb-3 truncate">{opportunity.organization}</p>
                                 </div>
-                                <div className="flex items-center space-x-3 ml-4">
+                                <div className="flex items-start flex-col sm:flex-row sm:items-center gap-2 shrink-0 ml-2">
                                   {opportunity.score !== undefined && (
-                                    <div className={`px-3 py-1.5 rounded-full text-sm font-semibold border ${getScoreBgColor(opportunity.score)} ${getScoreColor(opportunity.score)}`}>
-                                      {opportunity.score}% Match
+                                    <div className={`px-2 py-1 rounded-full text-xs font-semibold border ${getScoreBgColor(opportunity.score)} ${getScoreColor(opportunity.score)} whitespace-nowrap`}>
+                                      {opportunity.score}%
                                     </div>
                                   )}
                                   <div className="flex items-center gap-2">
@@ -1090,7 +1087,7 @@ export default function SuggestionsPage() {
                                 </div>
                               </div>
                               
-                              <div className="flex items-center text-[var(--text-muted)] text-sm mb-4 space-x-6 flex-wrap">
+                              <div className="flex items-center text-[var(--text-muted)] text-xs sm:text-sm mb-4 gap-3 sm:gap-5 flex-wrap">
                                 <div className="flex items-center">
                                   <MapPin className="h-4 w-4 mr-2" />
                                   {opportunity.isRemote ? 'Remote' : opportunity.location}
@@ -1137,13 +1134,13 @@ export default function SuggestionsPage() {
                                 </div>
                               )}
 
-                              <div className="flex items-center justify-between">
+                              <div className="flex items-center justify-between flex-wrap gap-2">
                                 {opportunity.category && (
-                                  <span className="text-sm text-[var(--text-muted)] capitalize bg-[var(--surface-elevated)] px-3 py-1 rounded-full">
+                                  <span className="text-xs sm:text-sm text-[var(--text-muted)] capitalize bg-[var(--surface-elevated)] px-3 py-1 rounded-full">
                                     {opportunity.category}
                                   </span>
                                 )}
-                                <div className="flex items-center space-x-3 ml-auto">
+                                <div className="flex items-center gap-2 ml-auto">
                                   <a
                                     href={opportunity.url}
                                     target="_blank"

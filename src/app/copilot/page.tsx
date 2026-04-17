@@ -6,10 +6,12 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
   Brain, Calendar, ListTodo, Briefcase, Target, Loader2, Plus, Undo2, X,
-  ExternalLink, FolderOpen, ChevronDown, ArrowLeft, Archive,
+  ExternalLink, ArrowLeft, Archive,
   FileText, TrendingUp, Lightbulb, ArrowRight, ArrowUp, PanelRight,
-  CheckCircle2, AlertTriangle, Activity,
+  CheckCircle2, AlertTriangle, Activity, Trash2, History, Pin,
 } from 'lucide-react';
+import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { trackEvent } from '@/lib/analytics';
@@ -77,20 +79,21 @@ export default function CopilotPage() {
   const [loadingArchive, setLoadingArchive] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [archivingCurrent, setArchivingCurrent] = useState(false);
-  const conversationsRef = useRef<HTMLDivElement>(null);
   const [addingTodo, setAddingTodo] = useState<string | null>(null);
   const [undoing, setUndoing] = useState(false);
   const [loadingLatest, setLoadingLatest] = useState(true);
   const [sendingToPlan, setSendingToPlan] = useState(false);
   const [sentToPlan, setSentToPlan] = useState(false);
-  const [addingToPlanner, setAddingToPlanner] = useState<string | null>(null);
-  const [plannerDateFor, setPlannerDateFor] = useState<string | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Sidebar state
   const [sidebar, setSidebar] = useState<SidebarData | null>(null);
   const [sidebarOpenMobile, setSidebarOpenMobile] = useState(false);
+  const [sidebarPanel, setSidebarPanel] = useState<'signals' | 'history'>('signals');
+  const [deletingConvId, setDeletingConvId] = useState<string | null>(null);
+  const [pinningTodo, setPinningTodo] = useState<string | null>(null);
+  const [pinnedTitles, setPinnedTitles] = useState<Set<string>>(new Set());
 
   /* ─── API Helpers ─── */
 
@@ -104,23 +107,25 @@ export default function CopilotPage() {
   const archiveCurrentConversation = async () => {
     if (!user) return;
     setArchivingCurrent(true);
-    setConversationsOpen(false);
     try {
       const token = await getToken();
       await fetch('/api/copilot/conversations/archive', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
       setResponse(null);
       setConversationMessages([]);
       setMessage('');
-      const currentRes = await fetch('/api/copilot/current', { headers: { Authorization: `Bearer ${token}` } });
+      const [currentRes, listRes] = await Promise.all([
+        fetch('/api/copilot/current', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/copilot/conversations', { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
       if (currentRes.ok) { const d = await currentRes.json(); setConversationMessages(d.messages ?? []); }
-      const listRes = await fetch('/api/copilot/conversations', { headers: { Authorization: `Bearer ${token}` } });
       if (listRes.ok) { const listData = await listRes.json(); setConversationsList(listData.conversations ?? []); }
     } catch { setError('Failed to archive conversation'); }
     finally { setArchivingCurrent(false); }
   };
 
+  // Load conversation history when panel switches to history or on first load
   useEffect(() => {
-    if (!conversationsOpen || !user) return;
+    if (sidebarPanel !== 'history' || !user) return;
     let cancelled = false;
     (async () => {
       try {
@@ -130,29 +135,21 @@ export default function CopilotPage() {
       } catch { /* ignore */ }
     })().catch(() => {});
     return () => { cancelled = true; };
-  }, [conversationsOpen, user, getToken]);
+  }, [sidebarPanel, user, getToken]);
 
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (conversationsRef.current && !conversationsRef.current.contains(e.target as Node)) setConversationsOpen(false);
-    }
-    if (conversationsOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [conversationsOpen]);
 
   const startNewConversation = async () => {
     if (!user) return;
-    setConversationsOpen(false);
     try {
       const token = await getToken();
       await fetch('/api/copilot/conversations/archive', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
       await fetch('/api/copilot/current', { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
       setResponse(null); setConversationMessages([]); setMessage(''); setViewingArchiveId(null); setArchivedView(null);
-      const currentRes = await fetch('/api/copilot/current', { headers: { Authorization: `Bearer ${token}` } });
+      const [currentRes, listRes] = await Promise.all([
+        fetch('/api/copilot/current', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/copilot/conversations', { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
       if (currentRes.ok) { const d = await currentRes.json(); setConversationMessages(d.messages ?? []); }
-      const listRes = await fetch('/api/copilot/conversations', { headers: { Authorization: `Bearer ${token}` } });
       if (listRes.ok) { const listData = await listRes.json(); setConversationsList(listData.conversations ?? []); }
     } catch { setError('Failed to start new conversation'); }
   };
@@ -331,21 +328,42 @@ export default function CopilotPage() {
     finally { setSendingToPlan(false); }
   };
 
-  const addTodoToPlanner = async (t: SuggestedTodo, date: string) => {
+
+  const deleteConversation = async (id: string) => {
     if (!user) return;
-    setAddingToPlanner(t.title);
+    setDeletingConvId(id);
     try {
       const token = await getToken();
-      const res = await fetch('/api/planner/events', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ date, title: t.title, notes: t.notes, source: 'copilot' }),
+      await fetch(`/api/copilot/conversations/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error('Failed to add');
-      setPlannerDateFor(null);
-      router.refresh();
-      trackEvent('copilot_add_to_planner', user.uid, { todoTitle: t.title, date });
-    } catch { setError('Failed to add to planner'); }
-    finally { setAddingToPlanner(null); }
+      setConversationsList(prev => prev.filter(c => c.id !== id));
+    } catch { setError('Failed to delete conversation'); }
+    finally { setDeletingConvId(null); }
+  };
+
+  const pinSuggestion = async (t: SuggestedTodo) => {
+    if (!user) return;
+    setPinningTodo(t.title);
+    try {
+      const pinnedItem = {
+        id: `pin_${Date.now()}`,
+        title: t.title,
+        notes: t.notes,
+        priority: t.priority,
+        pinnedAt: new Date().toISOString(),
+      };
+      await updateDoc(doc(db, 'users', user.uid), {
+        pinnedSuggestions: arrayUnion(pinnedItem),
+      });
+      setPinnedTitles(prev => new Set([...prev, t.title]));
+      setTimeout(() => {
+        setPinnedTitles(prev => { const next = new Set(prev); next.delete(t.title); return next; });
+        setResponse(prev => prev ? { ...prev, suggestedTodos: prev.suggestedTodos.filter(x => x.title !== t.title) } : null);
+      }, 1500);
+    } catch { setError('Failed to pin suggestion'); }
+    finally { setPinningTodo(null); }
   };
 
   const undoAssist = async () => {
@@ -477,151 +495,213 @@ export default function CopilotPage() {
   };
 
   const renderSidebar = () => (
-    <aside className="flex flex-col gap-4 h-full overflow-y-auto p-5">
+    <aside className="flex flex-col w-full h-full overflow-hidden bg-[var(--surface)]">
+      {/* Panel toggle */}
+      <div className="shrink-0 flex border-b border-[var(--border-soft)]">
+        <button
+          onClick={() => setSidebarPanel('signals')}
+          className={`flex-1 px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
+            sidebarPanel === 'signals'
+              ? 'text-[var(--accent-blue)] border-b-2 border-[var(--accent-blue)]'
+              : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
+          }`}
+        >
+          <Activity className="h-3.5 w-3.5" />
+          Career Signals
+        </button>
+        <button
+          onClick={() => { setSidebarPanel('history'); setConversationsOpen(false); }}
+          className={`flex-1 px-3 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
+            sidebarPanel === 'history'
+              ? 'text-[var(--accent-blue)] border-b-2 border-[var(--accent-blue)]'
+              : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
+          }`}
+        >
+          <History className="h-3.5 w-3.5" />
+          History
+        </button>
+      </div>
 
-      {/* ── Suggested next actions (appears when copilot has replied) ── */}
-      {response && response.suggestedTodos.length > 0 && (
-        <div className="rounded-xl border-l-4 border-l-[var(--accent-blue)] border border-[var(--accent-blue)]/20 bg-[var(--accent-blue-soft)] overflow-hidden">
-          <div className="flex items-center gap-2 px-3 py-2.5 border-b border-[var(--accent-blue)]/15">
-            <ListTodo className="h-3.5 w-3.5 text-[var(--accent-blue)] shrink-0" />
-            <span className="text-xs font-semibold text-[var(--accent-blue)] uppercase tracking-wide">Suggested actions</span>
-          </div>
-          <div className="divide-y divide-[var(--accent-blue)]/10">
-            {response.suggestedTodos.slice(0, 5).map((t, i) => (
-              <div key={i} className="px-3 py-2.5">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-[var(--foreground)] leading-snug">{t.title}</p>
-                    {t.notes && <p className="text-xs text-[var(--text-muted)] mt-0.5 line-clamp-2">{t.notes}</p>}
-                  </div>
-                  {mode === 'suggest' && (
-                    <div className="flex items-center gap-0.5 shrink-0 ml-1">
-                      <Button size="sm" variant="ghost" className="h-6 px-1.5 text-xs text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10" onClick={() => addTodo(t)} disabled={!!addingTodo} title="Add to to-dos">
-                        {addingTodo === t.title ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-                      </Button>
-                      {plannerDateFor === t.title ? (
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="date"
-                            className="text-xs rounded border border-[var(--border)] bg-[var(--surface-elevated)] px-1 py-0.5 text-[var(--foreground)] w-28"
-                            onChange={(e) => { if (e.target.value) addTodoToPlanner(t, e.target.value); }}
-                            autoFocus
-                          />
-                          <button onClick={() => setPlannerDateFor(null)} aria-label="Cancel" className="text-[var(--text-muted)] hover:text-[var(--foreground)]">
-                            <X className="h-3 w-3" />
-                          </button>
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {sidebarPanel === 'signals' ? (
+          <>
+            {/* ── Suggested next actions ── */}
+            {response && response.suggestedTodos.length > 0 && (
+              <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-card)] overflow-hidden">
+                <div className="flex items-center gap-2 px-3 py-2.5 border-b border-[var(--border-soft)]">
+                  <ListTodo className="h-3.5 w-3.5 text-[var(--accent-blue)] shrink-0" />
+                  <span className="text-xs font-semibold text-[var(--accent-blue)] uppercase tracking-wide">Suggested actions</span>
+                </div>
+                <div className="divide-y divide-[var(--border-soft)]">
+                  {response.suggestedTodos.slice(0, 5).map((t, i) => (
+                    <div key={i} className="px-3 py-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-[var(--foreground)] leading-snug">{t.title}</p>
+                          {t.notes && <p className="text-xs text-[var(--text-muted)] mt-0.5 line-clamp-2">{t.notes}</p>}
                         </div>
-                      ) : (
-                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10" onClick={() => setPlannerDateFor(t.title)} disabled={!!addingToPlanner} title="Add to Planner" aria-label="Add to Planner">
-                          {addingToPlanner === t.title ? <Loader2 className="h-3 w-3 animate-spin" /> : <Calendar className="h-3 w-3" />}
-                        </Button>
-                      )}
+                        {mode === 'suggest' && (
+                          <div className="flex items-center gap-0.5 shrink-0 ml-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-1.5 text-xs text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10"
+                              onClick={() => addTodo(t)}
+                              disabled={!!addingTodo}
+                              title="Add to To-do list"
+                            >
+                              {addingTodo === t.title ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                            </Button>
+                            {pinnedTitles.has(t.title) ? (
+                              <span className="h-6 px-1.5 text-[10px] font-medium text-[var(--success)] flex items-center gap-0.5">
+                                <CheckCircle2 className="h-3 w-3" />Saved
+                              </span>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-1.5 text-[10px] font-medium text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10 gap-0.5"
+                                onClick={() => pinSuggestion(t)}
+                                disabled={!!pinningTodo}
+                                title="Save to Dashboard"
+                              >
+                                {pinningTodo === t.title ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Pin className="h-3 w-3" />Save</>}
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
+                  ))}
+                </div>
+                <div className="px-3 py-2 border-t border-[var(--border-soft)] bg-[var(--surface-subtle)] flex items-center gap-3">
+                  <span className="text-[11px] text-[var(--text-subtle)] flex items-center gap-1">
+                    <Plus className="h-3 w-3" />Add to To-do list
+                  </span>
+                  <span className="text-[11px] text-[var(--text-subtle)] flex items-center gap-1">
+                    <Pin className="h-3 w-3" />Save to Dashboard
+                  </span>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            )}
 
-      {/* Signals */}
-      <div>
-        <div className="text-xs uppercase tracking-wide text-[var(--text-subtle)] font-semibold mb-2 px-1">
-          Career signals
-        </div>
-        {sidebar?.signals && sidebar.signals.length > 0 ? (
-          <div className="space-y-1.5">
-            {sidebar.signals.slice(0, 5).map((s) => (
-              <div
-                key={s.key}
-                className="flex items-start gap-2 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-card)] px-2.5 py-2"
-              >
-                <SignalIcon level={s.level} />
-                <p className="text-xs text-[var(--foreground)] leading-snug flex-1">{s.message}</p>
+            {/* Signals */}
+            <div>
+              <div className="text-xs uppercase tracking-wide text-[var(--text-subtle)] font-semibold mb-2 px-1">
+                Career signals
               </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-[var(--text-subtle)] px-1">
-            {sidebar ? 'All signals look good.' : 'Loading signals…'}
-          </p>
-        )}
-      </div>
-
-      {/* Quick stats */}
-      <div>
-        <div className="text-xs uppercase tracking-wide text-[var(--text-subtle)] font-semibold mb-2 px-1">
-          Quick stats
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Link href="/profile" className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-card)] p-3 hover:border-[var(--accent-blue)]/40 transition-colors">
-            <div className="text-xs text-[var(--text-muted)] mb-1">Profile</div>
-            <div className="text-lg font-bold text-[var(--foreground)]">{sidebar?.profileCompletion ?? 0}%</div>
-          </Link>
-          <Link href="/cvscore" className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-card)] p-3 hover:border-[var(--accent-blue)]/40 transition-colors">
-            <div className="text-xs text-[var(--text-muted)] mb-1">CV score</div>
-            <div className="text-lg font-bold text-[var(--foreground)]">
-              {sidebar?.cvScore != null ? `${sidebar.cvScore}` : '—'}
+              {sidebar?.signals && sidebar.signals.length > 0 ? (
+                <div className="space-y-1.5">
+                  {sidebar.signals.slice(0, 5).map((s) => (
+                    <div key={s.key} className="flex items-start gap-2 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-card)] px-2.5 py-2">
+                      <SignalIcon level={s.level} />
+                      <p className="text-xs text-[var(--foreground)] leading-snug flex-1">{s.message}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-[var(--text-subtle)] px-1">
+                  {sidebar ? 'All signals look good.' : 'Loading signals…'}
+                </p>
+              )}
             </div>
-          </Link>
-        </div>
-      </div>
 
-      {/* Today's planner events */}
-      <div>
-        <div className="text-xs uppercase tracking-wide text-[var(--text-subtle)] font-semibold mb-2 px-1 flex items-center justify-between">
-          <span>Today</span>
-          <Link href="/planner" className="text-[var(--accent-blue)] normal-case tracking-normal hover:underline">
-            Open planner
-          </Link>
-        </div>
-        {sidebar && sidebar.todayPlannerEvents.length > 0 ? (
-          <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-card)] divide-y divide-[var(--border-soft)] overflow-hidden">
-            {sidebar.todayPlannerEvents.slice(0, 6).map((e) => (
-              <div key={e.id} className="flex items-center gap-2 px-2.5 py-2">
-                {e.source === 'copilot' && <Brain className="h-3 w-3 text-[var(--accent-blue)] shrink-0" />}
-                <p className="text-xs text-[var(--foreground)] truncate flex-1">{e.title}</p>
+            {/* Quick stats */}
+            <div>
+              <div className="text-xs uppercase tracking-wide text-[var(--text-subtle)] font-semibold mb-2 px-1">Quick stats</div>
+              <div className="grid grid-cols-2 gap-2">
+                <Link href="/profile" className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-card)] p-3 hover:border-[var(--accent-blue)]/40 transition-colors">
+                  <div className="text-xs text-[var(--text-muted)] mb-1">Profile</div>
+                  <div className="text-lg font-bold text-[var(--foreground)]">{sidebar?.profileCompletion ?? 0}%</div>
+                </Link>
+                <Link href="/cvscore" className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-card)] p-3 hover:border-[var(--accent-blue)]/40 transition-colors">
+                  <div className="text-xs text-[var(--text-muted)] mb-1">CV score</div>
+                  <div className="text-lg font-bold text-[var(--foreground)]">{sidebar?.cvScore != null ? `${sidebar.cvScore}` : '—'}</div>
+                </Link>
               </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-[var(--text-subtle)] px-1">
-            {sidebar ? 'Nothing planned for today.' : 'Loading…'}
-          </p>
-        )}
-      </div>
+            </div>
 
-      {/* Mode toggle */}
-      <div>
-        <div className="text-xs uppercase tracking-wide text-[var(--text-subtle)] font-semibold mb-2 px-1">
-          Copilot mode
-        </div>
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-soft)]">
-          <button
-            onClick={() => setMode('suggest')}
-            className={`flex-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              mode === 'suggest'
-                ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm'
-                : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
-            }`}
-          >
-            Suggest
-          </button>
-          <button
-            onClick={() => setMode('assist')}
-            className={`flex-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              mode === 'assist'
-                ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm'
-                : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
-            }`}
-          >
-            Assist
-          </button>
-        </div>
-        <p className="text-xs text-[var(--text-subtle)] mt-1.5 px-1 leading-snug">
-          {mode === 'suggest' ? 'Show Add buttons for to-dos.' : 'Auto-create top 3 to-dos with undo.'}
-        </p>
+            {/* Today's planner events */}
+            <div>
+              <div className="text-xs uppercase tracking-wide text-[var(--text-subtle)] font-semibold mb-2 px-1 flex items-center justify-between">
+                <span>Today</span>
+                <Link href="/planner" className="text-[var(--accent-blue)] normal-case tracking-normal hover:underline">Open planner</Link>
+              </div>
+              {sidebar && sidebar.todayPlannerEvents.length > 0 ? (
+                <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-card)] divide-y divide-[var(--border-soft)] overflow-hidden">
+                  {sidebar.todayPlannerEvents.slice(0, 6).map((e) => (
+                    <div key={e.id} className="flex items-center gap-2 px-2.5 py-2">
+                      {e.source === 'copilot' && <Brain className="h-3 w-3 text-[var(--accent-blue)] shrink-0" />}
+                      <p className="text-xs text-[var(--foreground)] truncate flex-1">{e.title}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-[var(--text-subtle)] px-1">{sidebar ? 'Nothing planned for today.' : 'Loading…'}</p>
+              )}
+            </div>
+
+            {/* Mode toggle */}
+            <div>
+              <div className="text-xs uppercase tracking-wide text-[var(--text-subtle)] font-semibold mb-2 px-1">Copilot mode</div>
+              <div className="flex items-center gap-1 p-1 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-soft)]">
+                <button onClick={() => setMode('suggest')} className={`flex-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${mode === 'suggest' ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'}`}>Suggest</button>
+                <button onClick={() => setMode('assist')} className={`flex-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${mode === 'assist' ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'}`}>Assist</button>
+              </div>
+              <p className="text-xs text-[var(--text-subtle)] mt-1.5 px-1 leading-snug">
+                {mode === 'suggest' ? 'Show Add buttons for to-dos.' : 'Auto-create top 3 to-dos with undo.'}
+              </p>
+            </div>
+          </>
+        ) : (
+          /* History panel */
+          <>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs uppercase tracking-wide text-[var(--text-subtle)] font-semibold px-1">Past conversations</p>
+              <Button variant="ghost" size="sm" onClick={startNewConversation} className="h-6 px-2 text-xs">
+                <Plus className="h-3 w-3 mr-1" />New
+              </Button>
+            </div>
+            {conversationsList.length === 0 ? (
+              <div className="text-center py-8">
+                <History className="h-8 w-8 text-[var(--text-subtle)] mx-auto mb-2" />
+                <p className="text-xs text-[var(--text-subtle)]">No conversation history yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {conversationsList.map((c) => (
+                  <div
+                    key={c.id}
+                    className={`group flex items-center gap-2 rounded-lg px-3 py-2.5 cursor-pointer transition-colors ${
+                      viewingArchiveId === c.id
+                        ? 'bg-[var(--accent-blue-soft)] border border-[var(--accent-blue)]/20'
+                        : 'hover:bg-[var(--surface-subtle)] border border-transparent'
+                    }`}
+                    onClick={() => openArchived(c.id)}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium truncate text-[var(--foreground)]">{c.title}</p>
+                      {c.createdAt && (
+                        <p className="text-[10px] text-[var(--text-subtle)] mt-0.5">
+                          {new Date(c.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }}
+                      disabled={deletingConvId === c.id}
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded text-[var(--text-subtle)] hover:text-[var(--danger)] transition-all"
+                      title="Delete conversation"
+                    >
+                      {deletingConvId === c.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </aside>
   );
@@ -650,39 +730,6 @@ export default function CopilotPage() {
             <Button variant="ghost" size="sm" onClick={startNewConversation} title="New conversation">
               <Plus className="h-3.5 w-3.5" />
             </Button>
-            <div className="relative" ref={conversationsRef}>
-              <Button variant="ghost" size="sm" onClick={() => setConversationsOpen(o => !o)} aria-expanded={conversationsOpen}>
-                <FolderOpen className="h-3.5 w-3.5 mr-1" />
-                History
-                <ChevronDown className={`h-3 w-3 ml-1 transition-transform ${conversationsOpen ? 'rotate-180' : ''}`} />
-              </Button>
-              {conversationsOpen && (
-                <div className="absolute right-0 top-full mt-1 w-72 max-h-[60vh] overflow-hidden rounded-lg border border-[var(--border-soft)] bg-[var(--surface)] shadow-[var(--shadow-lg)] z-50 flex flex-col" role="menu">
-                  <button type="button" onClick={startNewConversation} className="text-left px-3 py-2.5 text-sm font-medium hover:bg-[var(--surface-subtle)] border-b border-[var(--border-soft)] transition-colors" role="menuitem">
-                    <Plus className="h-3.5 w-3.5 inline mr-1.5" />New conversation
-                  </button>
-                  <div className="overflow-y-auto flex-1 min-h-0">
-                    {conversationsList.length === 0 ? (
-                      <p className="px-3 py-4 text-[var(--text-subtle)] text-sm">No archived conversations yet.</p>
-                    ) : (
-                      <ul className="py-1">
-                        {conversationsList.map(c => (
-                          <li key={c.id}>
-                            <button type="button" onClick={() => openArchived(c.id)}
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--surface-subtle)] truncate transition-colors" role="menuitem" title={c.title}>
-                              <span className="block truncate">{c.title}</span>
-                              <span className="block text-xs text-[var(--text-subtle)] mt-0.5">
-                                {c.createdAt ? new Date(c.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
-                              </span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
             {/* Mobile sidebar toggle */}
             <Button variant="ghost" size="sm" className="lg:hidden" onClick={() => setSidebarOpenMobile(true)} title="Show context">
               <PanelRight className="h-3.5 w-3.5" />
