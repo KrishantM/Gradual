@@ -14,6 +14,8 @@
  */
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import useSWR from 'swr';
+import { createAuthFetcher, SWR_AUTH_CONFIG } from '@/lib/swr-fetcher';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -120,14 +122,11 @@ export default function PathsPage() {
   const { user } = useAuth();
   const router = useRouter();
 
-  const [data, setData] = useState<PathsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [filter, setFilter] = useState<PathCategory | 'all'>('all');
 
-  // Stable getToken via ref — avoids the user→getToken→fetchPaths dependency
-  // cascade and isolates Firebase IndexedDB rejections (which can be raw DOM
-  // Event objects, not Errors).
+  // Stable ref-based token getter — isolates Firebase IndexedDB rejections
+  // (which can be raw DOM Event objects, not Errors).
   const userRef = useRef(user);
   useEffect(() => {
     userRef.current = user;
@@ -144,34 +143,17 @@ export default function PathsPage() {
     }
   }, []);
 
-  const fetchPaths = useCallback(async () => {
-    try {
-      const token = await safeGetToken();
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-      const res = await fetch('/api/paths', { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) {
-        const json = (await res.json()) as PathsResponse;
-        setData(json);
-      }
-    } catch (e) {
-      console.error('[paths] fetchPaths failed', e);
-    } finally {
-      setLoading(false);
-    }
-  }, [safeGetToken]);
+  // SWR — fetcher memoized on user so it stays stable across renders
+  const pathsFetcher = useMemo(() => (user ? createAuthFetcher(user) : null), [user]);
+  const { data, isLoading: loading, mutate: mutatePaths } = useSWR<PathsResponse>(
+    user ? '/api/paths' : null,
+    pathsFetcher,
+    SWR_AUTH_CONFIG
+  );
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-    fetchPaths().catch((e) => {
-      console.error('[paths] fetchPaths IIFE failed', e);
-    });
-  }, [user, router, fetchPaths]);
+    if (!user) router.push('/login');
+  }, [user, router]);
 
   const enroll = useCallback(
     async (pathId: string, addToPlanner: boolean) => {
@@ -187,7 +169,7 @@ export default function PathsPage() {
         if (res.ok) {
           const uid = userRef.current?.uid;
           if (uid) trackEvent('path_enrolled', uid, { pathId, addToPlanner });
-          await fetchPaths();
+          await mutatePaths();
           router.refresh();
         }
       } catch (e) {
@@ -196,7 +178,7 @@ export default function PathsPage() {
         setActionPending(null);
       }
     },
-    [safeGetToken, fetchPaths, router]
+    [safeGetToken, mutatePaths, router]
   );
 
   const completeModule = useCallback(
@@ -213,7 +195,7 @@ export default function PathsPage() {
         if (res.ok) {
           const uid = userRef.current?.uid;
           if (uid) trackEvent('path_module_completed', uid, { pathId, moduleId });
-          await fetchPaths();
+          await mutatePaths();
           router.refresh();
         }
       } catch (e) {
@@ -222,7 +204,7 @@ export default function PathsPage() {
         setActionPending(null);
       }
     },
-    [safeGetToken, fetchPaths, router]
+    [safeGetToken, mutatePaths, router]
   );
 
   const togglePin = useCallback(
@@ -238,14 +220,14 @@ export default function PathsPage() {
         });
         const uid = userRef.current?.uid;
         if (uid) trackEvent('path_pinned', uid, { pathId, pinned });
-        await fetchPaths();
+        await mutatePaths();
       } catch (e) {
         console.error('[paths] togglePin failed', e);
       } finally {
         setActionPending(null);
       }
     },
-    [safeGetToken, fetchPaths]
+    [safeGetToken, mutatePaths]
   );
 
   const unenroll = useCallback(
@@ -262,14 +244,14 @@ export default function PathsPage() {
         });
         const uid = userRef.current?.uid;
         if (uid) trackEvent('path_unenrolled', uid, { pathId });
-        await fetchPaths();
+        await mutatePaths();
       } catch (e) {
         console.error('[paths] unenroll failed', e);
       } finally {
         setActionPending(null);
       }
     },
-    [safeGetToken, fetchPaths]
+    [safeGetToken, mutatePaths]
   );
 
   const allPaths = data?.paths ?? [];

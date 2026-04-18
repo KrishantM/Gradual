@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import useSWR from 'swr';
+import { createAuthFetcher, SWR_AUTH_CONFIG } from '@/lib/swr-fetcher';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -87,8 +89,21 @@ export default function CopilotPage() {
   const threadRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Sidebar state
-  const [sidebar, setSidebar] = useState<SidebarData | null>(null);
+  // Sidebar state — intelligence data via SWR, same cache key as Dashboard
+  const intelligenceFetcher = useMemo(() => (user ? createAuthFetcher(user) : null), [user]);
+  const { data: intelligenceData } = useSWR(
+    user ? `/api/dashboard/intelligence?date=${localDateKey()}` : null,
+    intelligenceFetcher,
+    SWR_AUTH_CONFIG
+  );
+  const sidebar: SidebarData | null = intelligenceData
+    ? {
+        signals: intelligenceData.signals ?? null,
+        profileCompletion: intelligenceData.profileCompletion ?? 0,
+        cvScore: intelligenceData.cvScore ?? null,
+        todayPlannerEvents: intelligenceData.todayPlannerEvents ?? [],
+      }
+    : null;
   const [sidebarOpenMobile, setSidebarOpenMobile] = useState(false);
   const [sidebarPanel, setSidebarPanel] = useState<'signals' | 'history'>('signals');
   const [deletingConvId, setDeletingConvId] = useState<string | null>(null);
@@ -217,29 +232,6 @@ export default function CopilotPage() {
     return () => { cancelled = true; };
   }, [user, fetchLatestAndConversation]);
 
-  // Sidebar context — pulled from the same intelligence endpoint the dashboard uses
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const token = await getToken();
-        const res = await fetch(`/api/dashboard/intelligence?date=${localDateKey()}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (cancelled) return;
-        setSidebar({
-          signals: data.signals ?? null,
-          profileCompletion: data.profileCompletion ?? 0,
-          cvScore: data.cvScore ?? null,
-          todayPlannerEvents: data.todayPlannerEvents ?? [],
-        });
-      } catch { /* sidebar is best-effort */ }
-    })().catch(() => {});
-    return () => { cancelled = true; };
-  }, [user, getToken]);
 
   // Auto-scroll conversation thread when messages change or response arrives
   useEffect(() => {

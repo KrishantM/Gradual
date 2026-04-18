@@ -47,9 +47,16 @@ export async function GET(req: NextRequest) {
   const stateMap = new Map<string, PathState>();
   let careerContext: Awaited<ReturnType<typeof getCareerContext>> | null = null;
 
+  // path_state and career context fetched in parallel.
+  // skipOpportunityMatch + skipCopilotHistory + skipActivePaths: recommendPaths only
+  // needs profile, cv, applications, and todos — not history, opportunity matches, or paths.
   const [stateSnap, contextResult] = await Promise.allSettled([
     db.collection('users').doc(uid).collection('path_state').get(),
-    getCareerContext(uid),
+    getCareerContext(uid, {
+      skipOpportunityMatch: true,
+      skipCopilotHistory: true,
+      skipActivePaths: true,
+    }),
   ]);
 
   if (stateSnap.status === 'fulfilled') {
@@ -97,9 +104,8 @@ export async function GET(req: NextRequest) {
     console.error('[GET /api/paths] recommendations failed', e);
   }
 
-  return NextResponse.json({
-    paths: progresses,
-    activePath,
-    recommendations,
-  });
+  return NextResponse.json(
+    { paths: progresses, activePath, recommendations },
+    { headers: { 'Cache-Control': 'private, max-age=20, stale-while-revalidate=60' } }
+  );
 }

@@ -34,7 +34,16 @@ function toISO(d: TimestampLike | null | undefined): string | null {
   return null;
 }
 
-export async function getCareerContext(uid: string): Promise<CareerContext> {
+export interface CareerContextOptions {
+  /** Skip matchOpportunities() Firestore scan — saves ~200-300ms when caller doesn't need topMatches */
+  skipOpportunityMatch?: boolean;
+  /** Skip copilot_sessions subcollection read — saves ~80ms when caller doesn't need history */
+  skipCopilotHistory?: boolean;
+  /** Skip path_state subcollection read — saves ~80ms when caller reads path_state separately */
+  skipActivePaths?: boolean;
+}
+
+export async function getCareerContext(uid: string, opts: CareerContextOptions = {}): Promise<CareerContext> {
   const context: CareerContext = {
     user: { uid, timezone: undefined },
     profile: null,
@@ -49,6 +58,8 @@ export async function getCareerContext(uid: string): Promise<CareerContext> {
 
   try {
     const userRef = db.collection('users').doc(uid);
+
+    // Step 1: User doc first — profile, cv, saved opportunities all come from here
     const userSnap = await userRef.get();
     const userData = userSnap.exists ? userSnap.data() || {} : {};
 
@@ -95,94 +106,7 @@ export async function getCareerContext(uid: string): Promise<CareerContext> {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - RECENT_DAYS);
     const sevenDaysAgoISO = sevenDaysAgo.toISOString();
 
-    const appSnap = await db.collection('applications').where('userId', '==', uid).orderBy('createdAt', 'desc').limit(50).get();
-    const allApps: ApplicationSnapshot[] = [];
-    appSnap.forEach((doc) => {
-      const d = doc.data();
-      const createdAt = toISO(d.createdAt as TimestampLike) ?? String(d.createdAt ?? '');
-      allApps.push({
-        id: doc.id,
-        company: String(d.company ?? ''),
-        position: String(d.position ?? ''),
-        stage: String(d.stage ?? ''),
-        applyDate: String(d.applyDate ?? createdAt),
-        jobUrl: d.jobUrl as string | undefined,
-      });
-    });
-    context.applications.active = allApps.filter((a) => !['rejected', 'offered'].includes(a.stage));
-    context.applications.recent = allApps.filter((a) => a.applyDate >= sevenDaysAgoISO);
-
-    const actionSnap = await db.collection('actionItems').where('userId', '==', uid).orderBy('createdAt', 'desc').limit(100).get();
-    const allTodos: TodoSnapshot[] = [];
-    actionSnap.forEach((doc) => {
-      const d = doc.data();
-      const createdAt = toISO(d.createdAt as TimestampLike) ?? String(d.createdAt ?? '');
-      allTodos.push({
-        id: doc.id,
-        title: String(d.title ?? ''),
-        notes: d.notes as string | undefined,
-        priority: String(d.priority ?? 'medium'),
-        dueDate: d.dueDate as string | undefined,
-        status: (d.completed ? 'completed' : 'open') as string,
-        createdAt,
-        source: d.source as string | undefined,
-      });
-    });
-    context.todos.open = allTodos.filter((t) => t.status !== 'completed');
-    context.todos.completedRecently = allTodos.filter((t) => t.status === 'completed' && t.createdAt >= sevenDaysAgoISO);
-
-    const sessionsSnap = await userRef.collection('copilot_sessions').orderBy('createdAt', 'desc').limit(SUMMARY_LIMIT).get();
-    const summaries: CopilotSummary[] = [];
-    sessionsSnap.forEach((doc) => {
-      const d = doc.data();
-      summaries.push({
-        sessionId: doc.id,
-        createdAt: toISO(d.createdAt as TimestampLike) ?? '',
-        userMessage: String(d.userMessage ?? ''),
-        assistantSummary: String(d.assistantSummary ?? ''),
-        priorities: d.priorities as string[] | undefined,
-        todosSuggested: d.todosSuggested as number | undefined,
-      });
-    });
-    context.history.recentCopilotSummaries = summaries;
-
-    // Phase 3 — active capability paths (degrades silently)
-    try {
-      const pathStateSnap = await userRef.collection('path_state').get();
-      const stateMap = new Map<string, PathState>();
-      pathStateSnap.forEach((doc) => {
-        const d = doc.data();
-        const enrolledAt = toISO(d.enrolledAt as TimestampLike) ?? new Date().toISOString();
-        stateMap.set(doc.id, {
-          pathId: doc.id,
-          enrolledAt,
-          completedModuleIds: Array.isArray(d.completedModuleIds) ? d.completedModuleIds : [],
-          currentModuleId: (d.currentModuleId as string) ?? null,
-          pinned: Boolean(d.pinned),
-          lastActivityAt: toISO(d.lastActivityAt as TimestampLike) ?? enrolledAt,
-        });
-      });
-      if (stateMap.size > 0) {
-        const enrolled: ActivePathContext[] = [];
-        for (const path of PATHS) {
-          const state = stateMap.get(path.id);
-          if (!state) continue;
-          const hydrated = hydratePathProgress(path, state);
-          if (hydrated.progressPercent >= 100) continue;
-          enrolled.push({
-            pathId: path.id,
-            pathTitle: path.title,
-            outcome: path.outcome,
-            progressPercent: hydrated.progressPercent,
-            currentModuleTitle: hydrated.currentModule?.title ?? null,
-          });
-        }
-        context.activePaths = enrolled;
-      }
-    } catch (pathErr) {
-      console.error('[getCareerContext] activePaths failed', pathErr);
-    }
-
+    // Build profile snapshot for opportunity matching (derived from user doc above)
     const profileSnapshot: UserProfileSnapshot = {
       uid,
       university: (userData as Record<string, unknown>).university as string | undefined,
@@ -193,21 +117,133 @@ export async function getCareerContext(uid: string): Promise<CareerContext> {
       city: (userData as Record<string, unknown>).city as string | undefined,
       country: (userData as Record<string, unknown>).country as string | undefined,
     };
-    try {
-      const matchResult = await matchOpportunities({ userProfile: profileSnapshot, limit: TOP_MATCHES_LIMIT });
-      context.opportunities.topMatches = (matchResult.opportunities || []).slice(0, TOP_MATCHES_LIMIT).map((o) => ({
-        id: o.id,
-        title: o.title,
-        company: o.organization,
-        location: o.location,
-        url: o.url,
-        type: o.type,
-        score: o.score,
-        description: o.description,
-      })) as OpportunityMatch[];
-    } catch {
-      // leave topMatches empty on match failure
+
+    // Step 2: All remaining reads in parallel — independent of each other
+    const [appResult, actionResult, sessionsResult, pathResult, matchResult] = await Promise.allSettled([
+      db.collection('applications').where('userId', '==', uid).orderBy('createdAt', 'desc').limit(50).get(),
+      db.collection('actionItems').where('userId', '==', uid).orderBy('createdAt', 'desc').limit(100).get(),
+      opts.skipCopilotHistory
+        ? Promise.resolve(null)
+        : userRef.collection('copilot_sessions').orderBy('createdAt', 'desc').limit(SUMMARY_LIMIT).get(),
+      opts.skipActivePaths
+        ? Promise.resolve(null)
+        : userRef.collection('path_state').get(),
+      opts.skipOpportunityMatch
+        ? Promise.resolve(null)
+        : matchOpportunities({ userProfile: profileSnapshot, limit: TOP_MATCHES_LIMIT }),
+    ]);
+
+    // Applications
+    if (appResult.status === 'fulfilled' && appResult.value) {
+      const allApps: ApplicationSnapshot[] = [];
+      appResult.value.forEach((doc) => {
+        const d = doc.data();
+        const createdAt = toISO(d.createdAt as TimestampLike) ?? String(d.createdAt ?? '');
+        allApps.push({
+          id: doc.id,
+          company: String(d.company ?? ''),
+          position: String(d.position ?? ''),
+          stage: String(d.stage ?? ''),
+          applyDate: String(d.applyDate ?? createdAt),
+          jobUrl: d.jobUrl as string | undefined,
+        });
+      });
+      context.applications.active = allApps.filter((a) => !['rejected', 'offered'].includes(a.stage));
+      context.applications.recent = allApps.filter((a) => a.applyDate >= sevenDaysAgoISO);
     }
+
+    // To-dos
+    if (actionResult.status === 'fulfilled' && actionResult.value) {
+      const allTodos: TodoSnapshot[] = [];
+      actionResult.value.forEach((doc) => {
+        const d = doc.data();
+        const createdAt = toISO(d.createdAt as TimestampLike) ?? String(d.createdAt ?? '');
+        allTodos.push({
+          id: doc.id,
+          title: String(d.title ?? ''),
+          notes: d.notes as string | undefined,
+          priority: String(d.priority ?? 'medium'),
+          dueDate: d.dueDate as string | undefined,
+          status: (d.completed ? 'completed' : 'open') as string,
+          createdAt,
+          source: d.source as string | undefined,
+        });
+      });
+      context.todos.open = allTodos.filter((t) => t.status !== 'completed');
+      context.todos.completedRecently = allTodos.filter((t) => t.status === 'completed' && t.createdAt >= sevenDaysAgoISO);
+    }
+
+    // Copilot history
+    if (!opts.skipCopilotHistory && sessionsResult.status === 'fulfilled' && sessionsResult.value) {
+      const summaries: CopilotSummary[] = [];
+      sessionsResult.value.forEach((doc) => {
+        const d = doc.data();
+        summaries.push({
+          sessionId: doc.id,
+          createdAt: toISO(d.createdAt as TimestampLike) ?? '',
+          userMessage: String(d.userMessage ?? ''),
+          assistantSummary: String(d.assistantSummary ?? ''),
+          priorities: d.priorities as string[] | undefined,
+          todosSuggested: d.todosSuggested as number | undefined,
+        });
+      });
+      context.history.recentCopilotSummaries = summaries;
+    }
+
+    // Active capability paths
+    if (!opts.skipActivePaths && pathResult.status === 'fulfilled' && pathResult.value) {
+      try {
+        const stateMap = new Map<string, PathState>();
+        pathResult.value.forEach((doc) => {
+          const d = doc.data();
+          const enrolledAt = toISO(d.enrolledAt as TimestampLike) ?? new Date().toISOString();
+          stateMap.set(doc.id, {
+            pathId: doc.id,
+            enrolledAt,
+            completedModuleIds: Array.isArray(d.completedModuleIds) ? d.completedModuleIds : [],
+            currentModuleId: (d.currentModuleId as string) ?? null,
+            pinned: Boolean(d.pinned),
+            lastActivityAt: toISO(d.lastActivityAt as TimestampLike) ?? enrolledAt,
+          });
+        });
+        if (stateMap.size > 0) {
+          const enrolled: ActivePathContext[] = [];
+          for (const path of PATHS) {
+            const state = stateMap.get(path.id);
+            if (!state) continue;
+            const hydrated = hydratePathProgress(path, state);
+            if (hydrated.progressPercent >= 100) continue;
+            enrolled.push({
+              pathId: path.id,
+              pathTitle: path.title,
+              outcome: path.outcome,
+              progressPercent: hydrated.progressPercent,
+              currentModuleTitle: hydrated.currentModule?.title ?? null,
+            });
+          }
+          context.activePaths = enrolled;
+        }
+      } catch (pathErr) {
+        console.error('[getCareerContext] activePaths failed', pathErr);
+      }
+    }
+
+    // Opportunity top matches
+    if (!opts.skipOpportunityMatch && matchResult.status === 'fulfilled' && matchResult.value) {
+      context.opportunities.topMatches = (matchResult.value.opportunities || [])
+        .slice(0, TOP_MATCHES_LIMIT)
+        .map((o) => ({
+          id: o.id,
+          title: o.title,
+          company: o.organization,
+          location: o.location,
+          url: o.url,
+          type: o.type,
+          score: o.score,
+          description: o.description,
+        })) as OpportunityMatch[];
+    }
+
   } catch (e) {
     console.error('[getCareerContext]', e);
   }

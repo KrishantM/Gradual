@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import useSWR from 'swr';
+import { createAuthFetcher, SWR_AUTH_CONFIG } from '@/lib/swr-fetcher';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '../../../lib/firebase';
@@ -421,8 +423,13 @@ export default function DashboardPage() {
   const [pinnedSuggestions, setPinnedSuggestions] = useState<PinnedSuggestion[]>([]);
   const [unpinning, setUnpinning] = useState<string | null>(null);
 
-  // Intelligence state
-  const [intelligence, setIntelligence] = useState<IntelligenceData | null>(null);
+  // Intelligence — SWR cache shared with Copilot sidebar (same key)
+  const intelligenceFetcher = useMemo(() => (user ? createAuthFetcher(user) : null), [user]);
+  const { data: intelligence } = useSWR<IntelligenceData>(
+    user ? `/api/dashboard/intelligence?date=${localDateKey()}` : null,
+    intelligenceFetcher,
+    SWR_AUTH_CONFIG
+  );
 
   const unpinSuggestion = async (suggestionId: string) => {
     if (!user) return;
@@ -463,12 +470,8 @@ export default function DashboardPage() {
       try {
         setHasError(false);
 
-        // Fetch intelligence API + Firestore user data in parallel
-        const token = await user.getIdToken();
-        const [userSnap, intelligenceRes] = await Promise.all([
-          getDoc(doc(db, 'users', user.uid)),
-          fetch(`/api/dashboard/intelligence?date=${localDateKey()}`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
-        ]);
+        // Fetch Firestore user data (intelligence loads via SWR above)
+        const userSnap = await getDoc(doc(db, 'users', user.uid));
 
         // Process user doc
         if (userSnap.exists()) {
@@ -499,11 +502,6 @@ export default function DashboardPage() {
           setPinnedSuggestions(pinned);
         }
 
-        // Process intelligence
-        if (intelligenceRes && intelligenceRes.ok) {
-          const data = await intelligenceRes.json();
-          setIntelligence(data);
-        }
       } catch (err) {
         console.error('Error loading dashboard:', err);
         setHasError(true);

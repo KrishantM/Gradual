@@ -83,8 +83,17 @@ interface IntelligenceResponse {
   degraded: string[];
 }
 
+type TS = { toDate?: () => Date } | Date | string | undefined;
+function toIso(v: TS): string {
+  if (!v) return new Date().toISOString();
+  if (typeof v === 'string') return v;
+  if (typeof (v as { toDate?: () => Date }).toDate === 'function')
+    return (v as { toDate: () => Date }).toDate().toISOString();
+  if (v instanceof Date) return v.toISOString();
+  return new Date().toISOString();
+}
+
 export async function GET(req: NextRequest) {
-  // Auth is the only hard failure mode — without a UID we can't return anything useful.
   let uid: string;
   try {
     const authHeader = req.headers.get('authorization');
@@ -98,7 +107,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Build response section by section. Any failure degrades that section only.
   const result: IntelligenceResponse = {
     signals: [],
     profileCompletion: 0,
@@ -110,23 +118,38 @@ export async function GET(req: NextRequest) {
     degraded: [],
   };
 
-  // Career context (profile, CV, applications, todos, opportunities) — drives signals + momentum
-  let context: Awaited<ReturnType<typeof getCareerContext>> | null = null;
-  try {
-    context = await getCareerContext(uid);
-  } catch (e) {
-    console.error('[GET /api/dashboard/intelligence] getCareerContext failed', e);
-    result.degraded.push('careerContext');
-  }
+  // Compute today's date before launching parallel fetches
+  const dateParam = new URL(req.url).searchParams.get('date');
+  const today =
+    dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)
+      ? dateParam
+      : new Date().toISOString().slice(0, 10);
 
-  if (context) {
+  const userRef = db.collection('users').doc(uid);
+
+  // All four data sources run in parallel.
+  // getCareerContext skips the two expensive calls (opportunity matching +
+  // copilot history) that the intelligence endpoint doesn't use.
+  const [contextResult, latestResult, plannerResult, pathResult] = await Promise.allSettled([
+    getCareerContext(uid, {
+      skipOpportunityMatch: true,
+      skipCopilotHistory: true,
+      skipActivePaths: true,
+    }),
+    userRef.collection('copilot_state').doc('latest').get(),
+    userRef.collection('planner_events').where('date', '==', today).get(),
+    userRef.collection('path_state').get(),
+  ]);
+
+  // ── Career context (signals, profile, cv, momentum) ──
+  if (contextResult.status === 'fulfilled') {
+    const context = contextResult.value;
     try {
       result.signals = toSignalArray(evaluateSignals(context));
     } catch (e) {
       console.error('[GET /api/dashboard/intelligence] evaluateSignals failed', e);
       result.degraded.push('signals');
     }
-
     try {
       result.profileCompletion = calculateProfileCompletion(
         (context.profile as Record<string, unknown>) ?? {}
@@ -135,29 +158,20 @@ export async function GET(req: NextRequest) {
       console.error('[GET /api/dashboard/intelligence] profileCompletion failed', e);
       result.degraded.push('profileCompletion');
     }
-
     result.cvScore = context.cv?.score ?? null;
     result.opportunityMomentum = {
       savedCount: context.opportunities?.saved?.length ?? 0,
       recentApplications: context.applications?.recent?.length ?? 0,
     };
+  } else {
+    console.error('[GET /api/dashboard/intelligence] getCareerContext failed', contextResult.reason);
+    result.degraded.push('careerContext');
   }
 
-  // Latest copilot state
-  try {
-    const latestSnap = await db
-      .collection('users')
-      .doc(uid)
-      .collection('copilot_state')
-      .doc('latest')
-      .get();
-
-    if (latestSnap.exists) {
-      const data = latestSnap.data() || {};
-      // createdAt is stored as a Firestore Timestamp via `new Date()`. The admin
-      // SDK returns it as a Timestamp object, so we normalize to an ISO string here
-      // (matches the planner-events endpoint pattern). Falls back to a string if
-      // legacy data was already stored as a string.
+  // ── Latest copilot state ──
+  if (latestResult.status === 'fulfilled' && latestResult.value.exists) {
+    try {
+      const data = latestResult.value.data() || {};
       const rawCreated = data.createdAt;
       let createdAtIso: string | null = null;
       if (rawCreated) {
@@ -174,98 +188,86 @@ export async function GET(req: NextRequest) {
         priorities: data.priorities ?? [],
         createdAt: createdAtIso,
       };
+    } catch (e) {
+      console.error('[GET /api/dashboard/intelligence] latestCopilot failed', e);
+      result.degraded.push('latestCopilot');
     }
-  } catch (e) {
-    console.error('[GET /api/dashboard/intelligence] latestCopilot failed', e);
+  } else if (latestResult.status === 'rejected') {
+    console.error('[GET /api/dashboard/intelligence] latestCopilot fetch failed', latestResult.reason);
     result.degraded.push('latestCopilot');
   }
 
-  // Today's planner events. Client passes ?date=YYYY-MM-DD in their LOCAL
-  // timezone — we trust it after a strict format check. Falls back to UTC date
-  // only when the param is missing or malformed (e.g. legacy callers).
-  try {
-    const dateParam = new URL(req.url).searchParams.get('date');
-    const today =
-      dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)
-        ? dateParam
-        : new Date().toISOString().slice(0, 10);
-    const todayEventsSnap = await db
-      .collection('users')
-      .doc(uid)
-      .collection('planner_events')
-      .where('date', '==', today)
-      .get();
-
-    result.todayPlannerEvents = todayEventsSnap.docs.map((doc) => {
-      const d = doc.data();
-      return {
-        id: doc.id,
-        date: d.date,
-        title: d.title,
-        notes: d.notes,
-        source: d.source ?? 'user',
-      };
-    });
-  } catch (e) {
-    console.error('[GET /api/dashboard/intelligence] todayPlannerEvents failed', e);
+  // ── Today's planner events ──
+  if (plannerResult.status === 'fulfilled') {
+    try {
+      result.todayPlannerEvents = plannerResult.value.docs.map((doc) => {
+        const d = doc.data();
+        return {
+          id: doc.id,
+          date: d.date,
+          title: d.title,
+          notes: d.notes,
+          source: d.source ?? 'user',
+        };
+      });
+    } catch (e) {
+      console.error('[GET /api/dashboard/intelligence] todayPlannerEvents failed', e);
+      result.degraded.push('todayPlannerEvents');
+    }
+  } else {
+    console.error('[GET /api/dashboard/intelligence] planner fetch failed', plannerResult.reason);
     result.degraded.push('todayPlannerEvents');
   }
 
-  // Active capability path — degrades silently if path_state read fails
-  try {
-    const pathStateSnap = await db
-      .collection('users')
-      .doc(uid)
-      .collection('path_state')
-      .get();
-    const stateMap = new Map<string, PathState>();
-    type TS = { toDate?: () => Date } | Date | string | undefined;
-    const toIso = (v: TS): string => {
-      if (!v) return new Date().toISOString();
-      if (typeof v === 'string') return v;
-      if (typeof (v as { toDate?: () => Date }).toDate === 'function')
-        return (v as { toDate: () => Date }).toDate().toISOString();
-      if (v instanceof Date) return v.toISOString();
-      return new Date().toISOString();
-    };
-    pathStateSnap.forEach((doc) => {
-      const d = doc.data();
-      const enrolledAt = toIso(d.enrolledAt as TS);
-      stateMap.set(doc.id, {
-        pathId: doc.id,
-        enrolledAt,
-        completedModuleIds: Array.isArray(d.completedModuleIds) ? d.completedModuleIds : [],
-        currentModuleId: (d.currentModuleId as string) ?? null,
-        pinned: Boolean(d.pinned),
-        lastActivityAt: toIso((d.lastActivityAt as TS) ?? d.enrolledAt),
+  // ── Active capability path ──
+  if (pathResult.status === 'fulfilled') {
+    try {
+      const stateMap = new Map<string, PathState>();
+      pathResult.value.forEach((doc) => {
+        const d = doc.data();
+        const enrolledAt = toIso(d.enrolledAt as TS);
+        stateMap.set(doc.id, {
+          pathId: doc.id,
+          enrolledAt,
+          completedModuleIds: Array.isArray(d.completedModuleIds) ? d.completedModuleIds : [],
+          currentModuleId: (d.currentModuleId as string) ?? null,
+          pinned: Boolean(d.pinned),
+          lastActivityAt: toIso((d.lastActivityAt as TS) ?? d.enrolledAt),
+        });
       });
-    });
-    if (stateMap.size > 0) {
-      const progresses = PATHS.filter((p) => stateMap.has(p.id)).map((p) =>
-        hydratePathProgress(p, stateMap.get(p.id) ?? null)
-      );
-      const active = pickActivePath(progresses);
-      if (active) {
-        result.activePath = {
-          pathId: active.path.id,
-          pathTitle: active.path.title,
-          outcome: active.path.outcome,
-          progressPercent: active.progressPercent,
-          completedCount: active.completedCount,
-          totalCount: active.totalCount,
-          currentModule: active.currentModule
-            ? {
-                id: active.currentModule.id,
-                title: active.currentModule.title,
-                estimatedMinutes: active.currentModule.estimatedMinutes,
-              }
-            : null,
-        };
+      if (stateMap.size > 0) {
+        const progresses = PATHS.filter((p) => stateMap.has(p.id)).map((p) =>
+          hydratePathProgress(p, stateMap.get(p.id) ?? null)
+        );
+        const active = pickActivePath(progresses);
+        if (active) {
+          result.activePath = {
+            pathId: active.path.id,
+            pathTitle: active.path.title,
+            outcome: active.path.outcome,
+            progressPercent: active.progressPercent,
+            completedCount: active.completedCount,
+            totalCount: active.totalCount,
+            currentModule: active.currentModule
+              ? {
+                  id: active.currentModule.id,
+                  title: active.currentModule.title,
+                  estimatedMinutes: active.currentModule.estimatedMinutes,
+                }
+              : null,
+          };
+        }
       }
+    } catch (e) {
+      console.error('[GET /api/dashboard/intelligence] activePath failed', e);
+      result.degraded.push('activePath');
     }
-  } catch (e) {
-    console.error('[GET /api/dashboard/intelligence] activePath failed', e);
+  } else {
+    console.error('[GET /api/dashboard/intelligence] path_state fetch failed', pathResult.reason);
     result.degraded.push('activePath');
   }
-  return NextResponse.json(result);
+
+  return NextResponse.json(result, {
+    headers: { 'Cache-Control': 'private, max-age=30, stale-while-revalidate=60' },
+  });
 }
