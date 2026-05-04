@@ -15,21 +15,21 @@ export async function POST(req: NextRequest) {
     }
 
     const token = authHeader.split('Bearer ')[1];
-    
-    // Verify the Firebase token
+
+    // Verify the Firebase token and use the verified uid for any writes.
+    let verifiedUid: string;
     try {
       const decodedToken = await auth.verifyIdToken(token);
-      // You can access user info here: decodedToken.uid, decodedToken.email, etc.
-    } catch (error) {
+      verifiedUid = decodedToken.uid;
+    } catch {
       return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 });
     }
 
-    const { 
-      degree, 
-      gpa, 
-      gpaScale, 
-      interests, 
-      uid,
+    const {
+      degree,
+      gpa,
+      gpaScale,
+      interests,
       fullName,
       university,
       city,
@@ -143,14 +143,12 @@ Always provide specific, actionable advice with clear next steps, resources, or 
     const suggestionsText = response.choices[0].message?.content || '';
     const suggestions = suggestionsText.split(/\n{2,}/).filter(line => line.trim() !== '');
 
-    // ✅ Save to Firestore if UID is provided
-    if (uid) {
-      const ref = db.collection('suggestions').doc(uid);
-      await ref.set({
-        suggestions: suggestions.join('\n\n'),
-        updatedAt: new Date(),
-      });
-    }
+    // Save to Firestore using the verified uid from the auth token, never a body field.
+    const ref = db.collection('suggestions').doc(verifiedUid);
+    await ref.set({
+      suggestions: suggestions.join('\n\n'),
+      updatedAt: new Date(),
+    });
 
     return NextResponse.json({ suggestions });
   } catch (err) {

@@ -80,10 +80,19 @@ interface ActivePathSummary {
   currentModule: { id: string; title: string; estimatedMinutes: number } | null;
 }
 
+interface RatingComponent {
+  key: string;
+  label: string;
+  value: number;
+  weight: number;
+  rationale: string;
+}
+
 interface IntelligenceData {
   signals: Signal[];
   profileCompletion: number;
   cvScore: number | null;
+  gradualRating: { total: number; components: RatingComponent[] };
   latestCopilot: {
     weeklyPlan: Record<string, { title: string; notes?: string }[]> | null;
     priorities: { title: string; rationale: string }[];
@@ -116,11 +125,21 @@ function extractOverallScore(scoreText: string | number | null): string | null {
   return null;
 }
 
-function formatDate(date: any) {
+type DateLike = Date | string | { toDate: () => Date } | null | undefined;
+
+function formatDate(date: DateLike): string {
   if (!date) return '';
-  if (typeof date === 'string') date = new Date(date);
-  if (date.toDate) date = date.toDate();
-  return date.toLocaleDateString();
+  let resolved: Date;
+  if (typeof date === 'string') {
+    resolved = new Date(date);
+  } else if (typeof date === 'object' && 'toDate' in date && typeof date.toDate === 'function') {
+    resolved = date.toDate();
+  } else if (date instanceof Date) {
+    resolved = date;
+  } else {
+    return '';
+  }
+  return Number.isNaN(resolved.getTime()) ? '' : resolved.toLocaleDateString();
 }
 
 function formatOpportunityDate(dateString: string) {
@@ -408,11 +427,11 @@ const MetricCard = ({ icon: Icon, label, value, sublabel, href }: {
 /* ─── Main Dashboard ─── */
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [name, setName] = useState('');
   const [cvScore, setCvScore] = useState<string | number | null>(null);
-  const [cvScoreTimestamp, setCvScoreTimestamp] = useState<any>(null);
+  const [cvScoreTimestamp, setCvScoreTimestamp] = useState<DateLike>(null);
   const [cvScoreAnalysis, setCvScoreAnalysis] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [savedOpportunities, setSavedOpportunities] = useState<SavedOpportunity[]>([]);
@@ -423,10 +442,12 @@ export default function DashboardPage() {
   const [pinnedSuggestions, setPinnedSuggestions] = useState<PinnedSuggestion[]>([]);
   const [unpinning, setUnpinning] = useState<string | null>(null);
 
-  // Intelligence — SWR cache shared with Copilot sidebar (same key)
+  // Intelligence — SWR cache shared with Copilot sidebar (same key).
+  // Memoise the date key so re-renders don't flap the SWR cache.
+  const todayKey = useMemo(() => localDateKey(), []);
   const intelligenceFetcher = useMemo(() => (user ? createAuthFetcher(user) : null), [user]);
   const { data: intelligence } = useSWR<IntelligenceData>(
-    user ? `/api/dashboard/intelligence?date=${localDateKey()}` : null,
+    user ? `/api/dashboard/intelligence?date=${todayKey}` : null,
     intelligenceFetcher,
     SWR_AUTH_CONFIG
   );
@@ -447,6 +468,7 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user) {
       router.push('/login');
       return;
@@ -511,7 +533,7 @@ export default function DashboardPage() {
     };
 
     checkUserRole();
-  }, [user, router]);
+  }, [authLoading, user, router]);
 
   const clearCVScore = async () => {
     if (!user) return;
@@ -644,9 +666,13 @@ export default function DashboardPage() {
         >
           <MetricCard
             icon={Target}
-            label="Career Readiness"
-            value={`${profileCompletion}%`}
-            sublabel={intelligence?.cvScore ? `CV: ${intelligence.cvScore}/100` : 'No CV scored yet'}
+            label="Gradual Rating"
+            value={`${intelligence?.gradualRating?.total ?? 0}/100`}
+            sublabel={
+              intelligence?.cvScore
+                ? `Profile ${profileCompletion}% · CV ${intelligence.cvScore}/100`
+                : `Profile ${profileCompletion}% · No CV scored`
+            }
             href="/profile"
           />
           <MetricCard
@@ -759,7 +785,7 @@ export default function DashboardPage() {
                 </div>
                 <Link href="/copilot">
                   <Button variant="outline" size="sm" className="text-xs">
-                    {weeklyPlan ? 'Open Copilot' : 'Generate Plan'} <ArrowRight className="h-3 w-3 ml-1" />
+                    {weeklyPlan ? 'Open G.ai' : 'Generate Plan'} <ArrowRight className="h-3 w-3 ml-1" />
                   </Button>
                 </Link>
               </div>
@@ -775,7 +801,7 @@ export default function DashboardPage() {
               )}
 
               {weekDays.length > 0 ? (
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                   {weekDays.map(([day, tasks]) => (
                     <div key={day} className="surface-card-subtle rounded-lg p-3 min-h-[80px]">
                       <p className="text-xs font-semibold text-[var(--text-muted)] mb-2">{day}</p>
@@ -798,7 +824,7 @@ export default function DashboardPage() {
                   <div className="flex-1">
                     <p className="text-sm font-medium mb-1">Your weekly plan is {planAgeDays} days old</p>
                     <p className="text-xs text-[var(--text-muted)] mb-3">
-                      Ask your Career Copilot to refresh this week&apos;s focus so it reflects where you are now.
+                      Ask G.ai to refresh this week&apos;s focus so it reflects where you are now.
                     </p>
                     <Link href="/copilot">
                       <Button size="sm" variant="outline" className="text-xs">
@@ -811,7 +837,7 @@ export default function DashboardPage() {
                 <div className="empty-state py-4">
                   <ClipboardList className="empty-state-icon" />
                   <p className="font-medium mb-1">No weekly plan yet</p>
-                  <p className="text-sm text-[var(--text-subtle)]">Ask your Career Copilot to create a weekly focus plan</p>
+                  <p className="text-sm text-[var(--text-subtle)]">Ask G.ai to create a weekly focus plan</p>
                 </div>
               )}
             </CardContent>
@@ -883,7 +909,7 @@ export default function DashboardPage() {
                   <div className="empty-state py-6">
                     <Calendar className="empty-state-icon" />
                     <p className="font-medium mb-1">Nothing planned for today</p>
-                    <p className="text-sm text-[var(--text-subtle)] mb-4">Add tasks in the planner or let Copilot plan your week</p>
+                    <p className="text-sm text-[var(--text-subtle)] mb-4">Add tasks in the planner or let G.ai plan your week</p>
                     <div className="flex gap-2 justify-center">
                       <Link href="/planner">
                         <Button variant="outline" size="sm">
@@ -947,7 +973,7 @@ export default function DashboardPage() {
           </Card>
         </motion.div>
 
-        {/* ─── Pinned Suggestions from Copilot ─── */}
+        {/* ─── Pinned Suggestions from G.ai ─── */}
         {pinnedSuggestions.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 12 }}
@@ -965,7 +991,7 @@ export default function DashboardPage() {
                   </div>
                   <Link href="/copilot">
                     <Button variant="outline" size="sm" className="text-xs">
-                      Open Copilot <ArrowRight className="h-3 w-3 ml-1" />
+                      Open G.ai <ArrowRight className="h-3 w-3 ml-1" />
                     </Button>
                   </Link>
                 </div>

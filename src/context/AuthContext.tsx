@@ -47,7 +47,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     await signOut(auth);
-    setUser(null);
+    // onAuthStateChanged fires with null and clears state — no need to setUser(null) here.
   };
 
   return (

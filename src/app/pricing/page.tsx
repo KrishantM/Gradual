@@ -1,389 +1,468 @@
 'use client';
 
 /**
- * Pricing Page - Subscription Tiers and Costs
- * 
- * This page showcases Gradual's subscription tiers with clear pricing,
- * features, and benefits for both students and recruiters.
+ * Pricing — Student subscription tiers.
+ *
+ * Three tiers:
+ *   Free        — core access (CV scoring, planner, basic Copilot, browse paths)
+ *   Plus        $9 NZD/mo — unlimited G.AI Copilot, unlimited Paths, advanced CV
+ *   Pro         $19 NZD/mo — everything in Plus + Micro-certifications, recruiter
+ *               outreach, direct University Clubs contact
+ *
+ * Layout: Free (left) → Plus (middle, highlighted) → Pro (right). Premium feel
+ * using design tokens — no hardcoded slate/white classes.
  */
 
-import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
+import {
+  Check,
+  Sparkles,
+  Crown,
+  GraduationCap,
+  ArrowRight,
+  ArrowLeft,
+  Brain,
+  Award,
+  Briefcase,
+  Users2,
+  Zap,
+} from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  Check, 
-  X, 
-  Crown, 
-  Building, 
-  Eye, 
-  Mail, 
-  Download, 
-  BarChart3,
-  Zap,
-  Shield,
-  TrendingUp,
-  Bookmark,
-  Globe,
-  ArrowRight,
-  Sparkles,
-  ArrowLeft
-} from 'lucide-react';
+
+interface Tier {
+  id: 'free' | 'plus' | 'pro';
+  name: string;
+  price: string;
+  priceNote: string;
+  tagline: string;
+  description: string;
+  icon: typeof Sparkles;
+  highlight: boolean;
+  ctaLabel: string;
+  ctaHref: string;
+  features: string[];
+  premiumFeatures?: string[];
+}
+
+const TIERS: Tier[] = [
+  {
+    id: 'free',
+    name: 'Free',
+    price: '$0',
+    priceNote: 'forever',
+    tagline: 'Get started with the essentials',
+    description: 'The full Gradual core experience — enough to find direction and start moving.',
+    icon: GraduationCap,
+    highlight: false,
+    ctaLabel: 'Start free',
+    ctaHref: '/register',
+    features: [
+      'CV upload + baseline score',
+      'Profile, Planner & ToDo list',
+      'Browse & enrol in 1 capability path at a time',
+      'Daily G.AI Copilot — up to 10 messages/day',
+      'Curated opportunities feed',
+      'Dashboard career signals',
+    ],
+  },
+  {
+    id: 'plus',
+    name: 'Plus',
+    price: '$9',
+    priceNote: 'NZD / month',
+    tagline: 'Go deeper, faster',
+    description: 'Unlimited G.AI Copilot and capability paths — for when one a day isn\'t enough.',
+    icon: Sparkles,
+    highlight: true,
+    ctaLabel: 'Upgrade to Plus',
+    ctaHref: '/register?plan=plus',
+    features: [
+      'Everything in Free, plus:',
+    ],
+    premiumFeatures: [
+      'Unlimited G.AI Copilot conversations',
+      'Unlimited capability path enrolments',
+      'Custom AI-generated learning pathways',
+      'Advanced CV scoring + AI rewrites',
+      'Priority opportunity matching',
+      'Saved Copilot history with search',
+    ],
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    price: '$19',
+    priceNote: 'NZD / month',
+    tagline: 'Career acceleration',
+    description: 'For students serious about landing the role. Includes everything in Plus.',
+    icon: Crown,
+    highlight: false,
+    ctaLabel: 'Upgrade to Pro',
+    ctaHref: '/register?plan=pro',
+    features: [
+      'Everything in Plus, plus:',
+    ],
+    premiumFeatures: [
+      'Gradual Micro-certifications',
+      'Recruiter outreach opportunities',
+      'Direct contact with University Clubs',
+      'Verified profile badge for recruiters',
+      'Early access to new pathways & features',
+      'Priority support',
+    ],
+  },
+];
+
+const FAQS: { q: string; a: string }[] = [
+  {
+    q: 'Can I change plans anytime?',
+    a: 'Yes. Upgrade or downgrade at any time — changes take effect immediately and we prorate the difference.',
+  },
+  {
+    q: 'Is there a free trial of Plus or Pro?',
+    a: 'Plus and Pro both include a 7-day free trial. No credit card required to start.',
+  },
+  {
+    q: 'What payment methods are accepted?',
+    a: 'All major credit and debit cards, with NZD billing. Bank transfer is available for annual plans on request.',
+  },
+  {
+    q: 'Can I cancel anytime?',
+    a: 'Yes. Cancel anytime with no fees — you keep access until the end of the current billing period.',
+  },
+];
 
 export default function PricingPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
-  const [isRecruiter, setIsRecruiter] = useState(false);
-
-  // Check if user is a recruiter
-  useEffect(() => {
-    const checkUserRole = async () => {
-      if (user && !authLoading) {
-        try {
-          const token = await user.getIdToken();
-          const response = await fetch('/api/recruiter/verify', {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          setIsRecruiter(response.ok);
-        } catch (error) {
-          console.error('Error checking recruiter status:', error);
-          setIsRecruiter(false);
-        }
-      } else {
-        setIsRecruiter(false);
-      }
-    };
-    
-    checkUserRole();
-  }, [user, authLoading]);
-
-  const recruiterTiers = [
-    {
-      name: 'Free',
-      description: 'Explore our platform',
-      price: { monthly: 0, yearly: 0 },
-      popular: false,
-      features: [
-        'Browse student profiles',
-        'Basic CV score viewing',
-        'Create 1 shortlist',
-        'View up to 10 profiles/day',
-        'Email support'
-      ],
-      limitations: [
-        'Limited profile views',
-        'No direct contact',
-        'Basic filtering options'
-      ],
-      cta: 'Start Free',
-      ctaAction: () => router.push('/recruiter-onboarding'),
-      icon: Eye,
-      color: 'blue'
-    },
-    {
-      name: 'Basic',
-      description: 'For growing teams',
-      price: { monthly: 49, yearly: 490 },
-      popular: true,
-      features: [
-        'View up to 50 profiles/day',
-        'Advanced filtering & search',
-        'Create up to 5 shortlists',
-        'View achievement data',
-        'Basic analytics',
-        'Email contact (10/month)',
-        'Priority support',
-        'Team collaboration tools'
-      ],
-      limitations: [
-        'Limited monthly contacts',
-        'Basic analytics only'
-      ],
-      cta: 'Start Basic',
-      ctaAction: () => router.push('/recruiter-onboarding?tier=basic'),
-      icon: Building,
-      color: 'green'
-    },
-    {
-      name: 'Premium',
-      description: 'For established companies',
-      price: { monthly: 99, yearly: 990 },
-      popular: false,
-      features: [
-        'View up to 200 profiles/day',
-        'Unlimited shortlists',
-        'Direct student contact (50/month)',
-        'Advanced analytics & insights',
-        'Export candidate data',
-        'Custom branding',
-        'API access',
-        'Dedicated account manager',
-        'Priority support'
-      ],
-      limitations: [
-        'Monthly contact limits apply'
-      ],
-      cta: 'Go Premium',
-      ctaAction: () => router.push('/recruiter-onboarding?tier=premium'),
-      icon: TrendingUp,
-      color: 'purple'
-    },
-    {
-      name: 'Enterprise',
-      description: 'For large organizations',
-      price: { monthly: 199, yearly: 1990 },
-      popular: false,
-      features: [
-        'Unlimited profile views',
-        'Unlimited contacts',
-        'Advanced analytics dashboard',
-        'Custom integrations',
-        'White-label solution',
-        'Dedicated support team',
-        'Custom reporting',
-        'Bulk operations',
-        'Advanced security features',
-        'SLA guarantee'
-      ],
-      limitations: [],
-      cta: 'Contact Sales',
-      ctaAction: () => router.push('/contact?type=enterprise'),
-      icon: Shield,
-      color: 'gold'
-    }
-  ];
-
-
-  const formatPrice = (price: number) => {
-    if (price === 0) return 'Free';
-    return billingCycle === 'yearly' 
-      ? `$${price}/year` 
-      : `$${price}/month`;
-  };
-
-  const getSavings = (monthlyPrice: number) => {
-    if (monthlyPrice === 0) return null;
-    const yearlyPrice = monthlyPrice * 10; // 2 months free
-    const savings = (monthlyPrice * 12) - yearlyPrice;
-    return `Save $${savings}/year`;
-  };
+  const { user } = useAuth();
 
   return (
     <div className="min-h-screen">
-      {/* Back Button for Recruiters */}
-      {isRecruiter && (
-        <div className="max-w-6xl mx-auto px-4 pt-8">
+      <div className="page-container">
+        {/* ─── Back ─── */}
+        {user && (
           <Button
             variant="outline"
-            onClick={() => router.push('/recruiter-dashboard')}
-            className="border-white/20 text-white hover:bg-white/10"
+            size="sm"
+            onClick={() => router.push('/dashboard')}
+            className="mb-6"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
+            Back to dashboard
           </Button>
-        </div>
-      )}
-      
-      {/* Header */}
-      <div className="text-center py-16 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-center mb-6">
-            <Sparkles className="h-8 w-8 text-yellow-400 mr-3" />
-            <h1 className="text-5xl font-bold text-white">Simple, Transparent Pricing</h1>
+        )}
+
+        {/* ─── Hero ─── */}
+        <motion.div
+          className="text-center max-w-3xl mx-auto mb-14"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border-soft)] bg-[var(--surface)] px-3 py-1.5 mb-5">
+            <Sparkles className="h-3.5 w-3.5 text-[var(--accent-blue)]" />
+            <span className="text-xs font-medium text-[var(--text-muted)]">
+              Simple, transparent pricing — NZD
+            </span>
           </div>
-          <p className="text-xl text-gray-300 mb-8">
-            Choose the perfect plan for your recruitment needs
+          <h1 className="text-3xl sm:text-5xl font-semibold tracking-tight text-[var(--foreground)] mb-4">
+            Pick the plan that grows with you
+          </h1>
+          <p className="text-base sm:text-lg text-[var(--text-muted)] leading-relaxed">
+            Start free. Upgrade when you want unlimited AI, custom learning, and direct
+            recruiter access. Every plan keeps your data, your CV, and your progress.
           </p>
+        </motion.div>
 
-          {/* Billing Toggle */}
-          <div className="flex items-center justify-center mb-12">
-            <span className={`mr-3 ${billingCycle === 'monthly' ? 'text-white' : 'text-gray-400'}`}>
-              Monthly
-            </span>
-            <button
-              onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'yearly' : 'monthly')}
-              className="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  billingCycle === 'yearly' ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
-            <span className={`ml-3 ${billingCycle === 'yearly' ? 'text-white' : 'text-gray-400'}`}>
-              Yearly
-            </span>
-            {billingCycle === 'yearly' && (
-              <span className="ml-2 px-2 py-1 bg-green-500/20 text-green-300 rounded-full text-sm">
-                Save 17%
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Pricing Cards */}
-      <div className="max-w-6xl mx-auto px-4 pb-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 justify-center">
-          {recruiterTiers.map((tier, index) => (
-            <Card 
-              key={tier.name}
-              className={`relative bg-white/5 border-white/10 hover:bg-white/10 transition-all duration-300 ${
-                tier.popular 
-                  ? 'ring-2 ring-blue-500 scale-105 shadow-2xl' 
-                  : 'hover:scale-105'
-              }`}
-            >
-              {tier.popular && (
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-1 rounded-full text-sm font-semibold">
-                    Most Popular
-                  </div>
-                </div>
-              )}
-              
-              <CardHeader className="text-center pb-4">
-                <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full mb-4 ${
-                  tier.color === 'blue' ? 'bg-blue-500/20 text-blue-400' :
-                  tier.color === 'purple' ? 'bg-purple-500/20 text-purple-400' :
-                  tier.color === 'green' ? 'bg-green-500/20 text-green-400' :
-                  'bg-yellow-500/20 text-yellow-400'
-                }`}>
-                  <tier.icon className="h-6 w-6" />
-                </div>
-                <CardTitle className="text-2xl font-bold text-white">{tier.name}</CardTitle>
-                <p className="text-gray-400 mt-2">{tier.description}</p>
-                <div className="mt-4">
-                  <div className="text-4xl font-bold text-white">
-                    {formatPrice(tier.price[billingCycle])}
-                  </div>
-                  {tier.price[billingCycle] > 0 && billingCycle === 'yearly' && (
-                    <div className="text-sm text-green-400 mt-1">
-                      {getSavings(tier.price.monthly)}
-                    </div>
-                  )}
-                </div>
-              </CardHeader>
-              
-              <CardContent className="pt-0">
-                <div className="space-y-4 mb-8">
-                  <div className="space-y-3">
-                    {tier.features.map((feature, featureIndex) => (
-                      <div key={featureIndex} className="flex items-start">
-                        <Check className="h-5 w-5 text-green-400 mr-3 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-300 text-sm">{feature}</span>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {tier.limitations.length > 0 && (
-                    <div className="space-y-2 pt-4 border-t border-white/10">
-                      {tier.limitations.map((limitation, limitIndex) => (
-                        <div key={limitIndex} className="flex items-start">
-                          <X className="h-4 w-4 text-red-400 mr-3 mt-0.5 flex-shrink-0" />
-                          <span className="text-gray-400 text-sm">{limitation}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                
-                <Button
-                  onClick={tier.ctaAction}
-                  className={`w-full py-3 text-lg font-semibold transition-all duration-300 ${
-                    tier.popular
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg'
-                      : 'bg-white/10 border border-white/20 text-white hover:bg-white/20'
-                  }`}
-                >
-                  {tier.cta}
-                  <ArrowRight className="h-5 w-5 ml-2" />
-                </Button>
-              </CardContent>
-            </Card>
+        {/* ─── Tier cards ─── */}
+        <div className="grid lg:grid-cols-3 gap-5 lg:gap-6 max-w-6xl mx-auto mb-16">
+          {TIERS.map((tier, idx) => (
+            <TierCard key={tier.id} tier={tier} delay={0.05 + idx * 0.08} />
           ))}
         </div>
-      </div>
 
-      {/* FAQ Section */}
-      <div className="max-w-4xl mx-auto px-4 pb-16">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-white mb-4">Frequently Asked Questions</h2>
-          <p className="text-gray-300">Everything you need to know about our pricing</p>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <Card className="bg-white/5 border-white/10">
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold text-white mb-3">Can I change plans anytime?</h3>
-              <p className="text-gray-300">
-                Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately, 
-                and we&apos;ll prorate any billing differences.
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-white/5 border-white/10">
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold text-white mb-3">Is there a free trial?</h3>
-              <p className="text-gray-300">
-                All paid plans come with a 14-day free trial. No credit card required to start your trial.
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-white/5 border-white/10">
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold text-white mb-3">What payment methods do you accept?</h3>
-              <p className="text-gray-300">
-                We accept all major credit cards, PayPal, and bank transfers for Enterprise plans.
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-white/5 border-white/10">
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold text-white mb-3">Can I cancel anytime?</h3>
-              <p className="text-gray-300">
-                Absolutely! Cancel anytime with no cancellation fees. You&apos;ll retain access until the end of your billing period.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* CTA Section */}
-      <div className="max-w-4xl mx-auto px-4 pb-16 text-center">
-        <Card className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-blue-500/30">
-          <CardContent className="p-12">
-            <h2 className="text-3xl font-bold text-white mb-4">
-              Ready to accelerate your career?
+        {/* ─── Comparison teaser ─── */}
+        <motion.div
+          className="max-w-5xl mx-auto mb-16"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+        >
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-semibold text-[var(--foreground)] mb-2">
+              What you unlock as you go
             </h2>
-            <p className="text-gray-300 mb-8 text-lg">
-              Join thousands of students and recruiters who are already using Gradual to achieve their goals.
+            <p className="text-sm text-[var(--text-muted)]">
+              Each tier builds on the last — nothing is taken away when you upgrade.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button
-                onClick={() => router.push('/register')}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 text-lg"
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <FeatureHighlight
+              icon={Brain}
+              title="G.AI Copilot"
+              free="10 messages/day"
+              plus="Unlimited"
+              pro="Unlimited + priority"
+            />
+            <FeatureHighlight
+              icon={Zap}
+              title="Capability paths"
+              free="1 active enrolment"
+              plus="Unlimited"
+              pro="Unlimited + early access"
+            />
+            <FeatureHighlight
+              icon={Award}
+              title="Micro-certifications"
+              free="—"
+              plus="—"
+              pro="Included"
+              isPro
+            />
+            <FeatureHighlight
+              icon={Briefcase}
+              title="Recruiter outreach"
+              free="—"
+              plus="—"
+              pro="Direct opportunities"
+              isPro
+            />
+            <FeatureHighlight
+              icon={Users2}
+              title="University Clubs contact"
+              free="—"
+              plus="—"
+              pro="Direct connection"
+              isPro
+            />
+            <FeatureHighlight
+              icon={Sparkles}
+              title="CV scoring"
+              free="Baseline score"
+              plus="Advanced + AI rewrites"
+              pro="Advanced + AI rewrites"
+            />
+          </div>
+        </motion.div>
+
+        {/* ─── FAQ ─── */}
+        <motion.div
+          className="max-w-3xl mx-auto mb-12"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.4 }}
+        >
+          <h2 className="text-2xl font-semibold text-center text-[var(--foreground)] mb-8">
+            Common questions
+          </h2>
+          <div className="space-y-3">
+            {FAQS.map((faq) => (
+              <div
+                key={faq.q}
+                className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-card)] p-5"
               >
-                Start Free Trial
-              </Button>
-              <Button
-                onClick={() => router.push('/contact')}
-                variant="outline"
-                className="border-white/20 text-white hover:bg-white/10 px-8 py-3 text-lg"
-              >
-                Contact Sales
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                <h3 className="text-sm font-semibold text-[var(--foreground)] mb-1.5">
+                  {faq.q}
+                </h3>
+                <p className="text-sm text-[var(--text-muted)] leading-relaxed">{faq.a}</p>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* ─── Closing CTA ─── */}
+        <motion.div
+          className="max-w-3xl mx-auto rounded-2xl border border-[var(--accent-blue)]/20 bg-[var(--accent-blue-soft)]/40 p-8 sm:p-10 text-center"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.5 }}
+        >
+          <h2 className="text-2xl font-semibold text-[var(--foreground)] mb-3">
+            Still figuring it out?
+          </h2>
+          <p className="text-sm text-[var(--text-muted)] mb-6 max-w-xl mx-auto">
+            Start free — you don&apos;t need to decide today. The Free tier gives you
+            everything you need to find direction and build momentum.
+          </p>
+          <Button
+            size="lg"
+            onClick={() => router.push(user ? '/dashboard' : '/register')}
+          >
+            {user ? 'Back to my dashboard' : 'Start for free'}
+            <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
+        </motion.div>
       </div>
+    </div>
+  );
+}
+
+function TierCard({ tier, delay }: { tier: Tier; delay: number }) {
+  const router = useRouter();
+  const Icon = tier.icon;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay }}
+      className={`relative rounded-2xl border p-6 sm:p-7 flex flex-col ${
+        tier.highlight
+          ? 'border-[var(--accent-blue)] bg-[var(--surface-card)] shadow-[var(--shadow-lg)] lg:scale-[1.02]'
+          : 'border-[var(--border-soft)] bg-[var(--surface-card)]'
+      }`}
+    >
+      {tier.highlight && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-blue)] px-3 py-1 text-[11px] font-semibold text-white shadow-[var(--shadow-sm)]">
+            <Sparkles className="h-3 w-3" />
+            Most popular
+          </span>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="mb-5">
+        <div
+          className={`inline-flex items-center justify-center w-11 h-11 rounded-xl mb-4 ${
+            tier.id === 'pro'
+              ? 'bg-[var(--accent-purple-soft,var(--accent-blue-soft))] text-[var(--accent-purple,var(--accent-blue))]'
+              : 'bg-[var(--accent-blue-soft)] text-[var(--accent-blue)]'
+          }`}
+        >
+          <Icon className="h-5 w-5" />
+        </div>
+        <h3 className="text-xl font-semibold text-[var(--foreground)] mb-1">
+          {tier.name}
+        </h3>
+        <p className="text-sm text-[var(--text-muted)] leading-relaxed">{tier.tagline}</p>
+      </div>
+
+      {/* Price */}
+      <div className="mb-6 pb-6 border-b border-[var(--border-soft)]">
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-4xl font-bold text-[var(--foreground)] tracking-tight">
+            {tier.price}
+          </span>
+          <span className="text-sm text-[var(--text-muted)]">{tier.priceNote}</span>
+        </div>
+        <p className="text-xs text-[var(--text-subtle)] mt-2 leading-relaxed">
+          {tier.description}
+        </p>
+      </div>
+
+      {/* Features */}
+      <ul className="space-y-2.5 mb-6 flex-1">
+        {tier.features.map((feat) => (
+          <li key={feat} className="flex items-start gap-2.5">
+            <Check className="h-4 w-4 text-[var(--success)] mt-0.5 shrink-0" />
+            <span
+              className={`text-sm leading-relaxed ${
+                feat.endsWith('plus:')
+                  ? 'font-semibold text-[var(--foreground)]'
+                  : 'text-[var(--text-muted)]'
+              }`}
+            >
+              {feat}
+            </span>
+          </li>
+        ))}
+        {tier.premiumFeatures?.map((feat) => (
+          <li key={feat} className="flex items-start gap-2.5">
+            <Check
+              className={`h-4 w-4 mt-0.5 shrink-0 ${
+                tier.id === 'pro'
+                  ? 'text-[var(--accent-purple,var(--accent-blue))]'
+                  : 'text-[var(--accent-blue)]'
+              }`}
+            />
+            <span className="text-sm text-[var(--foreground)] leading-relaxed">{feat}</span>
+          </li>
+        ))}
+      </ul>
+
+      {/* CTA */}
+      <Button
+        size="lg"
+        variant={tier.highlight ? 'default' : 'outline'}
+        className="w-full"
+        onClick={() => router.push(tier.ctaHref)}
+      >
+        {tier.ctaLabel}
+        <ArrowRight className="h-4 w-4 ml-2" />
+      </Button>
+      {tier.id !== 'free' && (
+        <p className="text-[11px] text-[var(--text-subtle)] text-center mt-3">
+          7-day free trial · Cancel anytime
+        </p>
+      )}
+    </motion.div>
+  );
+}
+
+function FeatureHighlight({
+  icon: Icon,
+  title,
+  free,
+  plus,
+  pro,
+  isPro,
+}: {
+  icon: typeof Sparkles;
+  title: string;
+  free: string;
+  plus: string;
+  pro: string;
+  isPro?: boolean;
+}) {
+  return (
+    <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-card)] p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <div
+          className={`rounded-md p-1.5 ${
+            isPro
+              ? 'bg-[var(--accent-purple-soft,var(--accent-blue-soft))]'
+              : 'bg-[var(--accent-blue-soft)]'
+          }`}
+        >
+          <Icon
+            className={`h-3.5 w-3.5 ${
+              isPro
+                ? 'text-[var(--accent-purple,var(--accent-blue))]'
+                : 'text-[var(--accent-blue)]'
+            }`}
+          />
+        </div>
+        <span className="text-sm font-semibold text-[var(--foreground)]">{title}</span>
+      </div>
+      <div className="space-y-1.5 text-xs">
+        <Row label="Free" value={free} />
+        <Row label="Plus" value={plus} />
+        <Row label="Pro" value={pro} accent={isPro} />
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-[var(--text-subtle)] text-[11px] uppercase tracking-wider font-semibold w-10">
+        {label}
+      </span>
+      <span
+        className={`text-right ${
+          accent
+            ? 'text-[var(--accent-blue)] font-medium'
+            : value === '—'
+              ? 'text-[var(--text-subtle)]'
+              : 'text-[var(--foreground)]'
+        }`}
+      >
+        {value}
+      </span>
     </div>
   );
 }

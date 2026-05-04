@@ -17,6 +17,7 @@ import {
   Moon,
   Sun,
   GraduationCap,
+  Sparkles,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
@@ -158,7 +159,7 @@ export default function Navbar() {
                 <Link href="/copilot">
                   <Button variant="ghost" className={navButtonClass}>
                     <Brain className="mr-2 h-4 w-4 text-[var(--accent-blue)]" />
-                    Copilot
+                    G.ai
                   </Button>
                 </Link>
                 <Link href="/paths">
@@ -231,11 +232,19 @@ export default function Navbar() {
                   </Button>
                   {isAccountOpen && (
                     <div className="absolute right-0 z-50 mt-2 w-56 rounded-lg border bg-[var(--surface)] py-1 shadow-[var(--shadow-lg)]">
-                      <Link href="/profile" className={dropdownItemClass}>
+                      <Link href="/profile" onClick={() => setIsAccountOpen(false)} className={dropdownItemClass}>
                         Profile
                       </Link>
-                      <Link href="/settings" className={dropdownItemClass}>
+                      <Link href="/settings" onClick={() => setIsAccountOpen(false)} className={dropdownItemClass}>
                         Settings
+                      </Link>
+                      <Link
+                        href="/pricing"
+                        onClick={() => setIsAccountOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-[var(--accent-blue)] hover:bg-[var(--accent-blue-soft)] transition-colors"
+                      >
+                        <Sparkles className="h-4 w-4" />
+                        Upgrade
                       </Link>
                       <div className="mx-2 my-1 rounded-md border px-3 py-2">
                         <ThemeToggle />
@@ -322,7 +331,7 @@ export default function Navbar() {
                     </Link>
                     <Link href="/copilot" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-subtle)]">
                       <Brain className="mr-2 inline h-4 w-4 text-[var(--accent-blue)]" />
-                      Copilot
+                      G.ai
                     </Link>
                     <Link href="/paths" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-subtle)]">
                       <GraduationCap className="mr-2 inline h-4 w-4 text-[var(--accent-blue)]" />
@@ -353,6 +362,14 @@ export default function Navbar() {
                     </Link>
                     <Link href="/settings" onClick={closeMobileMenu} className="rounded-md px-3 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-subtle)]">
                       Settings
+                    </Link>
+                    <Link
+                      href="/pricing"
+                      onClick={closeMobileMenu}
+                      className="flex items-center rounded-md px-3 py-2 text-sm font-semibold text-[var(--accent-blue)] hover:bg-[var(--accent-blue-soft)]"
+                    >
+                      <Sparkles className="mr-2 inline h-4 w-4" />
+                      Upgrade
                     </Link>
                     <Button
                       onClick={() => {

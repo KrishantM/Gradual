@@ -3,21 +3,27 @@
 /**
  * Capability Paths — premium upskilling page.
  *
+ * Performance strategy:
+ *   1. Static catalog (PATHS) is imported and rendered IMMEDIATELY on first
+ *      paint — no waiting on the network. Filter chips + browse grid are
+ *      visible the moment the page mounts.
+ *   2. /api/paths is fetched in parallel for state (enrolled, progress,
+ *      active path). Hydrates the cards once it arrives — usually <100ms.
+ *   3. /api/paths/recommendations is fetched in parallel for personalised
+ *      picks. Renders skeletons until ready, then slides in.
+ *
  * Layout:
  *   - Header with intro
- *   - Active Path spotlight (current module concept + mini task + mark complete)
+ *   - Pathway Generator
+ *   - Active Path spotlight (hydrated when state arrives)
  *   - Recommended For You (top 3 with reasons)
- *   - Browse all paths grid (filterable by category)
- *
- * Design philosophy: Apple clarity + Claude calm. Heavy use of CSS variables.
- * No LMS clutter — every section answers "why am I learning this?".
+ *   - Browse all paths grid (filterable by category) — visible instantly
  */
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import useSWR from 'swr';
 import { createAuthFetcher, SWR_AUTH_CONFIG } from '@/lib/swr-fetcher';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -25,7 +31,6 @@ import {
   GraduationCap,
   Sparkles,
   CheckCircle2,
-  ArrowRight,
   Loader2,
   Target,
   Clock,
@@ -41,11 +46,24 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { trackEvent } from '@/lib/analytics';
-import type { Path, PathProgress, PathRecommendation, PathCategory } from '@/lib/paths/types';
+import type {
+  PathProgress,
+  PathRecommendation,
+  PathCategory,
+  Path,
+  PathModule,
+} from '@/lib/paths/types';
+import { PATHS } from '@/lib/paths/catalog';
+import { hydratePathProgress, pickActivePath } from '@/lib/paths/progress';
+import { PathwayGenerator } from '@/components/paths/PathwayGenerator';
+import { ModuleViewer } from '@/components/paths/ModuleViewer';
 
 interface PathsResponse {
   paths: PathProgress[];
   activePath: PathProgress | null;
+}
+
+interface RecommendationsResponse {
   recommendations: PathRecommendation[];
 }
 
@@ -64,6 +82,10 @@ const CATEGORY_ICON: Record<PathCategory, React.ComponentType<{ className?: stri
   communication: Brain,
   productivity: TrendingUp,
 };
+
+// Placeholder progress for first-paint render — every catalog path looks "not
+// enrolled" until /api/paths resolves, at which point real state replaces this.
+const EMPTY_PROGRESSES: PathProgress[] = PATHS.map((path) => hydratePathProgress(path, null));
 
 function localDateKey(d: Date = new Date()): string {
   const y = d.getFullYear();
@@ -119,11 +141,17 @@ function ProgressRing({ percent, size = 56 }: { percent: number; size?: number }
 /* ─── Page ─── */
 
 export default function PathsPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [filter, setFilter] = useState<PathCategory | 'all'>('all');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [viewerState, setViewerState] = useState<{
+    path: Path;
+    module: PathModule;
+    moduleIndex: number;
+  } | null>(null);
 
   // Stable ref-based token getter — isolates Firebase IndexedDB rejections
   // (which can be raw DOM Event objects, not Errors).
@@ -143,37 +171,67 @@ export default function PathsPage() {
     }
   }, []);
 
-  // SWR — fetcher memoized on user so it stays stable across renders
+  // SWR fetcher memoized on user
   const pathsFetcher = useMemo(() => (user ? createAuthFetcher(user) : null), [user]);
-  const { data, isLoading: loading, mutate: mutatePaths } = useSWR<PathsResponse>(
+
+  // State endpoint — fast, no career-context aggregation
+  const { data: stateData, mutate: mutatePaths } = useSWR<PathsResponse>(
     user ? '/api/paths' : null,
     pathsFetcher,
     SWR_AUTH_CONFIG
   );
 
+  // Recommendations endpoint — slower, runs career-context lite + scoring.
+  // Wait for state to arrive before fetching so the exclude list is correct
+  // and we don't show recs the user is already enrolled in (would just flicker).
+  const enrolledIds = useMemo(
+    () =>
+      (stateData?.paths ?? [])
+        .filter((p) => p.isEnrolled)
+        .map((p) => p.path.id)
+        .sort()
+        .join(','),
+    [stateData]
+  );
+  const recsKey = user && stateData ? `/api/paths/recommendations?exclude=${enrolledIds}` : null;
+  const { data: recsData, isLoading: recsLoading } = useSWR<RecommendationsResponse>(
+    recsKey,
+    pathsFetcher,
+    SWR_AUTH_CONFIG
+  );
+
   useEffect(() => {
-    if (!user) router.push('/login');
-  }, [user, router]);
+    if (!authLoading && !user) router.push('/login');
+  }, [authLoading, user, router]);
 
   const enroll = useCallback(
-    async (pathId: string, addToPlanner: boolean) => {
+    async (pathId: string, addToPlanner: boolean): Promise<boolean> => {
       setActionPending(`enroll:${pathId}`);
+      setErrorMsg(null);
       try {
         const token = await safeGetToken();
-        if (!token) return;
+        if (!token) {
+          setErrorMsg('Could not verify your session. Please sign in again.');
+          return false;
+        }
         const res = await fetch('/api/paths/enroll', {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ pathId, addToPlanner, startDateISO: localDateKey() }),
         });
-        if (res.ok) {
-          const uid = userRef.current?.uid;
-          if (uid) trackEvent('path_enrolled', uid, { pathId, addToPlanner });
-          await mutatePaths();
-          router.refresh();
+        if (!res.ok) {
+          setErrorMsg('Could not start that path. Please try again.');
+          return false;
         }
+        const uid = userRef.current?.uid;
+        if (uid) trackEvent('path_enrolled', uid, { pathId, addToPlanner });
+        await mutatePaths();
+        router.refresh();
+        return true;
       } catch (e) {
         console.error('[paths] enroll failed', e);
+        setErrorMsg('Could not start that path. Please try again.');
+        return false;
       } finally {
         setActionPending(null);
       }
@@ -230,6 +288,33 @@ export default function PathsPage() {
     [safeGetToken, mutatePaths]
   );
 
+  const openModule = useCallback((path: Path, module: PathModule) => {
+    const idx = path.modules.findIndex((m) => m.id === module.id);
+    setViewerState({ path, module, moduleIndex: idx >= 0 ? idx : 0 });
+  }, []);
+
+  const closeModule = useCallback(() => setViewerState(null), []);
+
+  /** Start a path then drop the user straight into the first module. */
+  const startPathAndOpen = useCallback(
+    async (path: Path, addToPlanner: boolean) => {
+      const ok = await enroll(path.id, addToPlanner);
+      if (ok && path.modules[0]) openModule(path, path.modules[0]);
+    },
+    [enroll, openModule]
+  );
+
+  /** Switch the active path and drop user into their current module immediately.
+   *  Pin update fires in the background — UI shouldn't block on it. */
+  const switchToPath = useCallback(
+    (progress: PathProgress) => {
+      void togglePin(progress.path.id, true);
+      const target = progress.currentModule ?? progress.path.modules[0];
+      if (target) openModule(progress.path, target);
+    },
+    [togglePin, openModule]
+  );
+
   const unenroll = useCallback(
     async (pathId: string) => {
       if (!window.confirm('Remove this path from your active list? Your planner tasks stay.')) return;
@@ -254,23 +339,22 @@ export default function PathsPage() {
     [safeGetToken, mutatePaths]
   );
 
-  const allPaths = data?.paths ?? [];
+  // Show server data when ready, otherwise fall back to empty-state catalog
+  const allPaths = useMemo(() => stateData?.paths ?? EMPTY_PROGRESSES, [stateData]);
   const enrolledPaths = useMemo(() => allPaths.filter((p) => p.isEnrolled), [allPaths]);
   const otherPaths = useMemo(() => allPaths.filter((p) => !p.isEnrolled), [allPaths]);
   const filteredOther = useMemo(
     () => (filter === 'all' ? otherPaths : otherPaths.filter((p) => p.path.category === filter)),
     [otherPaths, filter]
   );
-  const activePath = data?.activePath ?? null;
-  const recommendations = data?.recommendations ?? [];
+  const activePath = stateData?.activePath ?? null;
+  const recommendations = recsData?.recommendations ?? [];
 
-  if (loading || !user) {
+  // Only block on auth, not on data — render the catalog while data loads
+  if (authLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 text-[var(--accent-blue)] mx-auto mb-3 animate-spin" />
-          <p className="text-sm text-[var(--text-muted)]">Loading your capability paths...</p>
-        </div>
+        <Loader2 className="h-6 w-6 text-[var(--accent-blue)] animate-spin" />
       </div>
     );
   }
@@ -289,11 +373,53 @@ export default function PathsPage() {
             <div className="rounded-xl bg-[var(--accent-blue-soft)] p-2.5">
               <GraduationCap className="h-5 w-5 text-[var(--accent-blue)]" />
             </div>
-            <h1 className="page-title">Capability Paths</h1>
+            <h1 className="page-title">Paths</h1>
           </div>
-          <p className="page-subtitle max-w-2xl truncate">
-            Structured, outcome-linked upskilling — built around what changes in your career when you finish.
+          <p className="page-subtitle max-w-2xl">
+            Map your goal to a 12-month roadmap, then deepen with focused capability paths.
           </p>
+        </motion.div>
+
+        {errorMsg && (
+          <motion.div
+            className="mb-6 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger-soft)] px-4 py-3 flex items-start justify-between gap-3"
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <p className="text-sm text-[var(--danger)]">{errorMsg}</p>
+            <button
+              type="button"
+              onClick={() => setErrorMsg(null)}
+              className="text-[var(--danger)] hover:opacity-70 shrink-0"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </motion.div>
+        )}
+
+        {/* ─── Pathway Generator ─── */}
+        <motion.div
+          className="mb-10"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.03 }}
+        >
+          <PathwayGenerator user={user} />
+        </motion.div>
+
+        {/* ─── Capability Paths divider ─── */}
+        <motion.div
+          className="mb-6 flex items-center gap-3"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.05 }}
+        >
+          <div className="h-px flex-1 bg-[var(--border-soft)]" />
+          <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-subtle)]">
+            Capability paths · short focused courses
+          </p>
+          <div className="h-px flex-1 bg-[var(--border-soft)]" />
         </motion.div>
 
         {/* ─── Active Path Spotlight ─── */}
@@ -309,6 +435,7 @@ export default function PathsPage() {
               onCompleteModule={(mid) => completeModule(activePath.path.id, mid)}
               onTogglePin={() => togglePin(activePath.path.id, !activePath.state?.pinned)}
               onUnenroll={() => unenroll(activePath.path.id)}
+              onOpenModule={(m) => openModule(activePath.path, m)}
               actionPending={actionPending}
             />
           </motion.div>
@@ -330,7 +457,7 @@ export default function PathsPage() {
                   <EnrolledMiniCard
                     key={p.path.id}
                     progress={p}
-                    onPin={() => togglePin(p.path.id, true)}
+                    onResume={() => switchToPath(p)}
                     actionPending={actionPending}
                   />
                 ))}
@@ -339,7 +466,7 @@ export default function PathsPage() {
         )}
 
         {/* ─── Recommended For You ─── */}
-        {recommendations.length > 0 && (
+        {(recommendations.length > 0 || recsLoading) && (
           <motion.div
             className="mb-10"
             initial={{ opacity: 0, y: 12 }}
@@ -352,14 +479,16 @@ export default function PathsPage() {
               subtitle="Selected from your profile, interests, and current career signals"
             />
             <div className="grid md:grid-cols-3 gap-4">
-              {recommendations.map((rec) => (
-                <RecommendationCard
-                  key={rec.path.id}
-                  rec={rec}
-                  onEnroll={(addToPlanner) => enroll(rec.path.id, addToPlanner)}
-                  actionPending={actionPending}
-                />
-              ))}
+              {recsLoading && recommendations.length === 0
+                ? Array.from({ length: 3 }).map((_, i) => <RecommendationSkeleton key={i} />)
+                : recommendations.map((rec) => (
+                    <RecommendationCard
+                      key={rec.path.id}
+                      rec={rec}
+                      onStart={(addToPlanner) => startPathAndOpen(rec.path, addToPlanner)}
+                      actionPending={actionPending}
+                    />
+                  ))}
             </div>
           </motion.div>
         )}
@@ -396,14 +525,63 @@ export default function PathsPage() {
                 <BrowsePathCard
                   key={p.path.id}
                   progress={p}
-                  onEnroll={(addToPlanner) => enroll(p.path.id, addToPlanner)}
+                  onStart={(addToPlanner) => startPathAndOpen(p.path, addToPlanner)}
+                  onPreview={() => openModule(p.path, p.path.modules[0])}
                   actionPending={actionPending}
                 />
               ))}
             </div>
           )}
+
+          {/* ─── More pathways in development notice ─── */}
+          <motion.div
+            className="mt-8 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-subtle)]/40 px-5 py-4 flex items-start gap-3"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.25 }}
+          >
+            <div className="rounded-lg bg-[var(--accent-blue-soft)] p-2 shrink-0">
+              <Sparkles className="h-4 w-4 text-[var(--accent-blue)]" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-[var(--foreground)] mb-0.5">
+                More pathways &amp; richer interactive lessons coming soon
+              </p>
+              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                We&apos;re actively building out new capability paths and deeper
+                hands-on modules — including practice playgrounds, AI-assisted
+                feedback, and roles tailored by industry. Tell us what you&apos;d
+                like to learn next via the{' '}
+                <button
+                  type="button"
+                  onClick={() => router.push('/copilot')}
+                  className="text-[var(--accent-blue)] hover:underline font-medium"
+                >
+                  Copilot
+                </button>
+                .
+              </p>
+            </div>
+          </motion.div>
         </motion.div>
       </div>
+
+      {viewerState && (
+        <ModuleViewer
+          path={viewerState.path}
+          module={viewerState.module}
+          moduleIndex={viewerState.moduleIndex}
+          completedModuleIds={
+            allPaths.find((p) => p.path.id === viewerState.path.id)?.state?.completedModuleIds ?? []
+          }
+          onClose={closeModule}
+          onComplete={async () => {
+            await completeModule(viewerState.path.id, viewerState.module.id);
+            closeModule();
+          }}
+          isCompleting={actionPending === `complete:${viewerState.module.id}`}
+        />
+      )}
     </div>
   );
 }
@@ -456,6 +634,28 @@ function FilterChip({
   );
 }
 
+/* ─── Recommendation skeleton ─── */
+
+function RecommendationSkeleton() {
+  return (
+    <Card className="h-full">
+      <CardContent className="p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="h-8 w-8 rounded-lg bg-[var(--surface-subtle)] animate-pulse" />
+          <div className="h-3 w-20 rounded bg-[var(--surface-subtle)] animate-pulse" />
+        </div>
+        <div className="h-4 w-3/4 rounded bg-[var(--surface-subtle)] animate-pulse mb-2" />
+        <div className="h-3 w-full rounded bg-[var(--surface-subtle)] animate-pulse mb-4" />
+        <div className="space-y-2 mb-4">
+          <div className="h-3 w-5/6 rounded bg-[var(--surface-subtle)] animate-pulse" />
+          <div className="h-3 w-4/6 rounded bg-[var(--surface-subtle)] animate-pulse" />
+        </div>
+        <div className="h-9 w-full rounded bg-[var(--surface-subtle)] animate-pulse" />
+      </CardContent>
+    </Card>
+  );
+}
+
 /* ─── Active Path Spotlight ─── */
 
 function ActivePathSpotlight({
@@ -463,12 +663,14 @@ function ActivePathSpotlight({
   onCompleteModule,
   onTogglePin,
   onUnenroll,
+  onOpenModule,
   actionPending,
 }: {
   progress: PathProgress;
   onCompleteModule: (moduleId: string) => void;
   onTogglePin: () => void;
   onUnenroll: () => void;
+  onOpenModule: (module: PathModule) => void;
   actionPending: string | null;
 }) {
   const { path, currentModule, progressPercent, completedCount, totalCount, state } = progress;
@@ -580,19 +782,30 @@ function ActivePathSpotlight({
             </div>
           </div>
 
-          <Button
-            onClick={() => onCompleteModule(currentModule.id)}
-            disabled={actionPending === `complete:${currentModule.id}`}
-            size="sm"
-            className="w-full sm:w-auto"
-          >
-            {actionPending === `complete:${currentModule.id}` ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <CheckCircle2 className="h-4 w-4 mr-2" />
-            )}
-            Mark module complete
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              onClick={() => onOpenModule(currentModule)}
+              size="sm"
+              className="w-full sm:w-auto"
+            >
+              <BookOpen className="h-4 w-4 mr-2" />
+              Open lesson
+            </Button>
+            <Button
+              onClick={() => onCompleteModule(currentModule.id)}
+              disabled={actionPending === `complete:${currentModule.id}`}
+              size="sm"
+              variant="outline"
+              className="w-full sm:w-auto"
+            >
+              {actionPending === `complete:${currentModule.id}` ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+              )}
+              Mark complete
+            </Button>
+          </div>
         </div>
 
         {/* Module list */}
@@ -605,9 +818,11 @@ function ActivePathSpotlight({
               const isComplete = state?.completedModuleIds?.includes(m.id) ?? false;
               const isCurrent = m.id === currentModule.id;
               return (
-                <div
+                <button
+                  type="button"
                   key={m.id}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg ${
+                  onClick={() => onOpenModule(m)}
+                  className={`w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors hover:bg-[var(--surface-subtle)] ${
                     isCurrent ? 'bg-[var(--accent-blue-soft)]/50' : ''
                   }`}
                 >
@@ -633,7 +848,7 @@ function ActivePathSpotlight({
                   >
                     {i + 1}. {m.title}
                   </span>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -647,11 +862,11 @@ function ActivePathSpotlight({
 
 function RecommendationCard({
   rec,
-  onEnroll,
+  onStart,
   actionPending,
 }: {
   rec: PathRecommendation;
-  onEnroll: (addToPlanner: boolean) => void;
+  onStart: (addToPlanner: boolean) => void;
   actionPending: string | null;
 }) {
   const Icon = CATEGORY_ICON[rec.path.category];
@@ -688,7 +903,7 @@ function RecommendationCard({
           <Button
             size="sm"
             className="flex-1"
-            onClick={() => onEnroll(false)}
+            onClick={() => onStart(false)}
             disabled={isPending}
           >
             {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Start'}
@@ -696,7 +911,7 @@ function RecommendationCard({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => onEnroll(true)}
+            onClick={() => onStart(true)}
             disabled={isPending}
             title="Start and add the first 3 modules to your planner"
           >
@@ -712,11 +927,13 @@ function RecommendationCard({
 
 function BrowsePathCard({
   progress,
-  onEnroll,
+  onStart,
+  onPreview,
   actionPending,
 }: {
   progress: PathProgress;
-  onEnroll: (addToPlanner: boolean) => void;
+  onStart: (addToPlanner: boolean) => void;
+  onPreview: () => void;
   actionPending: string | null;
 }) {
   const { path } = progress;
@@ -742,12 +959,11 @@ function BrowsePathCard({
           <span>{path.estimatedMinutes} min</span>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 mb-2">
           <Button
             size="sm"
-            variant="outline"
             className="flex-1"
-            onClick={() => onEnroll(false)}
+            onClick={() => onStart(false)}
             disabled={isPending}
           >
             {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Start path'}
@@ -755,13 +971,20 @@ function BrowsePathCard({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => onEnroll(true)}
+            onClick={() => onStart(true)}
             disabled={isPending}
             title="Start and add the first 3 modules to your planner"
           >
             <CalendarPlus className="h-3.5 w-3.5" />
           </Button>
         </div>
+        <button
+          type="button"
+          onClick={onPreview}
+          className="text-[11px] text-[var(--accent-blue)] hover:underline self-start font-medium"
+        >
+          Preview first lesson →
+        </button>
       </CardContent>
     </Card>
   );
@@ -771,11 +994,11 @@ function BrowsePathCard({
 
 function EnrolledMiniCard({
   progress,
-  onPin,
+  onResume,
   actionPending,
 }: {
   progress: PathProgress;
-  onPin: () => void;
+  onResume: () => void;
   actionPending: string | null;
 }) {
   const { path, currentModule, progressPercent } = progress;
@@ -783,7 +1006,7 @@ function EnrolledMiniCard({
   return (
     <button
       type="button"
-      onClick={onPin}
+      onClick={onResume}
       disabled={isPending}
       className="w-full text-left"
     >
@@ -799,7 +1022,7 @@ function EnrolledMiniCard({
           {isPending ? (
             <Loader2 className="h-4 w-4 animate-spin text-[var(--accent-blue)] shrink-0" />
           ) : (
-            <span className="text-xs text-[var(--accent-blue)] shrink-0 font-medium">Switch</span>
+            <span className="text-xs text-[var(--accent-blue)] shrink-0 font-medium">Resume →</span>
           )}
         </CardContent>
       </Card>

@@ -5,6 +5,8 @@ import { Opportunity } from '@/types/opportunities';
 import { validateLinks, normalizeUrl } from '@/lib/opportunities-engine/link-validator';
 
 const BATCH_SIZE = 450;
+// Firestore caps the `in` operator at 30 values per query.
+const IN_QUERY_LIMIT = 30;
 
 async function storeOpportunities(opportunities: Opportunity[]): Promise<{ added: number; updated: number }> {
   let added = 0;
@@ -13,23 +15,32 @@ async function storeOpportunities(opportunities: Opportunity[]): Promise<{ added
 
   for (let i = 0; i < opportunities.length; i += BATCH_SIZE) {
     const chunk = opportunities.slice(i, i + BATCH_SIZE);
+
+    // Resolve existing docs for the whole chunk up-front via batched `in`
+    // queries — avoids N+1 round-trips that previously made manual refreshes
+    // time out on large pulls.
+    const existingRefs = new Map<string, FirebaseFirestore.DocumentReference>();
+    const ids = chunk.map((o) => o.id).filter(Boolean);
+    for (let j = 0; j < ids.length; j += IN_QUERY_LIMIT) {
+      const idChunk = ids.slice(j, j + IN_QUERY_LIMIT);
+      if (idChunk.length === 0) continue;
+      const snap = await opportunitiesRef.where('id', 'in', idChunk).get();
+      snap.forEach((doc) => {
+        const data = doc.data();
+        if (data?.id) existingRefs.set(data.id, doc.ref);
+      });
+    }
+
     const batch = db.batch();
-
     for (const opp of chunk) {
-      const existingQuery = await opportunitiesRef
-        .where('id', '==', opp.id)
-        .limit(1)
-        .get();
-
       const docData = sanitizeForFirestore(opp);
-
-      if (existingQuery.empty) {
+      const existingRef = existingRefs.get(opp.id);
+      if (!existingRef) {
         const docRef = opportunitiesRef.doc();
         batch.set(docRef, { ...docData, ingestedAt: new Date().toISOString() });
         added++;
       } else {
-        const docRef = existingQuery.docs[0].ref;
-        batch.update(docRef, { ...docData, updatedAt: new Date().toISOString() });
+        batch.update(existingRef, { ...docData, updatedAt: new Date().toISOString() });
         updated++;
       }
     }
@@ -114,6 +125,11 @@ async function cleanupStaleOpportunities(): Promise<number> {
   return cleaned;
 }
 
+// Per-user cooldown — reading from `opportunities_meta/last_refresh` (global)
+// would let one user block everyone. Cooldown is enforced per-uid instead.
+const COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+const lastUserRefresh = new Map<string, number>();
+
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization');
@@ -121,11 +137,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    let uid: string;
     try {
-      await auth.verifyIdToken(authHeader.split('Bearer ')[1]);
+      const decoded = await auth.verifyIdToken(authHeader.split('Bearer ')[1]);
+      uid = decoded.uid;
     } catch {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
+
+    // Cooldown guard
+    const now = Date.now();
+    const last = lastUserRefresh.get(uid) ?? 0;
+    if (now - last < COOLDOWN_MS) {
+      const retryInMs = COOLDOWN_MS - (now - last);
+      return NextResponse.json(
+        {
+          error: 'Refresh cooldown active',
+          retryInSeconds: Math.ceil(retryInMs / 1000),
+        },
+        { status: 429 }
+      );
+    }
+    lastUserRefresh.set(uid, now);
 
     const body = await req.json().catch(() => ({}));
     const maxResults = body.maxResults || 200;
@@ -187,6 +220,15 @@ export async function POST(req: NextRequest) {
     } catch (cleanupErr) {
       console.warn('[Ingest] Cleanup failed (non-fatal):', cleanupErr instanceof Error ? cleanupErr.message : cleanupErr);
     }
+
+    // Update the global last-refresh timestamp so the UI reflects the manual pull.
+    try {
+      await db.collection('opportunities_meta').doc('last_refresh').set({
+        refreshedAt: new Date().toISOString(),
+        totalStored: storeResult.added + storeResult.updated,
+        triggeredBy: 'manual',
+      });
+    } catch { /* non-fatal */ }
 
     return NextResponse.json({
       success: true,

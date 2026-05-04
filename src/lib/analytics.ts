@@ -6,6 +6,7 @@ type EventType =
   | 'opportunity_save'
   | 'opportunity_unsave'
   | 'opportunity_apply'
+  | 'opportunities_refresh_from_sources'
   | 'copilot_query'
   | 'copilot_quick_action'
   | 'copilot_add_todo'
@@ -15,7 +16,11 @@ type EventType =
   | 'path_enrolled'
   | 'path_module_completed'
   | 'path_unenrolled'
-  | 'path_pinned';
+  | 'path_pinned'
+  | 'pathway_generated'
+  | 'pathway_opened'
+  | 'pathway_step_to_planner'
+  | 'pathway_deleted';
 
 interface AnalyticsEvent {
   event: EventType;

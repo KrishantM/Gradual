@@ -1,21 +1,20 @@
 /**
  * GET /api/paths
  *
- * Returns:
- *   - all paths in the catalog hydrated with this user's progress
- *   - a list of recommended paths (with reasons), excluding ones already enrolled
- *   - the user's currently active path (if any)
+ * Returns the user's path_state hydrated against the static catalog. This
+ * endpoint is intentionally lightweight — it does NOT compute recommendations
+ * (which require the heavy career context aggregator). Recommendations live
+ * at /api/paths/recommendations and are fetched in parallel by the client.
  *
- * No request body. Auth required.
+ * Response:
+ *   - paths: every catalog path hydrated with the user's progress
+ *   - activePath: the user's currently focused path (pinned > most-recent)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, db } from '@/lib/firebase-admin';
 import { PATHS } from '@/lib/paths/catalog';
 import { hydratePathProgress, pickActivePath } from '@/lib/paths/progress';
-import { recommendPaths } from '@/lib/paths/recommend';
-import { getCareerContext } from '@/lib/copilot/get-career-context';
-import { evaluateSignals } from '@/lib/copilot/evaluate-signals';
 import type { PathState } from '@/lib/paths/types';
 
 type TimestampLike = { toDate?: () => Date } | Date | string;
@@ -43,24 +42,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Fetch user path states and career context in parallel
   const stateMap = new Map<string, PathState>();
-  let careerContext: Awaited<ReturnType<typeof getCareerContext>> | null = null;
-
-  // path_state and career context fetched in parallel.
-  // skipOpportunityMatch + skipCopilotHistory + skipActivePaths: recommendPaths only
-  // needs profile, cv, applications, and todos — not history, opportunity matches, or paths.
-  const [stateSnap, contextResult] = await Promise.allSettled([
-    db.collection('users').doc(uid).collection('path_state').get(),
-    getCareerContext(uid, {
-      skipOpportunityMatch: true,
-      skipCopilotHistory: true,
-      skipActivePaths: true,
-    }),
-  ]);
-
-  if (stateSnap.status === 'fulfilled') {
-    stateSnap.value.forEach((doc) => {
+  try {
+    const stateSnap = await db.collection('users').doc(uid).collection('path_state').get();
+    stateSnap.forEach((doc) => {
       const d = doc.data();
       const enrolledAt = toISO(d.enrolledAt as TimestampLike) ?? new Date().toISOString();
       const lastActivityAt = toISO(d.lastActivityAt as TimestampLike) ?? enrolledAt;
@@ -73,39 +58,15 @@ export async function GET(req: NextRequest) {
         lastActivityAt,
       });
     });
-  } else {
-    console.error('[GET /api/paths] failed to read path_state', stateSnap.reason);
+  } catch (e) {
+    console.error('[GET /api/paths] failed to read path_state', e);
   }
 
-  if (contextResult.status === 'fulfilled') {
-    careerContext = contextResult.value;
-  } else {
-    console.error('[GET /api/paths] getCareerContext failed', contextResult.reason);
-  }
-
-  // Hydrate every path with the user's state
   const progresses = PATHS.map((path) => hydratePathProgress(path, stateMap.get(path.id) ?? null));
   const activePath = pickActivePath(progresses);
 
-  // Recommendations — best-effort using pre-fetched context
-  let recommendations: Awaited<ReturnType<typeof recommendPaths>> = [];
-  try {
-    if (careerContext) {
-      const signals = evaluateSignals(careerContext);
-      const enrolledIds = progresses.filter((p) => p.isEnrolled).map((p) => p.path.id);
-      recommendations = recommendPaths({
-        context: careerContext,
-        signals,
-        excludePathIds: enrolledIds,
-        limit: 3,
-      });
-    }
-  } catch (e) {
-    console.error('[GET /api/paths] recommendations failed', e);
-  }
-
   return NextResponse.json(
-    { paths: progresses, activePath, recommendations },
+    { paths: progresses, activePath },
     { headers: { 'Cache-Control': 'private, max-age=20, stale-while-revalidate=60' } }
   );
 }

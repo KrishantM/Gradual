@@ -23,7 +23,7 @@ const features = [
   },
   {
     icon: Brain,
-    title: "AI Career Copilot",
+    title: "G.ai — Career AI",
     description: "A coach that knows your profile and plans your week.",
   },
   {

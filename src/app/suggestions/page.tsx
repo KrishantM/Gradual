@@ -2,19 +2,19 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, collection, addDoc, deleteDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { trackEvent } from '@/lib/analytics';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { 
+import {
   Briefcase,
-  Star, 
-  Loader2, 
+  Star,
+  Loader2,
   RefreshCw,
-  Target, 
-  MapPin, 
-  ExternalLink, 
+  Target,
+  MapPin,
+  ExternalLink,
   Calendar,
   TrendingUp,
   Users,
@@ -30,8 +30,8 @@ import {
   ChevronUp,
   FolderPlus,
   Trash2,
-  Edit2,
-  Trophy
+  Trophy,
+  AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -95,6 +95,10 @@ export default function SuggestionsPage() {
   const [addingToListId, setAddingToListId] = useState<string | null>(null);
   const [isMyListsExpanded, setIsMyListsExpanded] = useState(true);
   const [lastRefreshed, setLastRefreshed] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [openListMenuFor, setOpenListMenuFor] = useState<string | null>(null);
+  const [ingesting, setIngesting] = useState(false);
+  const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -204,8 +208,8 @@ export default function SuggestionsPage() {
         body: JSON.stringify({
           userProfile: userProfileSnapshot,
           location: {
-            city: profile.city,
-            country: profile.country,
+            city: p.city,
+            country: p.country,
             allowRemote: true
           },
           limit: 500
@@ -225,6 +229,64 @@ export default function SuggestionsPage() {
       setOpportunitiesLoading(false);
     }
   }, [user, profile]);
+
+  const refreshFromSources = useCallback(async () => {
+    if (!user || ingesting) return;
+
+    setIngesting(true);
+    setRefreshNotice(null);
+    setErrorMsg(null);
+
+    try {
+      const token = await user.getIdToken();
+      const p = profile || {};
+      const res = await fetch('/api/opportunities-engine/ingest', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          maxResults: 200,
+          userProfile: {
+            uid: user.uid,
+            university: p.university,
+            degree: p.degree,
+            interests: p.interests,
+            preferredIndustries: p.preferredIndustries,
+            city: p.city,
+            country: p.country,
+          },
+        }),
+      });
+
+      if (res.status === 429) {
+        const data = await res.json().catch(() => ({}));
+        const wait = data.retryInSeconds ? `${Math.ceil(data.retryInSeconds / 60)} min` : 'a few minutes';
+        setRefreshNotice(`You just refreshed — try again in ${wait}.`);
+        return;
+      }
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setErrorMsg(data.message || 'Could not pull fresh opportunities. Please try again.');
+        return;
+      }
+
+      const data = await res.json();
+      const stats = data?.stats ?? {};
+      setRefreshNotice(`Pulled ${stats.fresh ?? 0} new · ${stats.stored ?? 0} added · ${stats.updated ?? 0} updated`);
+      trackEvent('opportunities_refresh_from_sources', user.uid, { stored: stats.stored, updated: stats.updated });
+
+      // Refresh the visible matches against the freshly stored catalog
+      await Promise.all([fetchOpportunities(), fetchLastRefreshed()]);
+    } catch (err) {
+      console.error('Error refreshing from sources:', err);
+      setErrorMsg('Could not pull fresh opportunities. Please try again.');
+    } finally {
+      setIngesting(false);
+    }
+  }, [user, profile, ingesting, fetchOpportunities, fetchLastRefreshed]);
 
   // Helper function to extract skills from profile
   const extractSkillsFromProfile = (profile: any): string[] => {
@@ -308,7 +370,7 @@ export default function SuggestionsPage() {
       }
     } catch (error) {
       console.error('Error toggling star:', error);
-      alert('Failed to save opportunity');
+      setErrorMsg('Could not save that opportunity. Please try again.');
     } finally {
       setStarringLoading(null);
     }
@@ -342,7 +404,7 @@ export default function SuggestionsPage() {
       setShowCreateListModal(false);
     } catch (error) {
       console.error('Error creating list:', error);
-      alert('Failed to create list');
+      setErrorMsg('Could not create that list. Please try again.');
     }
   };
 
@@ -387,7 +449,7 @@ export default function SuggestionsPage() {
       }));
     } catch (error) {
       console.error('Error adding to list:', error);
-      alert('Failed to add to list');
+      setErrorMsg('Could not add to that list. Please try again.');
     } finally {
       setAddingToListId(null);
     }
@@ -430,7 +492,7 @@ export default function SuggestionsPage() {
       }));
     } catch (error) {
       console.error('Error removing from list:', error);
-      alert('Failed to remove from list');
+      setErrorMsg('Could not remove that opportunity. Please try again.');
     }
   };
 
@@ -458,7 +520,7 @@ export default function SuggestionsPage() {
       }
     } catch (error) {
       console.error('Error deleting list:', error);
-      alert('Failed to delete list');
+      setErrorMsg('Could not delete that list. Please try again.');
     }
   };
 
@@ -506,39 +568,39 @@ export default function SuggestionsPage() {
     }
   };
 
-  // Get type color
-  const getTypeColor = (type: OpportunityType): string => {
-    switch (type) {
-      case 'job':
-        return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
-      case 'internship':
-        return 'bg-purple-500/10 text-purple-600 border-purple-500/20';
-      case 'club':
-        return 'bg-green-500/10 text-green-600 border-green-500/20';
-      case 'volunteering':
-        return 'bg-pink-500/10 text-pink-600 border-pink-500/20';
-      case 'event':
-        return 'bg-orange-500/10 text-orange-600 border-orange-500/20';
-      case 'scholarship':
-        return 'bg-yellow-500/10 text-yellow-700 border-yellow-500/20';
-      case 'competition':
-        return 'bg-red-500/10 text-red-600 border-red-500/20';
-      default:
-        return 'bg-gray-500/10 text-gray-600 border-gray-500/20';
-    }
+  // Get type style — returns inline style + token-driven badge classes
+  const getTypeStyle = (type: OpportunityType): { className: string; style: React.CSSProperties } => {
+    const tokenMap: Record<OpportunityType | 'default', string> = {
+      job: '--accent-blue',
+      internship: '--accent-purple',
+      club: '--success',
+      volunteering: '--accent-purple',
+      event: '--warning',
+      scholarship: '--warning',
+      competition: '--danger',
+      default: '--accent-blue',
+    };
+    const token = tokenMap[type] ?? tokenMap.default;
+    return {
+      className: 'border',
+      style: {
+        backgroundColor: `color-mix(in srgb, var(${token}) 12%, transparent)`,
+        color: `var(${token})`,
+        borderColor: `color-mix(in srgb, var(${token}) 28%, transparent)`,
+      },
+    };
   };
 
-
-  const getScoreColor = (score: number) => {
-    if (score >= 85) return 'text-emerald-600';
-    if (score >= 70) return 'text-amber-600';
-    return 'text-orange-600';
-  };
-
-  const getScoreBgColor = (score: number) => {
-    if (score >= 85) return 'bg-emerald-500/10 border-emerald-500/20';
-    if (score >= 70) return 'bg-amber-500/10 border-amber-500/20';
-    return 'bg-orange-500/10 border-orange-500/20';
+  const getScoreStyle = (score: number): { className: string; style: React.CSSProperties } => {
+    const token = score >= 85 ? '--success' : score >= 70 ? '--warning' : '--accent-purple';
+    return {
+      className: 'border',
+      style: {
+        backgroundColor: `color-mix(in srgb, var(${token}) 14%, transparent)`,
+        color: `var(${token})`,
+        borderColor: `color-mix(in srgb, var(${token}) 30%, transparent)`,
+      },
+    };
   };
 
   const formatDate = (dateString: string) => {
@@ -570,12 +632,40 @@ export default function SuggestionsPage() {
             transition={{ duration: 0.4 }}
           >
             <h1 className="page-title">
-              <span className="text-[var(--accent-blue)]">Opportunities Engine</span>
+              <span style={{ color: 'var(--accent-blue)' }}>Opportunities</span>
             </h1>
             <p className="page-subtitle">
               Discover matched opportunities and get AI-powered career recommendations
             </p>
           </motion.div>
+
+          {/* Inline error banner */}
+          <AnimatePresence>
+            {errorMsg && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="mb-4 flex items-start gap-3 rounded-lg border px-4 py-3"
+                style={{
+                  backgroundColor: 'var(--danger-soft)',
+                  borderColor: 'color-mix(in srgb, var(--danger) 30%, transparent)',
+                  color: 'var(--danger)',
+                }}
+                role="alert"
+              >
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <div className="flex-1 text-sm">{errorMsg}</div>
+                <button
+                  onClick={() => setErrorMsg(null)}
+                  className="shrink-0 rounded-md p-1 hover:bg-[var(--danger-soft)] transition-colors"
+                  aria-label="Dismiss error"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Opportunities Engine Content */}
           <motion.div
@@ -584,41 +674,84 @@ export default function SuggestionsPage() {
             transition={{ duration: 0.6 }}
           >
                 <Card>
-                  <CardContent className="p-5 sm:p-6">
-                    <div className="flex items-center justify-between mb-5">
-                      <div className="flex items-center gap-2">
-                        <Zap className="h-5 w-5 text-[var(--accent-blue)]" />
-                        <div>
-                          <h2 className="text-lg font-semibold leading-tight">Opportunity Engine</h2>
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex items-center justify-between gap-3 mb-5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Zap className="h-5 w-5 shrink-0 text-[var(--accent-blue)]" />
+                        <div className="min-w-0">
+                          <h2 className="text-base sm:text-lg font-semibold leading-tight truncate">Opportunity Engine</h2>
                           {lastRefreshed && (
-                            <p className="text-xs text-[var(--text-subtle)] mt-0.5">
+                            <p className="text-xs text-[var(--text-subtle)] mt-0.5 truncate">
                               Store refreshed {new Date(lastRefreshed).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
                             </p>
                           )}
                         </div>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={fetchOpportunities}
-                        disabled={opportunitiesLoading}
-                      >
-                        {opportunitiesLoading ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Loading...
-                          </>
-                        ) : (
-                          <>
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Refresh
-                          </>
-                        )}
-                      </Button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={fetchOpportunities}
+                          disabled={opportunitiesLoading || ingesting}
+                          title="Re-rank stored opportunities against your profile"
+                        >
+                          {opportunitiesLoading ? (
+                            <>
+                              <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" />
+                              <span className="hidden sm:inline">Loading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="h-4 w-4 sm:mr-2" />
+                              <span className="hidden sm:inline">Refresh</span>
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={refreshFromSources}
+                          disabled={ingesting || opportunitiesLoading}
+                          title="Pull the latest opportunities from all sources"
+                        >
+                          {ingesting ? (
+                            <>
+                              <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" />
+                              <span className="hidden sm:inline">Pulling...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Zap className="h-4 w-4 sm:mr-2" />
+                              <span className="hidden sm:inline">Pull fresh</span>
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     </div>
 
+                    {refreshNotice && (
+                      <div
+                        className="mb-4 flex items-start gap-3 rounded-lg border px-4 py-3 text-sm"
+                        style={{
+                          backgroundColor: 'var(--accent-blue-soft)',
+                          borderColor: 'color-mix(in srgb, var(--accent-blue) 30%, transparent)',
+                          color: 'var(--accent-blue)',
+                        }}
+                      >
+                        <Zap className="h-4 w-4 mt-0.5 shrink-0" />
+                        <div className="flex-1">{refreshNotice}</div>
+                        <button
+                          onClick={() => setRefreshNotice(null)}
+                          className="shrink-0 rounded-md p-1 hover:opacity-80 transition-opacity"
+                          aria-label="Dismiss notice"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
+
                     {/* Tab Navigation */}
-                    <div className="mb-6">
+                    <div className="mb-5">
                       <div className="surface-card-subtle rounded-lg p-2">
                         <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:pb-0 scrollbar-hide">
                           {[
@@ -649,101 +782,83 @@ export default function SuggestionsPage() {
                               </button>
                             );
                           })}
-                          
-                          {/* Custom Lists Section */}
-                          {customLists.length > 0 && (
-                            <>
-                              <div className="w-full border-t border-[var(--border)] my-2 pt-2">
-                                <div className="flex items-center justify-between px-2 mb-2">
-                                  <button
-                                    onClick={() => setIsMyListsExpanded(!isMyListsExpanded)}
-                                    className="flex items-center gap-2 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
-                                  >
-                                    {isMyListsExpanded ? (
-                                      <ChevronDown className="h-3 w-3" />
-                                    ) : (
-                                      <ChevronUp className="h-3 w-3" />
-                                    )}
-                                    <span>My Lists ({customLists.length})</span>
-                                  </button>
-                                  <button
-                                    onClick={() => setShowCreateListModal(true)}
-                                    className={`flex items-center gap-2 font-medium text-[var(--accent-blue)] hover:bg-[var(--accent-blue-soft)] transition-all duration-200 border border-[var(--accent-blue)]/30 border-dashed rounded ${
-                                      isMyListsExpanded
-                                        ? 'px-3 py-1.5 text-sm'
-                                        : 'px-2 py-1 text-xs'
-                                    }`}
-                                  >
-                                    <Plus className={isMyListsExpanded ? 'h-4 w-4' : 'h-3 w-3'} />
-                                    New List
-                                  </button>
-                                </div>
-                              </div>
-                              <AnimatePresence>
-                                {isMyListsExpanded && (
-                                  <motion.div
-                                    initial={{ height: 0, opacity: 0 }}
-                                    animate={{ height: 'auto', opacity: 1 }}
-                                    exit={{ height: 0, opacity: 0 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="overflow-hidden"
-                                  >
-                                    <div className="flex flex-wrap gap-2">
-                                      {customLists.map((list) => {
-                                        const isActive = activeTab === list.id;
-                                        return (
-                                          <div
-                                            key={list.id}
-                                            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                                              isActive
-                                                ? 'bg-[var(--accent-blue)] text-white shadow-sm'
-                                                : 'bg-[var(--surface-elevated)] text-[var(--text-muted)] hover:text-[var(--foreground)] border border-[var(--border)]'
-                                            }`}
-                                          >
-                                            <button
-                                              onClick={() => setActiveTab(list.id)}
-                                              className="flex items-center gap-2 flex-1"
-                                            >
-                                              <FolderPlus className={`h-4 w-4 ${isActive ? 'text-white' : 'text-[var(--text-muted)]'}`} />
-                                              <span className="font-semibold">{list.name}</span>
-                                              <span className="text-xs opacity-70 bg-white/20 px-2 py-0.5 rounded-full">
-                                                {list.opportunityIds.length}
-                                              </span>
-                                            </button>
-                                            {isActive && (
-                                              <div
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  deleteCustomList(list.id);
-                                                }}
-                                                className="ml-1 p-1 rounded hover:bg-red-500/30 transition-colors cursor-pointer"
-                                                title="Delete list"
-                                              >
-                                                <Trash2 className="h-3 w-3" />
-                                              </div>
-                                            )}
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                            </>
-                          )}
-                          
-                          {/* Create New List Button (when no lists exist) */}
-                          {customLists.length === 0 && (
-                            <button
-                              onClick={() => setShowCreateListModal(true)}
-                              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-[var(--accent-blue)] hover:bg-[var(--accent-blue-soft)] transition-all duration-200 border border-[var(--accent-blue)]/30 border-dashed"
-                            >
-                              <Plus className="h-4 w-4" />
-                              New List
-                            </button>
-                          )}
                         </div>
                       </div>
+                    </div>
+
+                    {/* Custom Lists — moved out of horizontal-scroll row for mobile */}
+                    <div className="mb-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <button
+                          onClick={() => setIsMyListsExpanded(!isMyListsExpanded)}
+                          className="flex items-center gap-2 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
+                        >
+                          {isMyListsExpanded ? (
+                            <ChevronDown className="h-3 w-3" />
+                          ) : (
+                            <ChevronUp className="h-3 w-3" />
+                          )}
+                          <span>My Lists{customLists.length > 0 ? ` (${customLists.length})` : ''}</span>
+                        </button>
+                        <button
+                          onClick={() => setShowCreateListModal(true)}
+                          className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-[var(--accent-blue)] hover:bg-[var(--accent-blue-soft)] transition-all duration-200 border border-[var(--accent-blue)]/30 border-dashed rounded"
+                        >
+                          <Plus className="h-3 w-3" />
+                          New List
+                        </button>
+                      </div>
+                      <AnimatePresence>
+                        {isMyListsExpanded && customLists.length > 0 && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="flex flex-wrap gap-2">
+                              {customLists.map((list) => {
+                                const isActive = activeTab === list.id;
+                                return (
+                                  <div
+                                    key={list.id}
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                                      isActive
+                                        ? 'bg-[var(--accent-blue)] text-white shadow-sm'
+                                        : 'bg-[var(--surface-elevated)] text-[var(--text-muted)] hover:text-[var(--foreground)] border border-[var(--border)]'
+                                    }`}
+                                  >
+                                    <button
+                                      onClick={() => setActiveTab(list.id)}
+                                      className="flex items-center gap-2 flex-1 min-w-0"
+                                    >
+                                      <FolderPlus className={`h-4 w-4 shrink-0 ${isActive ? 'text-white' : 'text-[var(--text-muted)]'}`} />
+                                      <span className="font-semibold truncate max-w-[10rem]">{list.name}</span>
+                                      <span className="text-xs opacity-70 bg-white/20 px-2 py-0.5 rounded-full shrink-0">
+                                        {list.opportunityIds.length}
+                                      </span>
+                                    </button>
+                                    {isActive && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          deleteCustomList(list.id);
+                                        }}
+                                        className="ml-1 p-1 rounded transition-colors cursor-pointer hover:bg-white/20"
+                                        aria-label="Delete list"
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
 
                     {/* Search Bar and Advanced Filters */}
@@ -972,22 +1087,27 @@ export default function SuggestionsPage() {
                             Showing {filteredOpportunities.length} {activeTab === 'saved' ? 'saved' : activeTab === 'all' ? '' : getTypeLabel(activeTab as OpportunityType).toLowerCase()} {filteredOpportunities.length === 1 ? 'opportunity' : 'opportunities'}
                             {searchQuery && ` matching "${searchQuery}"`}
                           </div>
-                          <div className="grid gap-6">
+                          <div className="grid gap-4 sm:gap-6">
                             {filteredOpportunities.map((opportunity) => {
                           const isStarred = starredOpportunities.includes(opportunity.id);
                           const TypeIcon = getTypeIcon(opportunity.type);
                           return (
                             <div
                               key={opportunity.id}
-                              className="surface-card rounded-xl p-6 hover:shadow-[var(--shadow-md)] transition-all duration-200"
+                              className="surface-card rounded-xl p-4 sm:p-6 hover:shadow-[var(--shadow-md)] transition-all duration-200"
                             >
                               <div className="flex items-start justify-between mb-4 gap-2">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-2 flex-wrap">
                                     <TypeIcon className="h-4 w-4 text-[var(--accent-blue)] shrink-0" />
-                                    <span className={`px-2 py-0.5 rounded text-xs font-medium border ${getTypeColor(opportunity.type)}`}>
-                                      {getTypeLabel(opportunity.type)}
-                                    </span>
+                                    {(() => {
+                                      const t = getTypeStyle(opportunity.type);
+                                      return (
+                                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${t.className}`} style={t.style}>
+                                          {getTypeLabel(opportunity.type)}
+                                        </span>
+                                      );
+                                    })()}
                                   </div>
                                   <h3 className="text-[var(--foreground)] font-semibold text-base sm:text-lg mb-1 line-clamp-2">
                                     {opportunity.title}
@@ -995,87 +1115,117 @@ export default function SuggestionsPage() {
                                   <p className="text-[var(--text-secondary)] text-sm sm:text-base mb-3 truncate">{opportunity.organization}</p>
                                 </div>
                                 <div className="flex items-start flex-col sm:flex-row sm:items-center gap-2 shrink-0 ml-2">
-                                  {opportunity.score !== undefined && (
-                                    <div className={`px-2 py-1 rounded-full text-xs font-semibold border ${getScoreBgColor(opportunity.score)} ${getScoreColor(opportunity.score)} whitespace-nowrap`}>
-                                      {opportunity.score}%
-                                    </div>
-                                  )}
-                                  <div className="flex items-center gap-2">
-                                    {/* Add to List Dropdown */}
-                                    <div className="relative group">
+                                  {opportunity.score !== undefined && (() => {
+                                    const s = getScoreStyle(opportunity.score);
+                                    return (
+                                      <div
+                                        className={`px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${s.className}`}
+                                        style={s.style}
+                                      >
+                                        {opportunity.score}%
+                                      </div>
+                                    );
+                                  })()}
+                                  <div className="flex items-center gap-1 sm:gap-2">
+                                    {/* Add to List Dropdown — click-toggle for mobile */}
+                                    <div className="relative">
                                       <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenListMenuFor((cur) => (cur === opportunity.id ? null : opportunity.id));
+                                        }}
                                         className="p-2 rounded-full text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--accent-blue-soft)] transition-all duration-200"
-                                        title="Add to list"
+                                        aria-label="Add to list"
+                                        aria-expanded={openListMenuFor === opportunity.id}
                                       >
                                         <FolderPlus className="h-5 w-5" />
                                       </button>
-                                      <div className="absolute right-0 mt-2 w-48 bg-[var(--surface)] rounded-lg shadow-[var(--shadow-lg)] border border-[var(--border)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                                        <div className="py-2">
-                                          {customLists.length === 0 ? (
-                                            <button
-                                              onClick={() => setShowCreateListModal(true)}
-                                              className="w-full text-left px-4 py-2 text-sm text-[var(--accent-blue)] hover:bg-[var(--accent-blue-soft)] transition-colors"
-                                            >
-                                              <Plus className="h-4 w-4 inline mr-2" />
-                                              Create a list first
-                                            </button>
-                                          ) : (
-                                            <>
-                                              {customLists.map((list) => {
-                                                const isInList = list.opportunityIds.includes(opportunity.id);
-                                                return (
+                                      {openListMenuFor === opportunity.id && (
+                                        <>
+                                          <div
+                                            className="fixed inset-0 z-40"
+                                            onClick={() => setOpenListMenuFor(null)}
+                                            aria-hidden
+                                          />
+                                          <div className="absolute right-0 mt-2 w-56 max-w-[calc(100vw-2rem)] bg-[var(--surface)] rounded-lg shadow-[var(--shadow-lg)] border border-[var(--border)] z-50">
+                                            <div className="py-2 max-h-72 overflow-y-auto">
+                                              {customLists.length === 0 ? (
+                                                <button
+                                                  onClick={() => {
+                                                    setOpenListMenuFor(null);
+                                                    setShowCreateListModal(true);
+                                                  }}
+                                                  className="w-full text-left px-4 py-2 text-sm text-[var(--accent-blue)] hover:bg-[var(--accent-blue-soft)] transition-colors"
+                                                >
+                                                  <Plus className="h-4 w-4 inline mr-2" />
+                                                  Create a list first
+                                                </button>
+                                              ) : (
+                                                <>
+                                                  {customLists.map((list) => {
+                                                    const isInList = list.opportunityIds.includes(opportunity.id);
+                                                    return (
+                                                      <button
+                                                        key={list.id}
+                                                        onClick={() => {
+                                                          if (isInList) {
+                                                            removeFromCustomList(opportunity.id, list.id);
+                                                          } else {
+                                                            addToCustomList(opportunity.id, list.id);
+                                                          }
+                                                          setOpenListMenuFor(null);
+                                                        }}
+                                                        disabled={addingToListId === list.id}
+                                                        className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                                                          isInList
+                                                            ? 'text-[var(--accent-blue)] bg-[var(--accent-blue-soft)]'
+                                                            : 'text-[var(--text-secondary)] hover:bg-[var(--surface-elevated)]'
+                                                        }`}
+                                                      >
+                                                        {addingToListId === list.id ? (
+                                                          <div className="flex items-center">
+                                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                            Adding...
+                                                          </div>
+                                                        ) : (
+                                                          <div className="flex items-center justify-between gap-2">
+                                                            <span className="truncate">{isInList ? '✓ ' : ''}{list.name}</span>
+                                                          </div>
+                                                        )}
+                                                      </button>
+                                                    );
+                                                  })}
+                                                  <div className="border-t border-[var(--border)] my-1"></div>
                                                   <button
-                                                    key={list.id}
                                                     onClick={() => {
-                                                      if (isInList) {
-                                                        removeFromCustomList(opportunity.id, list.id);
-                                                      } else {
-                                                        addToCustomList(opportunity.id, list.id);
-                                                      }
+                                                      setOpenListMenuFor(null);
+                                                      setShowCreateListModal(true);
                                                     }}
-                                                    disabled={addingToListId === list.id}
-                                                    className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-                                                      isInList
-                                                        ? 'text-[var(--accent-blue)] bg-[var(--accent-blue-soft)]'
-                                                        : 'text-[var(--text-secondary)] hover:bg-[var(--surface-elevated)]'
-                                                    }`}
+                                                    className="w-full text-left px-4 py-2 text-sm text-[var(--accent-blue)] hover:bg-[var(--accent-blue-soft)] transition-colors"
                                                   >
-                                                    {addingToListId === list.id ? (
-                                                      <div className="flex items-center">
-                                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                        Adding...
-                                                      </div>
-                                                    ) : (
-                                                      <div className="flex items-center justify-between">
-                                                        <span>{isInList ? '✓' : ''} {list.name}</span>
-                                                      </div>
-                                                    )}
+                                                    <Plus className="h-4 w-4 inline mr-2" />
+                                                    Create new list
                                                   </button>
-                                                );
-                                              })}
-                                              <div className="border-t border-[var(--border)] my-1"></div>
-                                              <button
-                                                onClick={() => setShowCreateListModal(true)}
-                                                className="w-full text-left px-4 py-2 text-sm text-[var(--accent-blue)] hover:bg-[var(--accent-blue-soft)] transition-colors"
-                                              >
-                                                <Plus className="h-4 w-4 inline mr-2" />
-                                                Create new list
-                                              </button>
-                                            </>
-                                          )}
-                                        </div>
-                                      </div>
+                                                </>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </>
+                                      )}
                                     </div>
-                                    
+
                                     {/* Star Button */}
                                     <button
                                       onClick={() => toggleStarOpportunity(opportunity.id)}
                                       disabled={starringLoading === opportunity.id}
+                                      aria-label={isStarred ? 'Unsave opportunity' : 'Save opportunity'}
                                       className={`p-2 rounded-full transition-all duration-200 ${
                                         isStarred
-                                          ? 'text-amber-500 bg-amber-500/10 hover:bg-amber-500/20'
-                                          : 'text-[var(--text-muted)] hover:text-amber-500 hover:bg-amber-500/10'
+                                          ? 'bg-[var(--warning-soft)] hover:opacity-80'
+                                          : 'text-[var(--text-muted)] hover:bg-[var(--warning-soft)]'
                                       }`}
+                                      style={isStarred ? { color: 'var(--warning)' } : undefined}
                                     >
                                       {starringLoading === opportunity.id ? (
                                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current"></div>

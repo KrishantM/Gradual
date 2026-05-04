@@ -61,6 +61,8 @@ export default function ProfilePage() {
   const [cvScore, setCvScore] = useState<number | string | null>(null);
   const [cvScoreTimestamp, setCvScoreTimestamp] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'edit'>('profile');
+  // Drives the "Paths Progress" component of the Gradual Rating.
+  const [pathProgresses, setPathProgresses] = useState<{ progressPercent: number }[]>([]);
 
   // Load profile data once when component mounts
   useEffect(() => {
@@ -201,6 +203,36 @@ export default function ProfilePage() {
     
     fetchProfile();
   }, [user, authLoading, router]);
+
+  // Pull path enrollments so the "Paths Progress" component of the Gradual
+  // Rating reflects real progress instead of always reading 0. Goes through
+  // /api/paths (server-side, Admin SDK) — direct client reads on the
+  // path_state subcollection are blocked by Firestore rules.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch('/api/paths', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          paths?: { isEnrolled: boolean; progressPercent: number }[];
+        };
+        const enrolled = (data.paths ?? []).filter((p) => p.isEnrolled);
+        if (!cancelled) {
+          setPathProgresses(enrolled.map((p) => ({ progressPercent: p.progressPercent })));
+        }
+      } catch (e) {
+        console.error('[profile] failed to load path progresses', e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const handleChange = (e: any) => {
     const { name, value } = e.target;
@@ -534,6 +566,7 @@ export default function ProfilePage() {
               <GamifiedProfileDisplay
                 formData={formData}
                 cvScore={cvScore}
+                pathProgresses={pathProgresses}
                 onEditProfile={() => setActiveTab('edit')}
                 onViewCV={() => setShowCVText(true)}
               />

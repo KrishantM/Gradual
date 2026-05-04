@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
 import useSWR from 'swr';
 import { createAuthFetcher, SWR_AUTH_CONFIG } from '@/lib/swr-fetcher';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -65,9 +65,10 @@ function localDateKey(d: Date = new Date()): string {
   return `${y}-${m}-${day}`;
 }
 
-export default function CopilotPage() {
-  const { user } = useAuth();
+function CopilotPageInner() {
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [message, setMessage] = useState('');
   const [mode, setMode] = useState<Mode>('suggest');
   const [loading, setLoading] = useState(false);
@@ -89,10 +90,12 @@ export default function CopilotPage() {
   const threadRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Sidebar state — intelligence data via SWR, same cache key as Dashboard
+  // Sidebar state — intelligence data via SWR, same cache key as Dashboard.
+  // Memoise the date key once per mount so re-renders don't flap the SWR key.
+  const todayKey = useMemo(() => localDateKey(), []);
   const intelligenceFetcher = useMemo(() => (user ? createAuthFetcher(user) : null), [user]);
   const { data: intelligenceData } = useSWR(
-    user ? `/api/dashboard/intelligence?date=${localDateKey()}` : null,
+    user ? `/api/dashboard/intelligence?date=${todayKey}` : null,
     intelligenceFetcher,
     SWR_AUTH_CONFIG
   );
@@ -238,6 +241,28 @@ export default function CopilotPage() {
     if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight;
   }, [conversationMessages, response, loading]);
 
+  // Deep-link: if URL has ?prompt=..., auto-send it once after the user is loaded.
+  // Used by the Pathway Generator timeline to "Ask G.ai" about a specific step.
+  const initialPromptRef = useRef<string | null>(null);
+  const initialPromptSentRef = useRef(false);
+  if (initialPromptRef.current === null && typeof window !== 'undefined') {
+    const p = searchParams?.get('prompt');
+    if (p && p.length > 3) initialPromptRef.current = p.slice(0, 4000);
+  }
+  useEffect(() => {
+    if (!user || loadingLatest || initialPromptSentRef.current) return;
+    const p = initialPromptRef.current;
+    if (!p) return;
+    initialPromptSentRef.current = true;
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('prompt');
+      window.history.replaceState({}, '', url.toString());
+    }
+    void send(p);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, loadingLatest]);
+
   // Auto-grow textarea (1–4 rows)
   const autoGrowTextarea = useCallback(() => {
     const ta = textareaRef.current;
@@ -252,7 +277,12 @@ export default function CopilotPage() {
     autoGrowTextarea();
   }, [message, autoGrowTextarea]);
 
-  if (typeof window !== 'undefined' && !user) { router.push('/login'); return null; }
+  useEffect(() => {
+    if (!authLoading && !user) router.push('/login');
+  }, [authLoading, user, router]);
+
+  if (authLoading) return null;
+  if (!user) return null;
 
   const send = async (overrideMessage?: string) => {
     const text = (overrideMessage ?? message).trim();
@@ -635,7 +665,7 @@ export default function CopilotPage() {
 
             {/* Mode toggle */}
             <div>
-              <div className="text-xs uppercase tracking-wide text-[var(--text-subtle)] font-semibold mb-2 px-1">Copilot mode</div>
+              <div className="text-xs uppercase tracking-wide text-[var(--text-subtle)] font-semibold mb-2 px-1">G.ai mode</div>
               <div className="flex items-center gap-1 p-1 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-soft)]">
                 <button onClick={() => setMode('suggest')} className={`flex-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${mode === 'suggest' ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'}`}>Suggest</button>
                 <button onClick={() => setMode('assist')} className={`flex-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${mode === 'assist' ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'}`}>Assist</button>
@@ -709,8 +739,8 @@ export default function CopilotPage() {
               <Brain className="h-4 w-4 text-[var(--accent-blue)]" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-sm font-semibold truncate">Career Copilot</h1>
-              <p className="text-xs text-[var(--text-subtle)] truncate">Your AI career strategist</p>
+              <h1 className="text-sm font-semibold truncate">G.ai</h1>
+              <p className="text-xs text-[var(--text-subtle)] truncate">Your career AI — knows your profile, CV, and goals</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
@@ -763,7 +793,7 @@ export default function CopilotPage() {
                   <Brain className="empty-state-icon !w-10 !h-10" />
                   <p className="font-medium mb-1">What would you like to work on?</p>
                   <p className="text-sm text-[var(--text-subtle)] max-w-md">
-                    Copilot uses your profile, CV, applications, and to-dos to give personalized career guidance.
+                    G.ai uses your profile, CV, applications, and to-dos to give personalized career guidance.
                   </p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -900,5 +930,19 @@ export default function CopilotPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CopilotPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-[var(--accent-blue)]" />
+        </div>
+      }
+    >
+      <CopilotPageInner />
+    </Suspense>
   );
 }

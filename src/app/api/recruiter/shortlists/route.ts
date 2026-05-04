@@ -1,107 +1,88 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { RecruiterAuthService } from '@/lib/recruiter-auth';
+import { resolveRecruiterAccessFromToken } from '@/lib/recruiter/access';
 import { db } from '../../../../../lib/firebase-admin';
-// Using admin SDK methods directly
+
+const MAX_SHORTLIST_SIZE = 50;
 
 export async function GET(req: NextRequest) {
-  try {
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized - No token provided' }, { status: 401 });
-    }
+  const authHeader = req.headers.get('authorization');
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  const { uid, access } = await resolveRecruiterAccessFromToken(token);
 
-    const token = authHeader.split('Bearer ')[1];
-    
-    // Verify recruiter
-    const recruiterResult = await RecruiterAuthService.verifyRecruiter(token);
-    if (!recruiterResult) {
-      return NextResponse.json({ error: 'Not authorized as recruiter' }, { status: 403 });
-    }
-    
-    // Check permissions
-    if (!recruiterResult.permissions.canCreateShortlists) {
-      return NextResponse.json({ error: 'Feature not available in your subscription tier' }, { status: 403 });
-    }
-    
-    // Get shortlists for this recruiter
-    const shortlistsSnap = await db.collection('recruiterShortlists')
-      .where('recruiterId', '==', recruiterResult.recruiter.uid)
+  if (!access.hasAccess || !uid) {
+    return NextResponse.json(
+      { error: 'Recruiter access required', reason: access.reason },
+      { status: 403 }
+    );
+  }
+
+  try {
+    const snap = await db
+      .collection('recruiterShortlists')
+      .where('recruiterId', '==', uid)
       .get();
-    
-    const shortlists = shortlistsSnap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-    
-    return NextResponse.json({
-      shortlists: shortlists
+
+    const shortlists = snap.docs.map((doc) => {
+      const d = doc.data();
+      return {
+        id: doc.id,
+        name: typeof d.name === 'string' ? d.name : '',
+        candidateCount: Array.isArray(d.studentIds) ? d.studentIds.length : 0,
+        createdAt:
+          d.createdAt instanceof Date
+            ? d.createdAt.toISOString()
+            : typeof d.createdAt === 'string'
+            ? d.createdAt
+            : null,
+      };
     });
-    
-  } catch (error: any) {
-    console.error('Get shortlists error:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ shortlists });
+  } catch (e) {
+    console.error('[GET /api/recruiter/shortlists]', e);
+    return NextResponse.json({ shortlists: [] }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized - No token provided' }, { status: 401 });
-    }
+  const authHeader = req.headers.get('authorization');
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  const { uid, access } = await resolveRecruiterAccessFromToken(token);
 
-    const token = authHeader.split('Bearer ')[1];
-    
-    // Verify recruiter
-    const recruiterResult = await RecruiterAuthService.verifyRecruiter(token);
-    if (!recruiterResult) {
-      return NextResponse.json({ error: 'Not authorized as recruiter' }, { status: 403 });
-    }
-    
-    // Check permissions
-    if (!recruiterResult.permissions.canCreateShortlists) {
-      return NextResponse.json({ error: 'Feature not available in your subscription tier' }, { status: 403 });
-    }
-    
-    const { name, studentIds } = await req.json();
-    
-    if (!name || !studentIds || !Array.isArray(studentIds)) {
-      return NextResponse.json({ error: 'Invalid request data' }, { status: 400 });
-    }
-    
-    // Check shortlist limit
-    const existingShortlists = await db.collection('recruiterShortlists')
-      .where('recruiterId', '==', recruiterResult.recruiter.uid)
-      .get();
-    
-    if (existingShortlists.size >= recruiterResult.permissions.maxShortlists) {
-      return NextResponse.json({ error: 'Shortlist limit exceeded' }, { status: 400 });
-    }
-    
-    // Check students per shortlist limit
-    if (studentIds.length > recruiterResult.permissions.maxStudentsPerShortlist) {
-      return NextResponse.json({ error: 'Student limit per shortlist exceeded' }, { status: 400 });
-    }
-    
-    // Create shortlist
-    const shortlistData = {
-      recruiterId: recruiterResult.recruiter.uid,
-      name: name,
-      studentIds: studentIds,
+  if (!access.hasAccess || !uid) {
+    return NextResponse.json(
+      { error: 'Recruiter access required', reason: access.reason },
+      { status: 403 }
+    );
+  }
+
+  let body: { name?: string; studentIds?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
+
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  const studentIds = Array.isArray(body.studentIds)
+    ? body.studentIds.filter((s): s is string => typeof s === 'string').slice(0, MAX_SHORTLIST_SIZE)
+    : [];
+
+  if (!name || studentIds.length === 0) {
+    return NextResponse.json({ error: 'Name and at least one candidate required' }, { status: 400 });
+  }
+
+  try {
+    const docRef = await db.collection('recruiterShortlists').add({
+      recruiterId: uid,
+      name,
+      studentIds,
       createdAt: new Date(),
       updatedAt: new Date(),
-      isShared: false
-    };
-    
-    const docRef = await db.collection('recruiterShortlists').add(shortlistData);
-    
-    return NextResponse.json({
-      id: docRef.id,
-      ...shortlistData
+      isShared: false,
     });
-    
-  } catch (error: any) {
-    console.error('Create shortlist error:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ id: docRef.id, name, candidateCount: studentIds.length });
+  } catch (e) {
+    console.error('[POST /api/recruiter/shortlists]', e);
+    return NextResponse.json({ error: 'Could not create shortlist' }, { status: 500 });
   }
 }

@@ -3,6 +3,7 @@ import { auth, db } from '@/lib/firebase-admin';
 import { getCareerContext } from '@/lib/copilot/get-career-context';
 import { evaluateSignals } from '@/lib/copilot/evaluate-signals';
 import { calculateProfileCompletion } from '@/lib/profile-completion';
+import { calculateGradualRating, type GradualRating } from '@/lib/gradual-rating';
 import { PATHS } from '@/lib/paths/catalog';
 import { hydratePathProgress, pickActivePath } from '@/lib/paths/progress';
 import type { PathState } from '@/lib/paths/types';
@@ -15,7 +16,7 @@ interface DashboardSignal {
 
 const SIGNAL_MESSAGES: Record<string, Record<'HIGH' | 'MEDIUM' | 'OK', string>> = {
   profile: {
-    HIGH: 'Your profile is incomplete — fill it in so Copilot can give better advice.',
+    HIGH: 'Your profile is incomplete — fill it in so G.ai can give better advice.',
     MEDIUM: 'Add your location to complete your profile.',
     OK: 'Profile is in good shape.',
   },
@@ -63,6 +64,11 @@ interface IntelligenceResponse {
   signals: DashboardSignal[];
   profileCompletion: number;
   cvScore: number | null;
+  /**
+   * Unified Gradual Rating shared with the profile page. Same deterministic
+   * formula in both places — see `src/lib/gradual-rating.ts`.
+   */
+  gradualRating: GradualRating;
   latestCopilot: {
     weeklyPlan: Record<string, { title: string; notes?: string }[]> | null;
     priorities: { title: string; rationale: string }[];
@@ -111,6 +117,7 @@ export async function GET(req: NextRequest) {
     signals: [],
     profileCompletion: 0,
     cvScore: null,
+    gradualRating: calculateGradualRating({ profile: {}, cvScore: null, pathProgresses: [] }),
     latestCopilot: null,
     todayPlannerEvents: [],
     opportunityMomentum: { savedCount: 0, recentApplications: 0 },
@@ -220,6 +227,8 @@ export async function GET(req: NextRequest) {
   }
 
   // ── Active capability path ──
+  // Also collects per-path progress so the Gradual Rating can factor it in below.
+  let pathProgressesForRating: { progressPercent: number }[] = [];
   if (pathResult.status === 'fulfilled') {
     try {
       const stateMap = new Map<string, PathState>();
@@ -239,6 +248,7 @@ export async function GET(req: NextRequest) {
         const progresses = PATHS.filter((p) => stateMap.has(p.id)).map((p) =>
           hydratePathProgress(p, stateMap.get(p.id) ?? null)
         );
+        pathProgressesForRating = progresses.map((p) => ({ progressPercent: p.progressPercent }));
         const active = pickActivePath(progresses);
         if (active) {
           result.activePath = {
@@ -265,6 +275,22 @@ export async function GET(req: NextRequest) {
   } else {
     console.error('[GET /api/dashboard/intelligence] path_state fetch failed', pathResult.reason);
     result.degraded.push('activePath');
+  }
+
+  // ── Gradual Rating ── (single source of truth shared with the profile page)
+  try {
+    const profile =
+      contextResult.status === 'fulfilled'
+        ? ((contextResult.value.profile as Record<string, unknown>) ?? {})
+        : {};
+    result.gradualRating = calculateGradualRating({
+      profile,
+      cvScore: result.cvScore,
+      pathProgresses: pathProgressesForRating,
+    });
+  } catch (e) {
+    console.error('[GET /api/dashboard/intelligence] gradualRating failed', e);
+    result.degraded.push('gradualRating');
   }
 
   return NextResponse.json(result, {

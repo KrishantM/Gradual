@@ -240,14 +240,14 @@ export default function CVScorePage() {
   const [newScore, setNewScore] = useState('');
   const [rewriteError, setRewriteError] = useState('');
 
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
-  // Redirect unauthenticated users to login
+  // Redirect unauthenticated users — wait for auth to settle so we don't bounce
+  // signed-in users on a refresh.
   useEffect(() => {
-    if (user === null) {
-      router.push('/login');
-    }
-  }, [user, router]);
+    if (authLoading) return;
+    if (!user) router.push('/login');
+  }, [authLoading, user, router]);
 
   // Simple cache for CV scores to ensure consistency
   const [cvScoreCache, setCvScoreCache] = useState<Map<string, string>>(new Map());

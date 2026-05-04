@@ -16,6 +16,33 @@ export type PathCategory =
   | 'communication'
   | 'productivity';
 
+export interface PathLesson {
+  /** Section heading, e.g. "Why this matters" */
+  heading: string;
+  /** Markdown-lite body — supports paragraphs separated by blank lines */
+  body: string;
+  /** Optional bulleted list of examples or key points */
+  bullets?: string[];
+  /** Optional callout — shown as a highlighted info box */
+  callout?: { label: string; text: string };
+}
+
+export interface PathQuizOption {
+  text: string;
+  isCorrect: boolean;
+  /** Why this answer is right or wrong — shown after the user picks */
+  explanation: string;
+}
+
+export interface PathQuizQuestion {
+  /** Stable id within the module */
+  id: string;
+  prompt: string;
+  options: PathQuizOption[];
+  /** Optional hint shown if the user wants help before answering */
+  hint?: string;
+}
+
 export interface PathModule {
   /** Stable id, unique within the path */
   id: string;
@@ -29,6 +56,13 @@ export interface PathModule {
   miniTask: string;
   /** Rough completion time in minutes */
   estimatedMinutes: number;
+  /** Expanded course-style content — optional. If absent, viewer shows a
+   *  graceful "richer lesson content coming soon" hint. */
+  lessons?: PathLesson[];
+  /** Bullet summary the user can take away after the lesson */
+  keyTakeaways?: string[];
+  /** Multiple-choice quiz — shown after lessons in the viewer */
+  quiz?: PathQuizQuestion[];
 }
 
 export interface Path {

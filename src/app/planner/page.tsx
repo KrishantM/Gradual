@@ -235,7 +235,7 @@ function TaskDetailPanel({
 }
 
 export default function PlannerPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [view, setView] = useState<'week' | 'month'>('week');
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
@@ -263,6 +263,7 @@ export default function PlannerPage() {
   );
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user) {
       router.push('/login');
       return;
@@ -276,7 +277,7 @@ export default function PlannerPage() {
       setLoading(true);
       fetchEvents(from, to).finally(() => setLoading(false));
     }
-  }, [user, view, weekStart, monthDate, fetchEvents, router]);
+  }, [authLoading, user, view, weekStart, monthDate, fetchEvents, router]);
 
   const addEvent = async (date: string) => {
     const title = (newTitle[date] ?? '').trim();

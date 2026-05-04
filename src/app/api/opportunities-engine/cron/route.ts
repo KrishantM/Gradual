@@ -32,6 +32,9 @@ function sanitizeForFirestore(opp: Opportunity): Record<string, any> {
   return clean;
 }
 
+// Firestore caps the `in` operator at 30 values per query.
+const IN_QUERY_LIMIT = 30;
+
 async function storeOpportunities(opportunities: Opportunity[]): Promise<{ added: number; updated: number }> {
   let added = 0;
   let updated = 0;
@@ -39,23 +42,31 @@ async function storeOpportunities(opportunities: Opportunity[]): Promise<{ added
 
   for (let i = 0; i < opportunities.length; i += BATCH_SIZE) {
     const chunk = opportunities.slice(i, i + BATCH_SIZE);
+
+    // Resolve existing docs for the whole chunk up-front via batched `in` queries —
+    // avoids N+1 round-trips that previously blew past the Vercel cron timeout.
+    const existingRefs = new Map<string, FirebaseFirestore.DocumentReference>();
+    const ids = chunk.map((o) => o.id).filter(Boolean);
+    for (let j = 0; j < ids.length; j += IN_QUERY_LIMIT) {
+      const idChunk = ids.slice(j, j + IN_QUERY_LIMIT);
+      if (idChunk.length === 0) continue;
+      const snap = await opportunitiesRef.where('id', 'in', idChunk).get();
+      snap.forEach((doc) => {
+        const data = doc.data();
+        if (data?.id) existingRefs.set(data.id, doc.ref);
+      });
+    }
+
     const batch = db.batch();
-
     for (const opp of chunk) {
-      const existingQuery = await opportunitiesRef
-        .where('id', '==', opp.id)
-        .limit(1)
-        .get();
-
       const docData = sanitizeForFirestore(opp);
-
-      if (existingQuery.empty) {
+      const existingRef = existingRefs.get(opp.id);
+      if (!existingRef) {
         const docRef = opportunitiesRef.doc();
         batch.set(docRef, { ...docData, ingestedAt: new Date().toISOString() });
         added++;
       } else {
-        const docRef = existingQuery.docs[0].ref;
-        batch.update(docRef, { ...docData, updatedAt: new Date().toISOString() });
+        batch.update(existingRef, { ...docData, updatedAt: new Date().toISOString() });
         updated++;
       }
     }

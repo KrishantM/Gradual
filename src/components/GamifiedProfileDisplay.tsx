@@ -3,18 +3,25 @@
 import { useState, useMemo } from 'react';
 import { ChevronDown, MapPin, GraduationCap, Briefcase, Link2, Edit3, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { calculateGradualRating } from '@/lib/gradual-rating';
 
 interface GamifiedProfileDisplayProps {
   formData: any;
   cvScore: number | string | null;
+  /**
+   * Optional capability-path progresses. Drives the "Paths Progress" component
+   * of the Gradual Rating. Pass an empty array (or omit) when not enrolled.
+   */
+  pathProgresses?: { progressPercent: number }[];
   onEditProfile: () => void;
   onViewCV: () => void;
 }
 
-export default function GamifiedProfileDisplay({ 
-  formData, 
-  cvScore, 
-  onEditProfile, 
+export default function GamifiedProfileDisplay({
+  formData,
+  cvScore,
+  pathProgresses,
+  onEditProfile,
   onViewCV
 }: GamifiedProfileDisplayProps) {
   const [breakdownOpen, setBreakdownOpen] = useState(false);
@@ -29,62 +36,19 @@ export default function GamifiedProfileDisplay({
     return typeof cvScore === 'number' ? cvScore : 0;
   }, [cvScore]);
 
-  const calculateGPAPercentage = (gpa: number, scale: string): number => {
-    if (scale === '100') return Math.round(gpa);
-    if (scale === 'other') return 0;
-    const gpaValue = parseFloat(gpa.toString());
-    if (isNaN(gpaValue) || gpaValue < 0) return 0;
-    switch (scale) {
-      case '4.0': return Math.round(Math.min((gpaValue / 4.0) * 100, 100));
-      case '5.0': return Math.round(Math.min((gpaValue / 5.0) * 100, 100));
-      case '7.0': return Math.round(Math.min((gpaValue / 7.0) * 100, 100));
-      case '9.0': return Math.round(Math.min((gpaValue / 9.0) * 100, 100));
-      case '10.0': return Math.round(Math.min((gpaValue / 10.0) * 100, 100));
-      default: return Math.round(gpaValue);
-    }
-  };
+  // Single source of truth — same formula as the dashboard's "Gradual Rating".
+  const rating = useMemo(
+    () =>
+      calculateGradualRating({
+        profile: formData as Record<string, unknown>,
+        cvScore: getNumericalCVScore,
+        pathProgresses: pathProgresses ?? [],
+      }),
+    [formData, getNumericalCVScore, pathProgresses]
+  );
 
-  const breakdownMetrics = useMemo(() => {
-    const cvScoreValue = getNumericalCVScore;
-
-    let academicScore = 0;
-    if (formData.gpa && formData.gpaScale && formData.gpaScale !== 'other') {
-      academicScore = calculateGPAPercentage(parseFloat(formData.gpa), formData.gpaScale);
-    }
-    if (formData.degree && formData.university) {
-      academicScore = Math.min(100, academicScore + 10);
-    }
-
-    let professionalScore = 0;
-    if (formData.bio && formData.bio.length > 150) professionalScore = 100;
-    else if (formData.bio && formData.bio.length > 100) professionalScore = 80;
-    else if (formData.bio && formData.bio.length > 50) professionalScore = 60;
-    if (formData.interests && formData.interests.split(',').length >= 3) {
-      professionalScore = Math.min(100, professionalScore + 15);
-    }
-
-    let digitalScore = 0;
-    if (formData.portfolioLinks && formData.portfolioLinks.trim() !== '') digitalScore = 100;
-    else if (formData.bio && formData.bio.length > 100) digitalScore = 70;
-    else if (formData.bio && formData.bio.length > 50) digitalScore = 50;
-
-    const requiredFields = ['fullName', 'university', 'degree', 'gpa', 'interests', 'city', 'country'];
-    const completedFields = requiredFields.filter(f => formData[f] && formData[f].toString().trim() !== '');
-    const completenessScore = Math.round((completedFields.length / requiredFields.length) * 100);
-
-    return [
-      { label: 'CV Score', value: cvScoreValue },
-      { label: 'Academic', value: academicScore },
-      { label: 'Professional', value: professionalScore },
-      { label: 'Digital Presence', value: digitalScore },
-      { label: 'Profile Completeness', value: completenessScore },
-    ];
-  }, [formData, getNumericalCVScore]);
-
-  const gradualRating = useMemo(() => {
-    const total = breakdownMetrics.reduce((sum, m) => sum + m.value, 0);
-    return Math.round(total / breakdownMetrics.length);
-  }, [breakdownMetrics]);
+  const gradualRating = rating.total;
+  const breakdownMetrics = rating.components;
 
   const getRatingColor = (score: number) => {
     if (score >= 80) return 'text-emerald-500';
@@ -209,11 +173,11 @@ export default function GamifiedProfileDisplay({
             </button>
 
             <div
-              className={`overflow-hidden transition-all duration-300 ease-in-out ${breakdownOpen ? 'max-h-96 opacity-100 mt-3' : 'max-h-0 opacity-0'}`}
+              className={`overflow-hidden transition-all duration-300 ease-in-out ${breakdownOpen ? 'max-h-[700px] opacity-100 mt-3' : 'max-h-0 opacity-0'}`}
             >
               <div className="space-y-3.5 px-1">
                 {breakdownMetrics.map((metric) => (
-                  <div key={metric.label}>
+                  <div key={metric.key}>
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-sm text-gray-400">{metric.label}</span>
                       <span className={`text-sm font-semibold tabular-nums ${getRatingColor(metric.value)}`}>
@@ -226,6 +190,9 @@ export default function GamifiedProfileDisplay({
                         style={{ width: `${metric.value}%` }}
                       />
                     </div>
+                    <p className="mt-1.5 text-[11px] text-gray-500 leading-snug">
+                      {metric.rationale}
+                    </p>
                   </div>
                 ))}
               </div>

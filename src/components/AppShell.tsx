@@ -31,7 +31,7 @@ interface NavItem {
 
 const primaryNav: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/copilot', label: 'Copilot', icon: Brain },
+  { href: '/copilot', label: 'G.ai', icon: Brain },
   { href: '/paths', label: 'Paths', icon: GraduationCap },
 ];
 
