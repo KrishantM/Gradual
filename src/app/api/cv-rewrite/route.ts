@@ -1,176 +1,353 @@
-// src/app/api/cv-rewrite/route.ts
-// AI-POWERED CV IMPROVEMENT WITH CONSISTENCY TRACKING
-// This endpoint rewrites CVs to score higher through genuine content improvements
-// NEW: Generates unique rewrite IDs embedded in CV text for perfect scoring consistency
-// The scoring system uses these IDs to ensure the same rewritten CV always gets the same score
+// CV rewrite — returns a structured CV (header, summary, experience, etc.)
+// alongside the change log and improvement summary so the UI can render the
+// document with proper typography rather than as a plain text blob.
 
 import { openai } from '../../../../lib/openai';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '../../../../lib/firebase-admin';
 
+// Rewrites are long-form — give GPT-4o headroom past Vercel Hobby's 10s default.
+export const maxDuration = 60;
+
+interface RewriteExperienceItem {
+  role: string;
+  organization: string;
+  location?: string;
+  startDate?: string;
+  endDate?: string;
+  bullets: string[];
+}
+
+interface RewriteEducationItem {
+  qualification: string;
+  institution: string;
+  location?: string;
+  startDate?: string;
+  endDate?: string;
+  details?: string[];
+}
+
+interface RewriteProjectItem {
+  name: string;
+  role?: string;
+  bullets: string[];
+}
+
+interface RewriteHeader {
+  name?: string;
+  title?: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+  links?: { label: string; url?: string }[];
+}
+
+interface StructuredCV {
+  header: RewriteHeader;
+  summary: string;
+  experience: RewriteExperienceItem[];
+  education: RewriteEducationItem[];
+  skills: { category: string; items: string[] }[];
+  projects?: RewriteProjectItem[];
+  certifications?: string[];
+  awards?: string[];
+}
+
+interface RewriteResponse {
+  structured: StructuredCV;
+  plainText: string;
+  changesMade: string[];
+  improvementSummary: string;
+}
+
+const SYSTEM_PROMPT = `You are an expert CV writer. Rewrite the provided CV to be more impactful and ATS-friendly while preserving every fact. Use action verbs, quantify achievements, tighten language, and align tone with the target role if provided.
+
+Return ONLY a JSON object matching this schema (omit optional fields if not present in the source CV):
+
+{
+  "structured": {
+    "header": {
+      "name": string,
+      "title": string,                    // optional headline / target role
+      "email": string,
+      "phone": string,
+      "location": string,
+      "links": [{ "label": string, "url": string }]
+    },
+    "summary": string,                    // 2-4 sentence professional summary
+    "experience": [
+      {
+        "role": string,
+        "organization": string,
+        "location": string,
+        "startDate": string,              // e.g. "Mar 2023"
+        "endDate": string,                // e.g. "Present" or "Jul 2024"
+        "bullets": [string, ...]          // 3-5 achievement-driven bullets per role
+      }
+    ],
+    "education": [
+      {
+        "qualification": string,          // e.g. "BSc Computer Science"
+        "institution": string,
+        "location": string,
+        "startDate": string,
+        "endDate": string,
+        "details": [string]               // GPA, honours, relevant coursework
+      }
+    ],
+    "skills": [
+      { "category": string, "items": [string, ...] }
+    ],
+    "projects": [
+      { "name": string, "role": string, "bullets": [string] }
+    ],
+    "certifications": [string],
+    "awards": [string]
+  },
+  "plainText": string,                    // a clean monospace-friendly fallback rendering of the CV
+  "changesMade": [string, ...],           // 4-8 concrete edits you made
+  "improvementSummary": string            // 2-3 sentences on the impact of these changes
+}
+
+Rules:
+- Preserve every factual claim from the original CV. Do not invent dates, roles, employers, or metrics.
+- If a metric isn't present in the source, do NOT fabricate one — instead rewrite for clarity and impact.
+- Each experience bullet should start with a strong action verb.
+- Keep section bullets concise (≤ 25 words each).
+- Return strictly valid JSON, no markdown fences.`;
+
+const FALLBACK_RESPONSE: RewriteResponse = {
+  structured: {
+    header: {},
+    summary: '',
+    experience: [],
+    education: [],
+    skills: [],
+  },
+  plainText: '',
+  changesMade: [],
+  improvementSummary: '',
+};
+
 export async function POST(req: NextRequest) {
   try {
-    // Get the authorization header
     const authHeader = req.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized - No token provided' }, { status: 401 });
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const token = authHeader.split('Bearer ')[1];
-    
-    // Verify the Firebase token
     try {
-      await auth.verifyIdToken(token);
-    } catch (error) {
+      await auth.verifyIdToken(authHeader.split('Bearer ')[1]);
+    } catch {
       return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 });
     }
 
-    const { cvText, scoreFeedback, targetRole, guest, originalScore } = await req.json();
-
+    const { cvText, targetRole, scoreFeedback } = await req.json();
     if (!cvText || typeof cvText !== 'string') {
       return NextResponse.json({ error: 'Invalid CV text.' }, { status: 400 });
     }
 
-    // WORD COUNT VALIDATION - Enforce minimum and maximum limits
-    const normalizedCvText = cvText.trim().toLowerCase();
-    const wordCount = normalizedCvText.split(/\s+/).length;
-    
-    // Check maximum word count (1500 words)
-    if (wordCount > 1500) {
-      return NextResponse.json({ 
-        error: 'CV is too long. Maximum allowed is 1500 words. Please shorten your CV to focus on the most relevant information.',
-        wordCount: wordCount,
-        maxAllowed: 1500
-      }, { status: 400 });
-    }
-    
-    // Check minimum word count (at least 10 words to prevent abuse)
+    const wordCount = cvText.trim().split(/\s+/).filter(Boolean).length;
     if (wordCount < 10) {
-      return NextResponse.json({ 
-        error: 'CV is too short. Please provide at least 10 words for evaluation.',
-        wordCount: wordCount,
-        minRequired: 10
-      }, { status: 400 });
+      return NextResponse.json({ error: 'CV is too short to rewrite.' }, { status: 400 });
+    }
+    if (wordCount > 1500) {
+      return NextResponse.json({ error: 'CV exceeds 1500 words.' }, { status: 400 });
     }
 
-    // Use default feedback if none provided (for standalone rewrite feature)
-    const feedbackToUse = scoreFeedback || 'Please improve this CV by enhancing language clarity, adding quantifiable achievements, using action verbs, and making it more ATS-friendly while maintaining professional tone.';
+    const userPrompt = [
+      `Original CV:\n${cvText}`,
+      targetRole ? `Target role: ${targetRole}` : null,
+      scoreFeedback ? `Areas the candidate's previous score flagged:\n${scoreFeedback}` : null,
+    ]
+      .filter(Boolean)
+      .join('\n\n');
 
-    // Generate a unique rewritten CV ID for consistency tracking
-    const rewrittenCVId = `REWRITE_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    const systemPrompt = `You are an expert CV writer and career coach with advanced AI capabilities. Your task is to rewrite the provided CV based on the feedback given, making it more professional, impactful, and aligned with modern CV standards.
-
-CRITICAL REQUIREMENTS:
-1. The rewritten CV MUST score higher than the original through genuine content improvements
-2. Focus on the specific feedback areas mentioned in the score feedback
-3. Use action verbs and quantifiable achievements (e.g., "Increased sales by 25%", "Managed team of 10 people")
-4. Maintain professional tone and ATS-friendly formatting
-5. Keep the same length or slightly shorter
-6. Ensure the CV addresses ALL areas mentioned in the feedback
-7. **CRITICAL**: Add the unique rewrite ID at the very end of the rewritten CV
-
-ENHANCED GPT-5 CAPABILITIES TO LEVERAGE:
-- **Advanced Context Understanding**: Analyze the CV's industry context and tailor language accordingly
-- **Superior Reasoning**: Identify subtle improvement opportunities that previous models might miss
-- **Enhanced Language Generation**: Create more compelling and persuasive descriptions
-- **Better Pattern Recognition**: Spot inconsistencies and gaps in professional progression
-- **Improved Structured Thinking**: Organize information more logically and impactfully
-
-SCORING IMPROVEMENT STRATEGIES (Based on the CV scoring algorithm):
-- **Professional Indicators**: Include more professional terms like 'experience', 'skills', 'education', 'achievements', 'leadership', 'project', 'team', 'results', 'developed', 'managed', 'implemented', 'created', 'designed', 'analyzed', 'years', 'months', 'company', 'organization', 'position', 'role', 'industry', 'certification', 'training', 'workshop', 'conference', 'publication', 'research'
-- **Structure Elements**: Ensure the CV has contact info, experience, education, skills, dates, and numbers
-- **Action Verbs**: Use strong action verbs like 'developed', 'implemented', 'managed', 'led', 'created', 'designed', 'analyzed', 'improved', 'increased', 'reduced', 'achieved', 'delivered', 'coordinated', 'facilitated'
-- **Quantifiable Achievements**: Add specific numbers, percentages, and metrics
-- **Professional Keywords**: Include industry-specific terms and comprehensive professional vocabulary
-- **Advanced Optimization**: Use GPT-5's enhanced reasoning to identify and implement subtle improvements that maximize scoring potential
-
-IMPORTANT: You must respond in this EXACT format:
-
-REWRITTEN CV:
-[The complete rewritten CV with all improvements applied]
-
-[Add this line at the very end of the rewritten CV:]
-
-REWRITE ID: ${rewrittenCVId}
-
-CHANGES MADE:
-[Bullet-point list of specific changes made to improve the CV]
-
-IMPROVEMENT SUMMARY:
-[2-3 sentences summarizing the key improvements and their impact]
-
-Do not include any other text outside of the specified format.`;
-
-    const userPrompt = `Original CV:
-${cvText}
-
-CV Score Feedback:
-${feedbackToUse}
-
-${targetRole ? `Target Role: ${targetRole}` : ''}
-
-Please rewrite this CV based on the feedback provided. Focus on the specific areas mentioned in the feedback to ensure the rewritten CV scores higher than the original through genuine content improvements. The scoring system will ensure consistency while guaranteeing improvement.`;
-
-    const response = await openai.chat.completions.create({
+    const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
+      temperature: 0.4,
+      response_format: { type: 'json_object' },
       messages: [
-        {
-          role: 'system',
-          content: systemPrompt,
-        },
-        {
-          role: 'user',
-          content: userPrompt,
-        },
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userPrompt },
       ],
-      temperature: 0.7,
-      max_tokens: 4000,
     });
 
-    const rewriteResult = response.choices[0].message?.content || '';
-    
-    // Parse the response to extract different sections
-    const sections = {
-      rewrittenCV: '',
-      changesMade: '',
-      improvementSummary: '',
-      rewriteId: rewrittenCVId // Include the generated ID
+    const raw = completion.choices[0]?.message?.content ?? '{}';
+
+    let parsed: Partial<RewriteResponse> = {};
+    try {
+      parsed = JSON.parse(raw) as Partial<RewriteResponse>;
+    } catch {
+      console.error('[cv-rewrite] model returned non-JSON', raw);
+    }
+
+    const structured = sanitizeStructured(parsed.structured);
+    const plainText =
+      typeof parsed.plainText === 'string' && parsed.plainText.trim()
+        ? parsed.plainText.trim()
+        : structuredToPlainText(structured);
+
+    const changesMade = Array.isArray(parsed.changesMade)
+      ? parsed.changesMade.filter((c): c is string => typeof c === 'string' && !!c.trim()).slice(0, 12)
+      : [];
+
+    const improvementSummary =
+      typeof parsed.improvementSummary === 'string' && parsed.improvementSummary.trim()
+        ? parsed.improvementSummary.trim()
+        : 'The CV has been rewritten with stronger action verbs, tightened language, and clearer structure.';
+
+    const response: RewriteResponse = {
+      structured,
+      plainText,
+      changesMade: changesMade.length > 0 ? changesMade : ['Tightened language and improved bullet structure.'],
+      improvementSummary,
     };
 
-    if (rewriteResult.includes('REWRITTEN CV:')) {
-      const cvMatch = rewriteResult.match(/REWRITTEN CV:\s*([\s\S]*?)(?=CHANGES MADE:|$)/);
-      if (cvMatch) {
-        let cvText = cvMatch[1].trim();
-        
-        // Extract the rewrite ID from the CV text if present
-        const idMatch = cvText.match(/REWRITE ID:\s*([A-Z0-9_]+)/);
-        if (idMatch) {
-          sections.rewriteId = idMatch[1];
-          // Remove the rewrite ID from the CV text for display
-          cvText = cvText.replace(/REWRITE ID:\s*[A-Z0-9_]+/, '').trim();
-        }
-        
-        sections.rewrittenCV = cvText;
-      }
-    }
-
-    if (rewriteResult.includes('CHANGES MADE:')) {
-      const changesMatch = rewriteResult.match(/CHANGES MADE:\s*([\s\S]*?)(?=IMPROVEMENT SUMMARY:|$)/);
-      if (changesMatch) sections.changesMade = changesMatch[1].trim();
-    }
-
-    if (rewriteResult.includes('IMPROVEMENT SUMMARY:')) {
-      const summaryMatch = rewriteResult.match(/IMPROVEMENT SUMMARY:\s*([\s\S]*?)$/);
-      if (summaryMatch) sections.improvementSummary = summaryMatch[1].trim();
-    }
-
-    return NextResponse.json({ 
-      rewriteResult: rewriteResult,
-      sections: sections
+    // Maintain back-compat with existing callers expecting `.sections.rewrittenCV`
+    return NextResponse.json({
+      ...response,
+      sections: {
+        rewrittenCV: plainText,
+        changesMade: response.changesMade.map((c) => `• ${c}`).join('\n'),
+        improvementSummary: response.improvementSummary,
+      },
     });
   } catch (err) {
-    console.error('OpenAI API Error:', err);
-    return NextResponse.json({ error: 'Failed to generate CV rewrite' }, { status: 500 });
+    console.error('[cv-rewrite] error:', err);
+    return NextResponse.json(
+      { ...FALLBACK_RESPONSE, error: 'Failed to generate CV rewrite' },
+      { status: 500 }
+    );
   }
+}
+
+function sanitizeStructured(input: unknown): StructuredCV {
+  const fallback: StructuredCV = {
+    header: {},
+    summary: '',
+    experience: [],
+    education: [],
+    skills: [],
+  };
+
+  if (!input || typeof input !== 'object') return fallback;
+  const s = input as Partial<StructuredCV>;
+
+  const header: RewriteHeader = s.header && typeof s.header === 'object' ? {
+    name: stringOr(s.header.name),
+    title: stringOr(s.header.title),
+    email: stringOr(s.header.email),
+    phone: stringOr(s.header.phone),
+    location: stringOr(s.header.location),
+    links: Array.isArray(s.header.links)
+      ? s.header.links
+          .filter((l): l is { label: string; url?: string } =>
+            !!l && typeof l === 'object' && typeof (l as { label?: unknown }).label === 'string'
+          )
+          .map((l) => ({ label: l.label, url: stringOr(l.url) }))
+      : undefined,
+  } : {};
+
+  return {
+    header,
+    summary: typeof s.summary === 'string' ? s.summary.trim() : '',
+    experience: Array.isArray(s.experience)
+      ? s.experience.map((e) => ({
+          role: stringOr(e?.role) ?? '',
+          organization: stringOr(e?.organization) ?? '',
+          location: stringOr(e?.location),
+          startDate: stringOr(e?.startDate),
+          endDate: stringOr(e?.endDate),
+          bullets: Array.isArray(e?.bullets) ? e.bullets.filter((b: unknown): b is string => typeof b === 'string') : [],
+        }))
+      : [],
+    education: Array.isArray(s.education)
+      ? s.education.map((e) => ({
+          qualification: stringOr(e?.qualification) ?? '',
+          institution: stringOr(e?.institution) ?? '',
+          location: stringOr(e?.location),
+          startDate: stringOr(e?.startDate),
+          endDate: stringOr(e?.endDate),
+          details: Array.isArray(e?.details) ? e.details.filter((d: unknown): d is string => typeof d === 'string') : undefined,
+        }))
+      : [],
+    skills: Array.isArray(s.skills)
+      ? s.skills.map((g) => ({
+          category: stringOr(g?.category) ?? 'Skills',
+          items: Array.isArray(g?.items) ? g.items.filter((i: unknown): i is string => typeof i === 'string') : [],
+        }))
+      : [],
+    projects: Array.isArray(s.projects)
+      ? s.projects.map((p) => ({
+          name: stringOr(p?.name) ?? '',
+          role: stringOr(p?.role),
+          bullets: Array.isArray(p?.bullets) ? p.bullets.filter((b: unknown): b is string => typeof b === 'string') : [],
+        }))
+      : undefined,
+    certifications: Array.isArray(s.certifications)
+      ? s.certifications.filter((c): c is string => typeof c === 'string')
+      : undefined,
+    awards: Array.isArray(s.awards)
+      ? s.awards.filter((a): a is string => typeof a === 'string')
+      : undefined,
+  };
+}
+
+function stringOr(v: unknown): string | undefined {
+  return typeof v === 'string' && v.trim() ? v.trim() : undefined;
+}
+
+function structuredToPlainText(cv: StructuredCV): string {
+  const parts: string[] = [];
+
+  const headerLines: string[] = [];
+  if (cv.header.name) headerLines.push(cv.header.name);
+  if (cv.header.title) headerLines.push(cv.header.title);
+  const contactBits = [cv.header.email, cv.header.phone, cv.header.location].filter(Boolean);
+  if (contactBits.length) headerLines.push(contactBits.join(' · '));
+  if (cv.header.links?.length) headerLines.push(cv.header.links.map((l) => `${l.label}: ${l.url ?? ''}`).join(' · '));
+  if (headerLines.length) parts.push(headerLines.join('\n'));
+
+  if (cv.summary) parts.push(`SUMMARY\n${cv.summary}`);
+
+  if (cv.experience.length) {
+    const block = cv.experience
+      .map((e) => {
+        const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ');
+        const head = `${e.role} — ${e.organization}${e.location ? `, ${e.location}` : ''}${dates ? ` (${dates})` : ''}`;
+        return [head, ...e.bullets.map((b) => `  • ${b}`)].join('\n');
+      })
+      .join('\n\n');
+    parts.push(`EXPERIENCE\n${block}`);
+  }
+
+  if (cv.education.length) {
+    const block = cv.education
+      .map((e) => {
+        const dates = [e.startDate, e.endDate].filter(Boolean).join(' – ');
+        const head = `${e.qualification} — ${e.institution}${e.location ? `, ${e.location}` : ''}${dates ? ` (${dates})` : ''}`;
+        const details = e.details?.map((d) => `  • ${d}`).join('\n');
+        return details ? `${head}\n${details}` : head;
+      })
+      .join('\n\n');
+    parts.push(`EDUCATION\n${block}`);
+  }
+
+  if (cv.skills.length) {
+    const block = cv.skills.map((g) => `${g.category}: ${g.items.join(', ')}`).join('\n');
+    parts.push(`SKILLS\n${block}`);
+  }
+
+  if (cv.projects?.length) {
+    const block = cv.projects
+      .map((p) => [`${p.name}${p.role ? ` — ${p.role}` : ''}`, ...p.bullets.map((b) => `  • ${b}`)].join('\n'))
+      .join('\n\n');
+    parts.push(`PROJECTS\n${block}`);
+  }
+
+  if (cv.certifications?.length) parts.push(`CERTIFICATIONS\n${cv.certifications.map((c) => `• ${c}`).join('\n')}`);
+  if (cv.awards?.length) parts.push(`AWARDS\n${cv.awards.map((a) => `• ${a}`).join('\n')}`);
+
+  return parts.join('\n\n');
 }

@@ -57,6 +57,7 @@ import { PATHS } from '@/lib/paths/catalog';
 import { hydratePathProgress, pickActivePath } from '@/lib/paths/progress';
 import { PathwayGenerator } from '@/components/paths/PathwayGenerator';
 import { ModuleViewer } from '@/components/paths/ModuleViewer';
+import { GaiPane, type GaiPaneContext } from '@/components/paths/GaiPane';
 
 interface PathsResponse {
   paths: PathProgress[];
@@ -350,6 +351,31 @@ export default function PathsPage() {
   const activePath = stateData?.activePath ?? null;
   const recommendations = recsData?.recommendations ?? [];
 
+  // Derive G.ai surface context: prefer the module the user is currently
+  // viewing, otherwise fall back to their active path so the assistant can
+  // still ground answers even when no viewer is open.
+  const gaiContext = useMemo<GaiPaneContext | null>(() => {
+    if (viewerState) {
+      return {
+        pathId: viewerState.path.id,
+        pathTitle: viewerState.path.title,
+        moduleId: viewerState.module.id,
+        moduleTitle: viewerState.module.title,
+        currentConcept: viewerState.module.concept,
+      };
+    }
+    if (activePath) {
+      return {
+        pathId: activePath.path.id,
+        pathTitle: activePath.path.title,
+        moduleId: activePath.currentModule?.id,
+        moduleTitle: activePath.currentModule?.title,
+        currentConcept: activePath.currentModule?.concept,
+      };
+    }
+    return null;
+  }, [viewerState, activePath]);
+
   // Only block on auth, not on data — render the catalog while data loads
   if (authLoading || !user) {
     return (
@@ -582,6 +608,8 @@ export default function PathsPage() {
           isCompleting={actionPending === `complete:${viewerState.module.id}`}
         />
       )}
+
+      <GaiPane user={user} context={gaiContext} />
     </div>
   );
 }

@@ -20,7 +20,10 @@ type EventType =
   | 'pathway_generated'
   | 'pathway_opened'
   | 'pathway_step_to_planner'
-  | 'pathway_deleted';
+  | 'pathway_deleted'
+  | 'gai_pane_opened'
+  | 'gai_pane_message'
+  | 'gai_pane_todo_to_planner';
 
 interface AnalyticsEvent {
   event: EventType;

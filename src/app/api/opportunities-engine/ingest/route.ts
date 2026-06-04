@@ -2,7 +2,98 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, db } from '../../../../../lib/firebase-admin';
 import { runAllConnectors } from '@/lib/opportunities-engine/connectors';
 import { Opportunity } from '@/types/opportunities';
-import { validateLinks, normalizeUrl } from '@/lib/opportunities-engine/link-validator';
+import {
+  normalizeUrl,
+  verifyOpportunityLinks,
+  type LinkVerdict,
+  type LinkVerificationResult,
+} from '@/lib/opportunities-engine/link-validator';
+
+const REJECT_VERDICTS: ReadonlySet<LinkVerdict> = new Set<LinkVerdict>([
+  'dead',
+  'soft_404',
+  'redirected_generic',
+  'invalid_url',
+]);
+
+const FLAG_VERDICTS: ReadonlySet<LinkVerdict> = new Set<LinkVerdict>([
+  'auth_required',
+  'server_error',
+  'timeout',
+  'inconclusive',
+]);
+
+interface VerificationOutcome {
+  kept: Opportunity[];
+  rejected: { opp: Opportunity; result: LinkVerificationResult }[];
+  stats: Record<LinkVerdict | 'unverified', number>;
+}
+
+function applyValidation(opp: Opportunity, result: LinkVerificationResult | null): Opportunity {
+  const previous = opp.validation ?? { isVerified: false, trustScore: 0 };
+  if (!result) {
+    return {
+      ...opp,
+      validation: {
+        ...previous,
+        flags: [...(previous.flags ?? []), 'link_unverified'],
+        lastChecked: new Date().toISOString(),
+      },
+    };
+  }
+  const flags = [...(previous.flags ?? [])];
+  if (FLAG_VERDICTS.has(result.verdict)) flags.push(`link_${result.verdict}`);
+  return {
+    ...opp,
+    validation: {
+      ...previous,
+      isVerified: result.trusted,
+      verifiedAt: result.trusted ? result.checkedAt : previous.verifiedAt,
+      lastChecked: result.checkedAt,
+      flags: flags.length ? Array.from(new Set(flags)) : previous.flags,
+      trustScore: result.trusted ? Math.max(previous.trustScore ?? 0, 75) : previous.trustScore ?? 0,
+    },
+  };
+}
+
+async function verifyBeforeStore(
+  opportunities: Opportunity[],
+  totalBudgetMs: number
+): Promise<VerificationOutcome> {
+  const stats: VerificationOutcome['stats'] = {
+    ok: 0, dead: 0, soft_404: 0, redirected_generic: 0,
+    auth_required: 0, server_error: 0, timeout: 0,
+    inconclusive: 0, invalid_url: 0, unverified: 0,
+  };
+  if (opportunities.length === 0) return { kept: [], rejected: [], stats };
+
+  const urls = opportunities.map((o) => o.url).filter(Boolean);
+  const results = await verifyOpportunityLinks(urls, {
+    concurrency: 10,
+    perUrlBudgetMs: 7_000,
+    totalBudgetMs,
+  });
+  const byUrl = new Map<string, LinkVerificationResult>();
+  for (const r of results) byUrl.set(r.url, r);
+
+  const kept: Opportunity[] = [];
+  const rejected: { opp: Opportunity; result: LinkVerificationResult }[] = [];
+  for (const opp of opportunities) {
+    const result = byUrl.get(opp.url);
+    if (!result) {
+      stats.unverified++;
+      kept.push(applyValidation(opp, null));
+      continue;
+    }
+    stats[result.verdict]++;
+    if (REJECT_VERDICTS.has(result.verdict)) {
+      rejected.push({ opp, result });
+      continue;
+    }
+    kept.push(applyValidation(opp, result));
+  }
+  return { kept, rejected, stats };
+}
 
 const BATCH_SIZE = 450;
 // Firestore caps the `in` operator at 30 values per query.
@@ -175,43 +266,43 @@ export async function POST(req: NextRequest) {
       canonicalUrl: opp.canonicalUrl ? normalizeUrl(opp.canonicalUrl) : undefined,
     }));
 
-    const storeResult = await storeOpportunities(normalizedOpportunities);
+    // Pre-storage link verification — block dead/soft-404/generic-redirect URLs
+    // from ever entering the catalogue.
+    let verificationStats: VerificationOutcome['stats'] = {
+      ok: 0, dead: 0, soft_404: 0, redirected_generic: 0,
+      auth_required: 0, server_error: 0, timeout: 0,
+      inconclusive: 0, invalid_url: 0, unverified: 0,
+    };
+    let rejectedSample: { url: string; verdict: LinkVerdict; reason: string | null }[] = [];
+    let toStore: Opportunity[] = normalizedOpportunities;
+    try {
+      const verification = await verifyBeforeStore(normalizedOpportunities, 40_000);
+      verificationStats = verification.stats;
+      rejectedSample = verification.rejected.slice(0, 25).map(({ opp, result }) => ({
+        url: opp.url,
+        verdict: result.verdict,
+        reason: result.reason,
+      }));
+      toStore = verification.kept;
+      console.log(
+        `[Ingest] Verification: kept ${verification.kept.length}, rejected ${verification.rejected.length}`
+      );
+    } catch (verifyErr) {
+      console.warn(
+        '[Ingest] Verification failed (non-fatal, storing unverified):',
+        verifyErr instanceof Error ? verifyErr.message : verifyErr
+      );
+    }
+
+    const storeResult = await storeOpportunities(toStore);
     console.log(`[Ingest] Stored: ${storeResult.added} new, ${storeResult.updated} updated`);
 
-    // Link validation: check a sample of newly stored opportunities
-    let linksChecked = 0;
-    let deadLinks = 0;
-    try {
-      const urlsToCheck = normalizedOpportunities
-        .slice(0, 50) // Check up to 50 URLs per ingestion to avoid rate limiting
-        .map(opp => opp.url);
-
-      const linkResults = await validateLinks(urlsToCheck, 5);
-      linksChecked = linkResults.length;
-      const deadResults = linkResults.filter(r => !r.isValid);
-      deadLinks = deadResults.length;
-
-      // Flag dead links in Firestore
-      if (deadResults.length > 0) {
-        const opportunitiesRef = db.collection('opportunities');
-        for (const dead of deadResults) {
-          const matchQuery = await opportunitiesRef
-            .where('url', '==', dead.url)
-            .limit(1)
-            .get();
-          if (!matchQuery.empty) {
-            await matchQuery.docs[0].ref.update({
-              'validation.flags': [...(matchQuery.docs[0].data().validation?.flags || []), `dead_link:${dead.error}`],
-              'validation.lastChecked': dead.checkedAt,
-              'status': 'expired',
-            });
-          }
-        }
-        console.log(`[Ingest] Flagged ${deadLinks} dead links`);
-      }
-    } catch (linkErr) {
-      console.warn('[Ingest] Link validation failed (non-fatal):', linkErr instanceof Error ? linkErr.message : linkErr);
-    }
+    const linksChecked = normalizedOpportunities.length;
+    const deadLinks =
+      verificationStats.dead +
+      verificationStats.soft_404 +
+      verificationStats.redirected_generic +
+      verificationStats.invalid_url;
 
     let cleaned = 0;
     try {
@@ -242,6 +333,8 @@ export async function POST(req: NextRequest) {
         cleaned,
         linksChecked,
         deadLinks,
+        verification: verificationStats,
+        rejectedSample,
         durationMs: ingestionResult.durationMs,
         bySource: ingestionResult.bySource,
       },

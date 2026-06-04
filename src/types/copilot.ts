@@ -100,6 +100,20 @@ export interface CopilotChatRequest {
   mode: 'suggest' | 'assist';
 }
 
+/**
+ * A single action G.ai's agent took or is proposing. Rendered in the UI as an
+ * action card. `id` is the undo key for executed actions and the
+ * copilot_pending doc id (confirm key) for proposed actions.
+ */
+export interface GaiAction {
+  id: string;
+  tool: string;
+  tier: 'read' | 'reversible' | 'sensitive';
+  label: string;
+  status: 'executed' | 'proposed' | 'failed';
+  detail?: string;
+}
+
 /** Response from POST /api/copilot/chat */
 export interface CopilotChatResponse {
   answer: string;
@@ -123,4 +137,12 @@ export interface CopilotChatResponse {
   /** Only in assist mode when todos were auto-created */
   undoToken?: string;
   undoExpiresAt?: string;
+  /** Agentic modes — actions G.ai executed this turn (full_auto). */
+  executedActions?: GaiAction[];
+  /** Agentic modes — actions awaiting user confirmation (confirm mode). */
+  proposedActions?: GaiAction[];
+  /** Suggested next-step prompts the user can tap to send as a follow-up. */
+  followUps?: string[];
+  /** Autonomy level that produced this response. */
+  autonomy?: 'full_auto' | 'confirm' | 'manual';
 }

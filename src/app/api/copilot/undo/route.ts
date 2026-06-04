@@ -42,20 +42,46 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Undo window expired' }, { status: 410 });
     }
 
-    const todoIds = (data?.todoIds as string[]) ?? [];
-    const collectionName = (data?.collection as string) === 'todos' ? 'todos' : 'actionItems';
+    let deleted = 0;
     const batch = db.batch();
-    for (const id of todoIds) {
-      const ref = db.collection(collectionName).doc(id);
-      const snap = await ref.get();
-      if (snap.exists && (snap.data()?.userId === uid)) {
+
+    // Agentic undo — generic doc paths created by the G.ai agent.
+    const refs = Array.isArray(data?.refs) ? (data!.refs as string[]) : [];
+    for (const path of refs) {
+      if (typeof path !== 'string' || !path.includes('/')) continue;
+      const ref = db.doc(path);
+      // Ownership: a doc under users/{uid}/ belongs to the user by path;
+      // a top-level doc must carry a matching userId field.
+      if (path.startsWith(`users/${uid}/`)) {
         batch.delete(ref);
+        deleted += 1;
+      } else {
+        const snap = await ref.get();
+        if (snap.exists && snap.data()?.userId === uid) {
+          batch.delete(ref);
+          deleted += 1;
+        }
       }
     }
+
+    // Legacy undo — assist-mode todos.
+    const todoIds = (data?.todoIds as string[]) ?? [];
+    if (todoIds.length > 0) {
+      const collectionName = (data?.collection as string) === 'todos' ? 'todos' : 'actionItems';
+      for (const id of todoIds) {
+        const ref = db.collection(collectionName).doc(id);
+        const snap = await ref.get();
+        if (snap.exists && snap.data()?.userId === uid) {
+          batch.delete(ref);
+          deleted += 1;
+        }
+      }
+    }
+
     await batch.commit();
     await undoRef.delete();
 
-    return NextResponse.json({ success: true, deleted: todoIds.length });
+    return NextResponse.json({ success: true, deleted });
   } catch (e) {
     console.error('[POST /api/copilot/undo]', e);
     return NextResponse.json({ error: 'Failed to undo' }, { status: 500 });
