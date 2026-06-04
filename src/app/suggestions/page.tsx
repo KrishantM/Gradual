@@ -99,6 +99,7 @@ export default function SuggestionsPage() {
   const [openListMenuFor, setOpenListMenuFor] = useState<string | null>(null);
   const [ingesting, setIngesting] = useState(false);
   const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
+  const [listPendingDelete, setListPendingDelete] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -499,8 +500,7 @@ export default function SuggestionsPage() {
   // Delete a custom list
   const deleteCustomList = async (listId: string) => {
     if (!user) return;
-    if (!confirm('Are you sure you want to delete this list? This action cannot be undone.')) return;
-    
+    setListPendingDelete(null);
     try {
       const userRef = doc(db, 'users', user.uid);
       const userSnap = await getDoc(userRef);
@@ -840,17 +840,36 @@ export default function SuggestionsPage() {
                                       </span>
                                     </button>
                                     {isActive && (
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          deleteCustomList(list.id);
-                                        }}
-                                        className="ml-1 p-1 rounded transition-colors cursor-pointer hover:bg-white/20"
-                                        aria-label="Delete list"
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </button>
+                                      listPendingDelete === list.id ? (
+                                        <div className="flex items-center gap-1 ml-1" onClick={(e) => e.stopPropagation()}>
+                                          <button
+                                            type="button"
+                                            onClick={() => deleteCustomList(list.id)}
+                                            className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[var(--danger)] text-white hover:opacity-90 transition-opacity"
+                                          >
+                                            Delete
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => setListPendingDelete(null)}
+                                            className="text-[10px] font-medium px-1.5 py-0.5 rounded hover:bg-white/20 transition-colors"
+                                          >
+                                            Cancel
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setListPendingDelete(list.id);
+                                          }}
+                                          className="ml-1 p-1 rounded transition-colors cursor-pointer hover:bg-white/20"
+                                          aria-label="Delete list"
+                                        >
+                                          <Trash2 className="h-3 w-3" />
+                                        </button>
+                                      )
                                     )}
                                   </div>
                                 );
@@ -1021,10 +1040,10 @@ export default function SuggestionsPage() {
                       if (searchQuery.trim()) {
                         const query = searchQuery.toLowerCase();
                         filteredOpportunities = filteredOpportunities.filter(opp =>
-                          opp.title.toLowerCase().includes(query) ||
-                          opp.description.toLowerCase().includes(query) ||
-                          opp.organization.toLowerCase().includes(query) ||
-                          opp.tags.some(tag => tag.toLowerCase().includes(query)) ||
+                          opp.title?.toLowerCase().includes(query) ||
+                          opp.description?.toLowerCase().includes(query) ||
+                          opp.organization?.toLowerCase().includes(query) ||
+                          opp.tags?.some(tag => tag.toLowerCase().includes(query)) ||
                           opp.category?.toLowerCase().includes(query)
                         );
                       }

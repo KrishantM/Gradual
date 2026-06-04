@@ -10,11 +10,11 @@ import AddApplicationModal from '@/components/AddApplicationModal';
 import AddActionItemModal from '@/components/AddActionItemModal';
 import EditApplicationModal from '@/components/EditApplicationModal';
 import EditActionItemModal from '@/components/EditActionItemModal';
-import { 
-  Plus, 
-  Grid3X3, 
-  List, 
-  Search, 
+import {
+  Plus,
+  Grid3X3,
+  List,
+  Search,
   Filter,
   Calendar,
   Building,
@@ -30,7 +30,8 @@ import {
   DollarSign,
   MoreVertical,
   ArrowUpDown,
-  ClipboardList
+  ClipboardList,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -65,6 +66,7 @@ export default function TrackerPage() {
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [crudError, setCrudError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStage, setFilterStage] = useState<string>('all');
@@ -139,10 +141,7 @@ export default function TrackerPage() {
   const handleAddApplication = async (applicationData: any) => {
     try {
       const token = await user?.getIdToken();
-      if (!token) {
-        console.error('User not authenticated');
-        return;
-      }
+      if (!token) return;
 
       const response = await fetch('/api/applications', {
         method: 'POST',
@@ -157,10 +156,11 @@ export default function TrackerPage() {
         const newApplication = await response.json();
         setApplications(prev => [newApplication, ...prev]);
       } else {
-        console.error('Failed to add application');
+        setCrudError('Failed to add application. Please try again.');
       }
     } catch (error) {
       console.error('Error adding application:', error);
+      setCrudError('Failed to add application. Please try again.');
     }
   };
 
@@ -168,10 +168,7 @@ export default function TrackerPage() {
   const handleAddActionItem = async (actionItemData: any) => {
     try {
       const token = await user?.getIdToken();
-      if (!token) {
-        console.error('User not authenticated');
-        return;
-      }
+      if (!token) return;
 
       const response = await fetch('/api/action-items', {
         method: 'POST',
@@ -189,10 +186,11 @@ export default function TrackerPage() {
         const newActionItem = await response.json();
         setActionItems(prev => [newActionItem, ...prev]);
       } else {
-        console.error('Failed to add action item');
+        setCrudError('Failed to add task. Please try again.');
       }
     } catch (error) {
       console.error('Error adding action item:', error);
+      setCrudError('Failed to add task. Please try again.');
     }
   };
 
@@ -230,12 +228,10 @@ export default function TrackerPage() {
   };
 
   const handleEditApplication = (applicationId: string) => {
-    const application = applications.find(app => app.id === applicationId);
     setEditingApplication(applicationId);
   };
 
   const handleEditActionItem = (itemId: string) => {
-    const actionItem = actionItems.find(item => item.id === itemId);
     setEditingActionItem(itemId);
   };
 
@@ -307,7 +303,7 @@ export default function TrackerPage() {
 
   const handleDeleteApplication = async (applicationId: string) => {
     if (!user) return;
-    
+
     try {
       const token = await user.getIdToken();
 
@@ -322,15 +318,18 @@ export default function TrackerPage() {
 
       if (response.ok) {
         setApplications(prev => prev.filter(app => app.id !== applicationId));
+      } else {
+        setCrudError('Failed to delete application. Please try again.');
       }
     } catch (error) {
       console.error('Error deleting application:', error);
+      setCrudError('Failed to delete application. Please try again.');
     }
   };
 
   const handleDeleteActionItem = async (itemId: string) => {
     if (!user) return;
-    
+
     try {
       const token = await user.getIdToken();
 
@@ -345,9 +344,12 @@ export default function TrackerPage() {
 
       if (response.ok) {
         setActionItems(prev => prev.filter(item => item.id !== itemId));
+      } else {
+        setCrudError('Failed to delete task. Please try again.');
       }
     } catch (error) {
       console.error('Error deleting action item:', error);
+      setCrudError('Failed to delete task. Please try again.');
     }
   };
 
@@ -433,6 +435,21 @@ export default function TrackerPage() {
               Track your job applications and manage your career search progress
             </p>
           </motion.div>
+
+          {/* CRUD error banner */}
+          {crudError && (
+            <div className="mb-4 flex items-center gap-3 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger-soft)] px-4 py-3">
+              <p className="text-sm text-[var(--danger)] flex-1">{crudError}</p>
+              <button
+                type="button"
+                onClick={() => setCrudError(null)}
+                className="text-[var(--danger)] hover:opacity-70 shrink-0"
+                aria-label="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
 
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 section-gap">
