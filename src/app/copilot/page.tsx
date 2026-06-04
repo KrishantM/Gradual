@@ -99,6 +99,7 @@ function CopilotPageInner() {
   const [restoring, setRestoring] = useState(false);
   const [archivingCurrent, setArchivingCurrent] = useState(false);
   const [addingTodo, setAddingTodo] = useState<string | null>(null);
+  const [addingToPlanner, setAddingToPlanner] = useState<string | null>(null);
   const [undoing, setUndoing] = useState(false);
   const [loadingLatest, setLoadingLatest] = useState(true);
   const [sendingToPlan, setSendingToPlan] = useState(false);
@@ -362,16 +363,44 @@ function CopilotPageInner() {
         tasks.map((t) => ({ date, title: t.title, notes: t.notes, source: 'copilot' as const }))
       );
       if (events.length === 0) return;
-      const res = await fetch('/api/planner/events/batch', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ events }),
-      });
-      if (!res.ok) throw new Error('Failed to send');
+      // Batch endpoint caps at 20 — chunk to stay within the limit.
+      const BATCH_SIZE = 20;
+      const chunks: (typeof events)[] = [];
+      for (let i = 0; i < events.length; i += BATCH_SIZE) {
+        chunks.push(events.slice(i, i + BATCH_SIZE));
+      }
+      const results = await Promise.all(
+        chunks.map((chunk) =>
+          fetch('/api/planner/events/batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ events: chunk }),
+          })
+        )
+      );
+      if (results.some((r) => !r.ok)) throw new Error('Failed to send');
       setSentToPlan(true);
       router.refresh();
       trackEvent('copilot_send_to_planner', user.uid, { eventCount: events.length });
     } catch { setError('Failed to send plan to planner'); }
     finally { setSendingToPlan(false); }
+  };
+
+  const addToPlanner = async (t: SuggestedTodo) => {
+    if (!user) return;
+    setAddingToPlanner(t.title);
+    try {
+      const token = await getToken();
+      const res = await fetch('/api/planner/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ date: t.dueDateISO ?? todayKey, title: t.title, notes: t.notes, source: 'copilot' }),
+      });
+      if (!res.ok) throw new Error('Failed to add to planner');
+      setResponse(prev => prev ? { ...prev, suggestedTodos: prev.suggestedTodos.filter(x => x.title !== t.title) } : null);
+      trackEvent('copilot_add_to_planner', user.uid, { todoTitle: t.title });
+    } catch { setError('Failed to add to planner'); }
+    finally { setAddingToPlanner(null); }
   };
 
 
@@ -633,6 +662,16 @@ function CopilotPageInner() {
                             >
                               {addingTodo === t.title ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
                             </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-1.5 text-xs text-[var(--accent-blue)] hover:bg-[var(--accent-blue)]/10"
+                              onClick={() => addToPlanner(t)}
+                              disabled={!!addingToPlanner}
+                              title="Add to Planner"
+                            >
+                              {addingToPlanner === t.title ? <Loader2 className="h-3 w-3 animate-spin" /> : <Calendar className="h-3 w-3" />}
+                            </Button>
                             {pinnedTitles.has(t.title) ? (
                               <span className="h-6 px-1.5 text-[10px] font-medium text-[var(--success)] flex items-center gap-0.5">
                                 <CheckCircle2 className="h-3 w-3" />Saved
@@ -657,10 +696,13 @@ function CopilotPageInner() {
                 </div>
                 <div className="px-3 py-2 border-t border-[var(--border-soft)] bg-[var(--surface-subtle)] flex items-center gap-3">
                   <span className="text-[11px] text-[var(--text-subtle)] flex items-center gap-1">
-                    <Plus className="h-3 w-3" />Add to To-do list
+                    <Plus className="h-3 w-3" />To-do
                   </span>
                   <span className="text-[11px] text-[var(--text-subtle)] flex items-center gap-1">
-                    <Pin className="h-3 w-3" />Save to Dashboard
+                    <Calendar className="h-3 w-3" />Planner
+                  </span>
+                  <span className="text-[11px] text-[var(--text-subtle)] flex items-center gap-1">
+                    <Pin className="h-3 w-3" />Dashboard
                   </span>
                 </div>
               </div>
