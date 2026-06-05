@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
-import useSWR from 'swr';
+import useSWR, { mutate } from 'swr';
 import { createAuthFetcher, SWR_AUTH_CONFIG } from '@/lib/swr-fetcher';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -380,7 +380,7 @@ function CopilotPageInner() {
       );
       if (results.some((r) => !r.ok)) throw new Error('Failed to send');
       setSentToPlan(true);
-      router.refresh();
+      mutate(`/api/dashboard/intelligence?date=${todayKey}`);
       trackEvent('copilot_send_to_planner', user.uid, { eventCount: events.length });
     } catch { setError('Failed to send plan to planner'); }
     finally { setSendingToPlan(false); }
@@ -398,6 +398,7 @@ function CopilotPageInner() {
       });
       if (!res.ok) throw new Error('Failed to add to planner');
       setResponse(prev => prev ? { ...prev, suggestedTodos: prev.suggestedTodos.filter(x => x.title !== t.title) } : null);
+      mutate(`/api/dashboard/intelligence?date=${todayKey}`);
       trackEvent('copilot_add_to_planner', user.uid, { todoTitle: t.title });
     } catch { setError('Failed to add to planner'); }
     finally { setAddingToPlanner(null); }
