@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { mutate } from 'swr';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -312,6 +313,7 @@ export default function PlannerPage() {
       setEvents((prev) => [...prev, { id: data.id, date, title, notes: data.notes, source: 'user', startTime: null, endTime: null, createdAt: null }]);
       setNewTitle((prev) => ({ ...prev, [date]: '' }));
       setAddingForDate(null);
+      mutate(`/api/dashboard/intelligence?date=${todayKey}`);
     } catch {
       setPlannerError('Failed to add task. Please try again.');
     } finally {
@@ -328,6 +330,7 @@ export default function PlannerPage() {
       if (!res.ok) throw new Error('Delete failed');
       setEvents((prev) => prev.filter((e) => e.id !== id));
       if (selectedEvent?.id === id) setSelectedEvent(null);
+      mutate(`/api/dashboard/intelligence?date=${todayKey}`);
     } catch {
       setPlannerError('Failed to delete event. Please try again.');
     } finally {
@@ -351,6 +354,7 @@ export default function PlannerPage() {
       prev.map((e) => (e.id === id ? { ...e, ...patch } : e))
     );
     setSelectedEvent((prev) => (prev?.id === id ? { ...prev, ...patch } : prev));
+    mutate(`/api/dashboard/intelligence?date=${todayKey}`);
   };
 
   const weekDays = Array.from({ length: 7 }, (_, i) => {
