@@ -498,6 +498,13 @@ export default function DashboardPage() {
         // Process user doc
         if (userSnap.exists()) {
           const userData = userSnap.data();
+
+          // First-run: redirect new users through onboarding before showing the dashboard
+          if (userData.onboardingComplete === false) {
+            router.push('/onboarding');
+            return;
+          }
+
           setName(userData.fullName || '');
 
           const rawCvScore = userData.cvScore;

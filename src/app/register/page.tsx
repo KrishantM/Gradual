@@ -85,6 +85,7 @@ export default function Register() {
           createdAt: new Date(),
           isProfilePublic: true,
           allowRecruiterContact: true,
+          onboardingComplete: false,
         });
       }
 
