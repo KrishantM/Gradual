@@ -131,9 +131,16 @@ export default function ProfilePage() {
           
           // CRITICAL: Only recalculate CV score if absolutely none exists
           // AND if the CV score wasn't recently updated (within last 10 minutes)
-          // This prevents overwriting recently updated scores from CV scoring operations
-          const hasRecentScore = data.cvScoreTimestamp && 
-            (new Date().getTime() - new Date(data.cvScoreTimestamp).getTime()) < 10 * 60 * 1000; // 10 minutes
+          // This prevents overwriting recently updated scores from CV scoring operations.
+          // Handle both Firestore Timestamps (have .toDate()) and plain strings/Dates.
+          const tsMs = (() => {
+            const ts = data.cvScoreTimestamp;
+            if (!ts) return null;
+            if (typeof (ts as any).toDate === 'function') return (ts as any).toDate().getTime();
+            const d = new Date(ts);
+            return isNaN(d.getTime()) ? null : d.getTime();
+          })();
+          const hasRecentScore = tsMs !== null && (new Date().getTime() - tsMs) < 10 * 60 * 1000; // 10 minutes
           
           if (data.cvText && data.cvText.trim() !== '' && 
               (data.cvScore === null || data.cvScore === undefined) && 
@@ -350,9 +357,15 @@ export default function ProfilePage() {
     if (!user || !cvText) return;
     
     // CRITICAL: Check if we have a recent score to prevent unnecessary overwrites
-    const hasRecentScore = cvScoreTimestamp && 
-      (new Date().getTime() - new Date(cvScoreTimestamp).getTime()) < 10 * 60 * 1000; // 10 minutes
-    
+    const refreshTsMs = (() => {
+      const ts = cvScoreTimestamp;
+      if (!ts) return null;
+      if (typeof (ts as any).toDate === 'function') return (ts as any).toDate().getTime();
+      const d = new Date(ts);
+      return isNaN(d.getTime()) ? null : d.getTime();
+    })();
+    const hasRecentScore = refreshTsMs !== null && (new Date().getTime() - refreshTsMs) < 10 * 60 * 1000; // 10 minutes
+
     if (hasRecentScore) {
       console.log('CV score was recently updated, manual refresh not needed');
       setError('CV score was recently updated. No refresh needed.');

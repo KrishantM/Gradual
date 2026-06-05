@@ -17,6 +17,11 @@ import { db } from '@/lib/firebase';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { trackEvent } from '@/lib/analytics';
+import { GaiActionCards } from '@/components/copilot/GaiActionCards';
+import { AutonomySelector } from '@/components/copilot/AutonomySelector';
+import { MarkdownMessage } from '@/components/copilot/MarkdownMessage';
+import { streamCopilotChat } from '@/lib/copilot/chat-stream';
+import type { GaiAction } from '@/types/copilot';
 
 /* ─── Types ─── */
 
@@ -34,6 +39,12 @@ interface CopilotResponse {
   weeklyPlan?: Record<string, WeeklyPlanDay[]>;
   undoToken?: string;
   undoExpiresAt?: string;
+  /** Agentic modes — actions G.ai took or proposed this turn. */
+  executedActions?: GaiAction[];
+  proposedActions?: GaiAction[];
+  /** Suggested next-step prompts the user can tap to send as a follow-up. */
+  followUps?: string[];
+  autonomy?: 'full_auto' | 'confirm' | 'manual';
 }
 
 interface SidebarSignal { key: string; level: 'HIGH' | 'MEDIUM' | 'OK'; message: string }
@@ -70,10 +81,15 @@ function CopilotPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [message, setMessage] = useState('');
-  const [mode, setMode] = useState<Mode>('suggest');
+  // Suggestion vs auto-create only applies in `manual` autonomy; agentic modes
+  // (full_auto/confirm) drive behaviour from the autonomy level instead.
+  const mode: Mode = 'suggest';
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [response, setResponse] = useState<CopilotResponse | null>(null);
+  // Live streaming state — the in-flight assistant reply, token by token.
+  const [streamingText, setStreamingText] = useState('');
+  const [streamStatus, setStreamStatus] = useState<string | null>(null);
   const [conversationMessages, setConversationMessages] = useState<{ role: string; content: string }[]>([]);
   const [conversationsList, setConversationsList] = useState<ConversationSummary[]>([]);
   const [conversationsOpen, setConversationsOpen] = useState(false);
@@ -218,6 +234,9 @@ function CopilotPageInner() {
         setResponse({
           answer: data.answer, priorities: data.priorities ?? [], suggestedTodos: data.suggestedTodos ?? [],
           suggestedOpportunities: data.suggestedOpportunities ?? [], weeklyPlan: data.weeklyPlan,
+          executedActions: data.executedActions ?? undefined,
+          proposedActions: data.proposedActions ?? undefined,
+          autonomy: data.autonomy,
         });
       }
     }
@@ -236,10 +255,10 @@ function CopilotPageInner() {
   }, [user, fetchLatestAndConversation]);
 
 
-  // Auto-scroll conversation thread when messages change or response arrives
+  // Auto-scroll conversation thread when messages change or tokens stream in
   useEffect(() => {
     if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight;
-  }, [conversationMessages, response, loading]);
+  }, [conversationMessages, response, loading, streamingText]);
 
   // Deep-link: if URL has ?prompt=..., auto-send it once after the user is loaded.
   // Used by the Pathway Generator timeline to "Ask G.ai" about a specific step.
@@ -291,25 +310,30 @@ function CopilotPageInner() {
     // Optimistic: append the user message immediately so the UI feels instant
     setConversationMessages((prev) => [...prev, { role: 'user', content: text }]);
     setSentToPlan(false);
+    setStreamingText(''); setStreamStatus(null);
+    if (!overrideMessage) setMessage('');
     try {
       const token = await getToken();
-      const res = await fetch('/api/copilot/chat', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ message: text, mode }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Request failed');
-      setResponse(data as CopilotResponse);
+      if (!token) throw new Error('You are not signed in.');
+      const result = await streamCopilotChat(
+        { token, message: text, mode, clientDateISO: todayKey },
+        {
+          onToken: (delta) => setStreamingText((t) => t + delta),
+          onStatus: (status) => setStreamStatus(status),
+          onMeta: (meta) => setResponse(meta as CopilotResponse),
+        }
+      );
+      if (!result.ok) throw new Error(result.error ?? 'Request failed');
+      if (result.response) setResponse(result.response as CopilotResponse);
+      // Commit the streamed reply as a permanent message bubble.
+      setConversationMessages((prev) => [...prev, { role: 'assistant', content: result.answer }]);
       trackEvent('copilot_query', user.uid, { mode, isQuickAction: !!overrideMessage });
-      if (!overrideMessage) setMessage('');
-      const currentRes = await fetch('/api/copilot/current', { headers: { Authorization: `Bearer ${token}` } });
-      if (currentRes.ok) { const currentData = await currentRes.json(); setConversationMessages(currentData.messages ?? []); }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong');
       // Roll back the optimistic user message on failure
       setConversationMessages((prev) => prev.slice(0, -1));
     }
-    finally { setLoading(false); }
+    finally { setLoading(false); setStreamingText(''); setStreamStatus(null); }
   };
 
   const addTodo = async (t: SuggestedTodo) => {
@@ -424,6 +448,18 @@ function CopilotPageInner() {
     if (!response) return null;
     return (
       <div className="mt-3 space-y-3 max-w-2xl">
+        {/* Agentic action cards — executed (full_auto) / proposed (confirm) */}
+        {((response.executedActions?.length ?? 0) > 0 || (response.proposedActions?.length ?? 0) > 0) && (
+          <GaiActionCards
+            user={user}
+            executed={response.executedActions}
+            proposed={response.proposedActions}
+            undoToken={response.undoToken}
+            undoExpiresAt={response.undoExpiresAt}
+            clientDateISO={todayKey}
+          />
+        )}
+
         {/* Priority chips */}
         {response.priorities.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
@@ -502,14 +538,37 @@ function CopilotPageInner() {
           </div>
         )}
 
-        {/* Undo assist banner */}
-        {response.undoToken && response.undoExpiresAt && (
+        {/* Undo assist banner — manual/assist path only; agentic undo lives in GaiActionCards */}
+        {response.undoToken && response.undoExpiresAt && !response.executedActions?.length && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-[var(--border-soft)] bg-[var(--surface-subtle)] text-sm">
             <Undo2 className="h-3.5 w-3.5 text-[var(--text-muted)]" />
             <span className="flex-1 text-[var(--text-muted)] text-xs">Assist mode created to-dos. You can undo within 5 minutes.</span>
             <Button variant="outline" size="sm" onClick={undoAssist} disabled={undoing}>
               {undoing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Undo'}
             </Button>
+          </div>
+        )}
+
+        {/* Suggested next steps — tap to send as a follow-up */}
+        {response.followUps && response.followUps.length > 0 && (
+          <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-card)] overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide">
+              <Lightbulb className="h-3.5 w-3.5" />
+              Suggested next steps
+            </div>
+            <div className="divide-y divide-[var(--border-soft)]">
+              {response.followUps.slice(0, 3).map((f, i) => (
+                <button
+                  key={i}
+                  onClick={() => send(f)}
+                  disabled={loading}
+                  className="w-full text-left px-3 py-2.5 flex items-center gap-2 text-sm hover:bg-[var(--surface-subtle)] transition-colors group disabled:opacity-50"
+                >
+                  <ArrowRight className="h-3.5 w-3.5 text-[var(--accent-blue)] shrink-0" />
+                  <span className="text-[var(--foreground)] group-hover:text-[var(--accent-blue)]">{f}</span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -663,16 +722,9 @@ function CopilotPageInner() {
               )}
             </div>
 
-            {/* Mode toggle */}
-            <div>
-              <div className="text-xs uppercase tracking-wide text-[var(--text-subtle)] font-semibold mb-2 px-1">G.ai mode</div>
-              <div className="flex items-center gap-1 p-1 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border-soft)]">
-                <button onClick={() => setMode('suggest')} className={`flex-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${mode === 'suggest' ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'}`}>Suggest</button>
-                <button onClick={() => setMode('assist')} className={`flex-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${mode === 'assist' ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'}`}>Assist</button>
-              </div>
-              <p className="text-xs text-[var(--text-subtle)] mt-1.5 px-1 leading-snug">
-                {mode === 'suggest' ? 'Show Add buttons for to-dos.' : 'Auto-create top 3 to-dos with undo.'}
-              </p>
+            {/* G.ai autonomy — how much the agent may do on its own */}
+            <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-card)] p-3">
+              <AutonomySelector user={user} />
             </div>
           </>
         ) : (
@@ -837,19 +889,33 @@ function CopilotPageInner() {
                   }
                   return (
                     <div key={i} className="flex flex-col items-start">
-                      <div className="max-w-[90%] text-sm text-[var(--foreground)] leading-relaxed whitespace-pre-wrap break-words">
-                        {m.content}
-                      </div>
+                      <MarkdownMessage
+                        content={m.content}
+                        className="max-w-[90%] text-sm text-[var(--foreground)] break-words"
+                      />
                       {isLastAssistant && !viewingArchiveId && renderInlineActions()}
                     </div>
                   );
                 })}
                 {loading && (
                   <div className="flex flex-col items-start">
-                    <div className="inline-flex items-center gap-2 text-sm text-[var(--text-muted)]">
-                      <Loader2 className="h-4 w-4 animate-spin text-[var(--accent-blue)]" />
-                      Thinking…
-                    </div>
+                    {streamingText ? (
+                      <div className="max-w-[90%] text-sm text-[var(--foreground)] break-words">
+                        <MarkdownMessage content={streamingText} className="inline" />
+                        <span className="inline-block w-1.5 h-4 -mb-0.5 ml-0.5 align-middle bg-[var(--accent-blue)]/60 animate-pulse rounded-sm" />
+                      </div>
+                    ) : (
+                      <div className="inline-flex items-center gap-2 text-sm text-[var(--text-muted)]">
+                        <Loader2 className="h-4 w-4 animate-spin text-[var(--accent-blue)]" />
+                        {streamStatus ?? 'Thinking…'}
+                      </div>
+                    )}
+                    {streamingText && streamStatus && (
+                      <div className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-[var(--text-subtle)]">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        {streamStatus}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

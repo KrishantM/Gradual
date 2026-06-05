@@ -100,6 +100,7 @@ function TaskDetailPanel({
   const [endTime, setEndTime] = useState(event.endTime ?? '');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const dirty =
     title !== event.title ||
     notes !== (event.notes ?? '') ||
@@ -109,13 +110,19 @@ function TaskDetailPanel({
   const save = async () => {
     if (!dirty) return;
     setSaving(true);
-    await onSave(event.id, {
-      title: title.trim() || event.title,
-      notes,
-      startTime: startTime || null,
-      endTime: endTime || null,
-    });
-    setSaving(false);
+    setSaveError(null);
+    try {
+      await onSave(event.id, {
+        title: title.trim() || event.title,
+        notes,
+        startTime: startTime || null,
+        endTime: endTime || null,
+      });
+    } catch {
+      setSaveError('Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const del = async () => {
@@ -211,24 +218,29 @@ function TaskDetailPanel({
       </div>
 
       {/* Footer */}
-      <div className="shrink-0 px-5 py-4 border-t border-[var(--border-soft)] flex items-center gap-2">
-        <Button
-          size="sm"
-          onClick={save}
-          disabled={!dirty || saving}
-          className="flex-1"
-        >
-          {saving ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />Saving</> : 'Save changes'}
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={del}
-          disabled={deleting}
-          className="text-[var(--danger)] border-[var(--danger)]/30 hover:bg-[var(--danger-soft)]"
-        >
-          {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-        </Button>
+      <div className="shrink-0 px-5 py-4 border-t border-[var(--border-soft)]">
+        {saveError && (
+          <p className="text-xs text-[var(--danger)] mb-2 text-center">{saveError}</p>
+        )}
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={save}
+            disabled={!dirty || saving}
+            className="flex-1"
+          >
+            {saving ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />Saving</> : 'Save changes'}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={del}
+            disabled={deleting}
+            className="text-[var(--danger)] border-[var(--danger)]/30 hover:bg-[var(--danger-soft)]"
+          >
+            {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+          </Button>
+        </div>
       </div>
     </motion.div>
   );
@@ -247,15 +259,20 @@ export default function PlannerPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [addingForDate, setAddingForDate] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<PlannerEvent | null>(null);
+  const [plannerError, setPlannerError] = useState<string | null>(null);
 
   const fetchEvents = useCallback(
     async (from: string, to: string) => {
       if (!user) return;
+      setPlannerError(null);
       const token = await user.getIdToken();
       const res = await fetch(`/api/planner/events?from=${from}&to=${to}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setPlannerError('Failed to load events. Please refresh the page.');
+        return;
+      }
       const data = await res.json();
       setEvents(data.events ?? []);
     },
@@ -296,7 +313,7 @@ export default function PlannerPage() {
       setNewTitle((prev) => ({ ...prev, [date]: '' }));
       setAddingForDate(null);
     } catch {
-      // ignore
+      setPlannerError('Failed to add task. Please try again.');
     } finally {
       setAdding(null);
     }
@@ -307,11 +324,12 @@ export default function PlannerPage() {
     setDeleting(id);
     try {
       const token = await user.getIdToken();
-      await fetch(`/api/planner/events/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`/api/planner/events/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error('Delete failed');
       setEvents((prev) => prev.filter((e) => e.id !== id));
       if (selectedEvent?.id === id) setSelectedEvent(null);
     } catch {
-      // ignore
+      setPlannerError('Failed to delete event. Please try again.');
     } finally {
       setDeleting(null);
     }
@@ -323,11 +341,12 @@ export default function PlannerPage() {
   ) => {
     if (!user) return;
     const token = await user.getIdToken();
-    await fetch(`/api/planner/events/${id}`, {
+    const res = await fetch(`/api/planner/events/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(patch),
     });
+    if (!res.ok) throw new Error('Failed to update event');
     setEvents((prev) =>
       prev.map((e) => (e.id === id ? { ...e, ...patch } : e))
     );
@@ -441,6 +460,16 @@ export default function PlannerPage() {
         </div>
       ) : (
         <div className="flex-1 overflow-hidden px-4 sm:px-6 lg:px-8 pb-4">
+          {/* ─── Error banner ─── */}
+          {plannerError && (
+            <div className="mb-3 flex items-center gap-3 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger-soft)] px-4 py-3">
+              <p className="text-sm text-[var(--danger)] flex-1">{plannerError}</p>
+              <button type="button" onClick={() => setPlannerError(null)} className="text-[var(--danger)] hover:opacity-70 shrink-0">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
           {/* ─── Week View ─── */}
           {view === 'week' && (
             <>

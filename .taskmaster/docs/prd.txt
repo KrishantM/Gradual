@@ -1,0 +1,82 @@
+# PRD: Gradual
+
+## What this project is
+Gradual is a career operating system for students and early-career professionals
+— a connected Next.js 15 app (Firebase + OpenAI GPT-4o) where every feature
+(Copilot, Planner, Opportunities, Profile, CV Score, Learning Paths, Tracker)
+causes visible state changes across the rest of the system. It is deliberately
+NOT a job board or a standalone AI chatbot.
+
+## The single outcome that matters right now
+First, finish the Phase 2 remaining work so the connected experience is complete
+and reliable: the Copilot horizontal (Claude/ChatGPT-style) redesign, cross-page
+bug fixes, and feature-connectivity polish so cross-feature state changes feel
+seamless. Then, sharpen the core proposition so a new user understands Gradual's
+value in under 10 seconds. Ship a coherent, bug-free connected system first; make
+it obviously valuable second. (Order: Phase 2 completion -> proposition clarity.)
+
+## Target users
+- Primary: university students and 0-3yr early-career professionals managing
+  applications, skills, and career direction.
+- Secondary (buyer lens, later): university careers services / bootcamps that
+  could license a "career command center" for cohorts.
+
+## Near-term requirements (this cycle, in priority order)
+1. [Phase 2] Copilot UI redesign to a horizontal, Claude/ChatGPT-style layout —
+   reduce stacked-card clutter; make the flagship advisor feel premium/focused.
+2. [Phase 2] Cross-page bug-fix pass, including guarding sparse/undefined
+   Firestore fields in getCareerContext()/deduplicateOpportunities()/
+   evaluateSignals() so pages never throw on near-empty accounts.
+3. [Phase 2] Feature-connectivity polish: harden the Copilot -> Planner ->
+   Dashboard signal loop so cross-feature state changes are seamless and visible.
+4. [Proposition] First-run comprehension path: landing -> lightweight onboarding
+   (seed profile + one goal) -> dashboard that is never empty; value prop stated
+   plainly in the hero.
+5. [Proposition] Differentiation copy: a tight "why Gradual (not a chatbot or job
+   board)" articulation surfaced in-product.
+
+## Non-goals (this cycle)
+- Phase 3/4 features (tracker intelligence, notifications, opportunity->planner
+  auto-suggestions).
+- Payments / monetization plumbing.
+- A native mobile app.
+- Any redesign of the CSS-variable design system.
+
+## UX requirements
+- Honor the existing design system: CSS custom properties only (never hardcoded
+  dark-mode Tailwind), rounded-xl cards + hover-lift, empty-state classes, badges.
+- Premium, spacious feel (Claude.ai / Linear / iOS references).
+- Mobile responsive; the DAS panel collapses to a drawer on mobile.
+
+## Technical requirements
+- Next.js 15 App Router, React 19, TypeScript strict (no stray `any`).
+- Zod validation on all API bodies; all routes require Firebase Bearer token.
+- AI Planner writes use source: 'copilot'; significant actions call trackEvent().
+
+## Security / privacy
+- Never expose FIREBASE_*/OPENAI_API_KEY/CRON_SECRET; server-side AI only.
+- Respect per-user Firestore isolation; no cross-user data access.
+
+## Success metrics
+- New-user time-to-first-value: a meaningful dashboard within the first session.
+- Zero crashes on empty/sparse accounts.
+- At least one demonstrable cross-feature state-change loop in a demo.
+
+## Implementation phases
+1. Phase 2 completion: Copilot horizontal redesign + cross-page bug fixes +
+   connectivity-loop hardening.
+2. Proposition clarity: first-run/never-empty onboarding + differentiation copy.
+
+## Acceptance criteria
+- A fresh account can sign up, complete minimal onboarding, and reach a populated
+  dashboard with no errors.
+- Copilot renders in the horizontal layout and can push a suggestion to the
+  Planner, which then updates a Dashboard signal.
+- `npm run lint` passes and `npx tsc --noEmit` type-checks clean.
+
+## How to test / build it
+- Lint: `npm run lint`
+- Typecheck: `npx tsc --noEmit`
+- Build (needs FIREBASE_* + OPENAI_API_KEY env): `npm run build`
+- Note: the orchestrator gate stays empty (review-only) until a runnable,
+  env-free check exists; do not invent a trivial test.
