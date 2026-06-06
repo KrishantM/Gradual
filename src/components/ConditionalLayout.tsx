@@ -27,6 +27,7 @@ export default function ConditionalLayout({ children }: ConditionalLayoutProps) 
   const isRecruiterPage = currentPath.startsWith(RECRUITER_PREFIX);
   const isPublicPage = PUBLIC_PATHS.includes(currentPath);
   const isFixRolePage = currentPath === '/fix-role';
+  const isOnboardingPage = currentPath === '/onboarding';
   const isPricingPage = currentPath === '/pricing';
   const isLegalPage = currentPath === '/terms' || currentPath === '/privacy';
 
@@ -58,7 +59,7 @@ export default function ConditionalLayout({ children }: ConditionalLayoutProps) 
     );
   }
 
-  if (user && !isPublicPage && !isRecruiterPage && !isFixRolePage) {
+  if (user && !isPublicPage && !isRecruiterPage && !isFixRolePage && !isOnboardingPage) {
     return <AppShell>{children}</AppShell>;
   }
 
