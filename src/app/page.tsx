@@ -38,6 +38,26 @@ const features = [
   },
 ];
 
+/* ─────────── Why Gradual ─────────── */
+
+const comparisons = [
+  {
+    notThis: "Generic AI chatbot",
+    butThis: "Context-aware coaching",
+    body: "G.ai reads your CV score, skill gaps, and application lag. Every suggestion is specific to where you actually are — not a blank prompt.",
+  },
+  {
+    notThis: "Job board",
+    butThis: "Profile-matched roles",
+    body: "Opportunities surface based on your real profile. Improve your CV; the match quality improves with it.",
+  },
+  {
+    notThis: "Disconnected tools",
+    butThis: "One compounding system",
+    body: "Score your CV → signals surface in G.ai → weekly plan updates → tracker closes the loop. Each action feeds the next.",
+  },
+];
+
 /* ─────────── Hero Product Preview ─────────── */
 
 function HeroPreview() {
@@ -225,6 +245,33 @@ export default function LandingPage() {
                 </div>
                 <h3 className="text-base font-semibold text-[var(--foreground)]">{feature.title}</h3>
                 <p className="mt-1.5 text-sm leading-relaxed text-[var(--text-muted)]">{feature.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Why Gradual ─── */}
+      <section className="border-t border-[var(--border-soft)]">
+        <div className="mx-auto max-w-5xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
+          <div className="mb-10 text-center">
+            <h2 className="text-2xl font-semibold tracking-tight text-[var(--foreground)] sm:text-3xl">
+              Not a chatbot. Not a job board.
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-[var(--text-muted)] sm:text-base">
+              Generic AI gives generic advice. Job boards list roles. Gradual connects the two — routing every
+              improvement back through the whole system.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            {comparisons.map((c) => (
+              <div key={c.notThis} className="surface-card rounded-xl p-5">
+                <p className="mb-1 text-xs font-medium text-[var(--text-muted)] line-through decoration-[var(--text-muted)]/50">
+                  {c.notThis}
+                </p>
+                <p className="mb-2.5 text-sm font-semibold text-[var(--accent-blue)]">{c.butThis}</p>
+                <p className="text-sm leading-relaxed text-[var(--text-muted)]">{c.body}</p>
               </div>
             ))}
           </div>
