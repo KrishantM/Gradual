@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { User, Target, ArrowRight, Loader2, CheckCircle, Sparkles } from 'lucide-react';
+import { trackEvent } from '@/lib/analytics';
 
 const GOAL_SUGGESTIONS = [
   'Land my first internship',
@@ -93,6 +94,10 @@ export default function OnboardingPage() {
         fullName: fullName.trim(),
         bio: headline.trim(),
         onboardingComplete: true,
+      });
+
+      trackEvent('onboarding_complete', user.uid, {
+        usedSuggestion: GOAL_SUGGESTIONS.includes(goal.trim()),
       });
 
       // Seed one planner event for today with the focus goal
