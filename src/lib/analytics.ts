@@ -23,7 +23,9 @@ type EventType =
   | 'pathway_deleted'
   | 'gai_pane_opened'
   | 'gai_pane_message'
-  | 'gai_pane_todo_to_planner';
+  | 'gai_pane_todo_to_planner'
+  | 'onboarding_complete'
+  | 'dashboard_signal_click';
 
 interface AnalyticsEvent {
   event: EventType;

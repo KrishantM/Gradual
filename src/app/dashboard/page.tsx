@@ -37,6 +37,7 @@ import {
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { trackEvent } from '@/lib/analytics';
 
 /* ─── Interfaces ─── */
 
@@ -373,7 +374,7 @@ const OpportunityCard = ({ opportunity, onUnstar, unstarring }: {
 
 /* ─── Signal Banner ─── */
 
-const SignalBanner = ({ signal }: { signal: Signal }) => {
+const SignalBanner = ({ signal, onCtaClick }: { signal: Signal; onCtaClick?: () => void }) => {
   const cta = getSignalCTA(signal);
   const isHigh = signal.level === 'HIGH';
 
@@ -389,7 +390,7 @@ const SignalBanner = ({ signal }: { signal: Signal }) => {
         </div>
         <p className="text-sm font-medium truncate">{signal.message}</p>
       </div>
-      <Link href={cta.href}>
+      <Link href={cta.href} onClick={onCtaClick}>
         <Button size="sm" variant="outline" className="shrink-0 text-xs">
           {cta.label} <ArrowRight className="h-3 w-3 ml-1" />
         </Button>
@@ -653,7 +654,10 @@ export default function DashboardPage() {
           transition={{ duration: 0.4, delay: 0.05 }}
         >
           {topSignal ? (
-            <SignalBanner signal={topSignal} />
+            <SignalBanner
+              signal={topSignal}
+              onCtaClick={() => trackEvent('dashboard_signal_click', user.uid, { signalKey: topSignal.key, signalLevel: topSignal.level })}
+            />
           ) : allOk && intelligence ? (
             <div className="rounded-xl border border-[var(--success)]/20 bg-[var(--success-soft)] p-4 flex items-center gap-3">
               <div className="rounded-lg bg-[var(--success)]/10 p-2">
