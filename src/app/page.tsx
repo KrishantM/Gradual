@@ -24,7 +24,7 @@ const features = [
   {
     icon: Brain,
     title: "G.ai — Career AI",
-    description: "A coach that knows your profile and plans your week.",
+    description: "A coach that knows your full profile — and sends your weekly plan straight to your calendar.",
   },
   {
     icon: GraduationCap,
@@ -154,8 +154,8 @@ export default function LandingPage() {
           </h1>
 
           <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-[var(--text-secondary)] sm:text-lg">
-            The operating system for your career. CV intelligence, an AI coach, a weekly planner, and curated
-            opportunities — all in one connected system.
+            Score your CV, get AI coaching on your gaps, plan your week, and find matched roles — one system
+            where every improvement feeds the next.
           </p>
 
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
