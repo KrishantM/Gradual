@@ -1,7 +1,12 @@
 import admin from 'firebase-admin';
 
 if (!admin.apps.length) {
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
+  // Trim leading/trailing whitespace before parsing. Env values pasted through
+  // some dashboards (e.g. Vercel) can pick up a U+FEFF byte-order mark, which
+  // JSON.parse rejects with "Unexpected token" at build time. trim() removes a
+  // leading BOM (U+FEFF is ECMAScript whitespace) along with stray newlines.
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY!.trim();
+  const serviceAccount = JSON.parse(raw);
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
   });
