@@ -51,6 +51,16 @@ service cloud.firestore {
       match /planner_events/{eventId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
+      // Server-only subcollections (Admin SDK only — deny all client access)
+      match /copilot_pending/{docId} {
+        allow read, write: if false;
+      }
+      match /path_state/{docId} {
+        allow read, write: if false;
+      }
+      match /generated_pathways/{docId} {
+        allow read, write: if false;
+      }
     }
     
     // Recruiter profiles - only recruiters can access their own data
@@ -114,15 +124,30 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == suggestionId;
     }
     
-    // Public data - anyone can read
+    // Opportunities — auth required for read; write is server-only (Admin SDK)
+    // Intentional decision: all app users must be authenticated; no unauthenticated discovery path exists
     match /opportunities/{opportunityId} {
-      allow read: if true;
+      allow read: if request.auth != null;
     }
-    
-    // Waitlist - anyone can write, but only authenticated users can read their own
+
+    // Waitlist — auth required; actual writes go via Admin SDK (defence-in-depth)
     match /waitlist/{waitlistId} {
       allow read: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow write: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Server-only collections — all access via Admin SDK; deny all client access
+    match /consultingLeads/{docId} {
+      allow read, write: if false;
+    }
+    match /recruiterAccessRequests/{docId} {
+      allow read, write: if false;
+    }
+    match /opportunities_meta/{docId} {
+      allow read, write: if false;
+    }
+    match /system_logs/{docId} {
+      allow read, write: if false;
     }
   }
 }
