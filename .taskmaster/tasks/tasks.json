@@ -2,7 +2,7 @@
   "master": {
     "tasks": [
       {
-        "id": 1,
+        "id": "1",
         "title": "Harden new-user data paths against sparse/undefined Firestore fields",
         "description": "Guard every aggregation path so pages never throw on a near-empty account. Covers getCareerContext(), deduplicateOpportunities(), and evaluateSignals().",
         "details": "In src/lib/copilot/get-career-context.ts, src/lib/copilot/evaluate-signals.ts, and the opportunities aggregation, guard against undefined/null fields (missing title/organization, empty arrays, absent profile). Any opportunity with missing title/organization must not throw in deduplicateOpportunities(). A brand-new account must load the dashboard, copilot, and planner with zero runtime errors.",
@@ -13,7 +13,7 @@
         "subtasks": []
       },
       {
-        "id": 2,
+        "id": "2",
         "title": "Redesign Copilot to a horizontal Claude/ChatGPT-style layout",
         "description": "Replace the stacked-card Copilot UI with a focused horizontal layout that feels like a premium chat advisor (Phase 2 flagship item).",
         "details": "Restructure the /copilot page: primary conversation column + the DAS panel (Career Signals / History) as a fixed w-[340px] right column on desktop, drawer on mobile. Reduce stacked cards; emphasize the conversation. Use CSS variables only (no hardcoded dark-mode classes). Preserve Send-to-Planner affordances.",
@@ -24,98 +24,153 @@
         "subtasks": []
       },
       {
-        "id": 3,
+        "id": "3",
         "title": "Cross-page bug-fix pass",
         "description": "Sweep the main pages for the class of bugs already seen (dedup TypeErrors, undefined guards, missing error/empty states) beyond the new-user paths in task 1.",
         "details": "Audit dashboard, planner, paths, suggestions, tracker, profile for unguarded field access and missing error/empty states. Never use alert(); use inline error states. Fix issues found and add defensive guards.",
         "testStrategy": "Click through every page on a sparse and a populated account. No runtime errors. npx tsc --noEmit and npm run lint clean.",
         "priority": "high",
-        "dependencies": [1],
-        "status": "pending",
-        "subtasks": []
+        "dependencies": [
+          "1"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-06-05T03:44:39.738Z"
       },
       {
-        "id": 4,
+        "id": "4",
         "title": "Harden the Copilot -> Planner pipe",
         "description": "Make 'Send to Planner' / 'Add to Planner' reliable, with correct source attribution and batch support.",
         "details": "Ensure copilot-generated planner events write with source: 'copilot' and render with the Brain icon. Support single (/api/planner/events) and batch (/api/planner/events/batch, up to 20). Zod-validate bodies; require Firebase auth token. trackEvent() the action.",
         "testStrategy": "From Copilot, send a suggestion to the Planner; confirm it appears with the Brain icon and source:'copilot'. Batch of multiple events works. npx tsc --noEmit clean.",
         "priority": "high",
-        "dependencies": [2],
-        "status": "pending",
-        "subtasks": []
+        "dependencies": [
+          "2"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-06-05T03:44:39.744Z"
       },
       {
-        "id": 5,
+        "id": "5",
         "title": "Harden the Planner -> Dashboard signal loop",
         "description": "Ensure planner changes flow into the dashboard intelligence/signals so cross-feature state changes are visible.",
         "details": "Verify /api/dashboard/intelligence reflects new planner events (today's plan, momentum, signals from evaluateSignals()). Make the dashboard re-fetch/revalidate (SWR) after planner writes so changes appear without a hard reload.",
         "testStrategy": "Add a planner event, return to dashboard, confirm today's plan/signal updates. npx tsc --noEmit clean.",
         "priority": "high",
-        "dependencies": [4],
-        "status": "pending",
-        "subtasks": []
+        "dependencies": [
+          "4"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-06-05T03:54:05.078Z"
       },
       {
-        "id": 6,
+        "id": "6",
         "title": "Verify end-to-end cross-feature connectivity",
-        "description": "Prove the flagship loop: a Copilot suggestion becomes a Planner event which updates a Dashboard signal — reliably and visibly.",
+        "description": "Prove the flagship loop: a Copilot suggestion becomes a Planner event which updates a Dashboard signal \u00e2\u20ac\u201d reliably and visibly.",
         "details": "Walk the full loop and fix any seams so the 'connected system' promise is demonstrable in a single session. Document the demo path.",
         "testStrategy": "Scripted manual walkthrough: Copilot -> Send to Planner -> Dashboard signal changes, with no errors and clear visual feedback.",
         "priority": "medium",
-        "dependencies": [4, 5],
-        "status": "pending",
-        "subtasks": []
+        "dependencies": [
+          "4",
+          "5"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-06-05T09:30:30.650Z"
       },
       {
-        "id": 7,
+        "id": "7",
         "title": "First-run onboarding so the dashboard is never empty",
         "description": "Add a lightweight onboarding that seeds a profile + one goal so a new user immediately sees a populated, meaningful dashboard.",
         "details": "Minimal onboarding after first sign-in: capture name/headline + one focus goal, write to users/{uid} profile and seed one planner item or action. Ensure the dashboard has real content on first load. Honor the design system and profile-completion utility.",
         "testStrategy": "Fresh sign-up flows through onboarding to a non-empty dashboard. profile-completion reflects seeded data. npx tsc --noEmit clean.",
         "priority": "medium",
-        "dependencies": [1],
-        "status": "pending",
-        "subtasks": []
+        "dependencies": [
+          "1"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-06-06T02:42:11.577Z"
       },
       {
-        "id": 8,
+        "id": "8",
         "title": "Sharpen the landing/hero value proposition (<10s comprehension)",
         "description": "Rewrite the landing hero so a new visitor understands Gradual's value in under 10 seconds.",
         "details": "Tighten src/app/page.tsx hero copy and supporting sections to state the connected career-OS value plainly. Premium, spacious, on-brand. No buzzword soup.",
         "testStrategy": "5-second test with a fresh reader: can they state what Gradual does? Build + lint clean.",
         "priority": "medium",
-        "dependencies": [7],
-        "status": "pending",
-        "subtasks": []
+        "dependencies": [
+          "7"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-06-06T03:13:21.098Z"
       },
       {
-        "id": 9,
+        "id": "9",
         "title": "Surface differentiation: 'why Gradual, not a chatbot or job board'",
         "description": "Add a tight in-product articulation of why Gradual is a connected system, distinct from generic AI tools and job boards.",
         "details": "A concise section/copy (landing or onboarding) making the connected-system thesis explicit. Aligns with the proposition-clarity goal. Keep it short and sharp.",
         "testStrategy": "Reads clearly; no walls of text. Build + lint clean.",
         "priority": "medium",
-        "dependencies": [8],
-        "status": "pending",
-        "subtasks": []
+        "dependencies": [
+          "8"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-06-06T11:23:55.487Z"
       },
       {
-        "id": 10,
+        "id": "10",
         "title": "Instrument the new flows",
         "description": "Ensure trackEvent() fires on the key new actions (onboarding completion, copilot->planner, connectivity loop).",
         "details": "Add fire-and-forget trackEvent() calls via src/lib/analytics.ts for onboarding completion, send-to-planner, and dashboard signal interactions. No PII beyond uid.",
         "testStrategy": "Events appear in the analytics collection for each action. No errors if analytics write fails (fire-and-forget).",
         "priority": "low",
-        "dependencies": [6, 7],
+        "dependencies": [
+          "6",
+          "7"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-06-06T03:14:18.320Z"
+      },
+      {
+        "id": "11",
+        "title": "Rotate the exposed API key and lock down secrets",
+        "description": "The repo was made public with an old API key in git history. Rotate the key in the relevant service dashboard, revoke the old one, and audit all .env / secret references to confirm nothing else is exposed.",
+        "details": "Steps: (1) Identify which key was exposed (check git log for .env additions). (2) Rotate the key in the service dashboard (revoke old, generate new). (3) Update the key in Vercel environment variables and any other deployment targets. (4) Confirm the old key is invalidated. (5) Add the relevant .env.* patterns to .gitignore if not already there. (6) Consider adding a pre-commit hook or secret-scanning CI step (e.g. git-secrets or trufflehog) to prevent future exposure.",
+        "testStrategy": "Old key returns 401/403 when used. New key works in local dev (npm run dev). Vercel preview deployment works. .gitignore prevents .env from being staged (git status shows .env as untracked, not staged).",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-06-13T00:00:00.000Z"
+      },
+      {
+        "id": "12",
+        "title": "Harden Firestore security rules",
+        "description": "Audit and tighten Firestore rules so users can only read/write their own documents. Confirm no collection is world-readable or world-writable.",
+        "details": "Review firestore.rules. Rules must: (1) Require auth on all reads and writes. (2) Scope per-user collections (users/{uid}/**) to request.auth.uid == uid. (3) Restrict the global collections (todos, actionItems, applications, opportunities) so users can only access their own records (userId == request.auth.uid). (4) The opportunities collection may need partial public read for discovery - confirm intent and lock accordingly. (5) Deploy updated rules with firebase deploy --only firestore:rules. (6) Run the Firebase emulator test suite if one exists.",
+        "testStrategy": "firebase deploy --only firestore:rules succeeds. Manual check: a logged-in user cannot read another user document via the Firebase console or SDK. Unauthenticated reads to any user-scoped path return permission-denied.",
+        "priority": "high",
+        "dependencies": [
+          "11"
+        ],
         "status": "pending",
         "subtasks": []
       }
     ],
     "metadata": {
-      "created": "2026-06-03T00:00:00.000Z",
-      "updated": "2026-06-05T00:00:00.000Z",
-      "description": "Tasks for master context (generated for Atlas Gate 4 from prd.txt). 2026-06-05: #1 and #2 marked done — delivered in the uncommitted working tree (Copilot agent-mode overhaul)."
+      "version": "1.0.0",
+      "lastModified": "2026-06-06T11:23:55.488Z",
+      "taskCount": 10,
+      "completedCount": 10,
+      "tags": [
+        "master"
+      ]
     }
   }
 }
