@@ -20,7 +20,9 @@ if (!admin.apps.length) {
     console.error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is required');
     process.exit(1);
   }
-  const serviceAccount = JSON.parse(serviceAccountKey);
+  // trim() strips a leading BOM (U+FEFF) / stray whitespace that dashboard-pasted
+  // env values can carry, which would otherwise make JSON.parse throw.
+  const serviceAccount = JSON.parse(serviceAccountKey.trim());
   admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 }
 
