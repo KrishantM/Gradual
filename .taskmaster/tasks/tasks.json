@@ -68,7 +68,7 @@
       {
         "id": "6",
         "title": "Verify end-to-end cross-feature connectivity",
-        "description": "Prove the flagship loop: a Copilot suggestion becomes a Planner event which updates a Dashboard signal \u00e2\u20ac\u201d reliably and visibly.",
+        "description": "Prove the flagship loop: a Copilot suggestion becomes a Planner event which updates a Dashboard signal â€” reliably and visibly.",
         "details": "Walk the full loop and fix any seams so the 'connected system' promise is demonstrable in a single session. Document the demo path.",
         "testStrategy": "Scripted manual walkthrough: Copilot -> Send to Planner -> Dashboard signal changes, with no errors and clear visual feedback.",
         "priority": "medium",
@@ -159,15 +159,16 @@
         "dependencies": [
           "11"
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-06-25T00:00:00.000Z"
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-06-06T11:23:55.488Z",
-      "taskCount": 10,
-      "completedCount": 10,
+      "lastModified": "2026-06-25T00:00:00.000Z",
+      "taskCount": 12,
+      "completedCount": 12,
       "tags": [
         "master"
       ]
