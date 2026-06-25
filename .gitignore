@@ -67,3 +67,7 @@ node_modules/
 # Task files
 # tasks.json
 # tasks/ 
+
+# Playwright output
+test-results/
+playwright-report/
